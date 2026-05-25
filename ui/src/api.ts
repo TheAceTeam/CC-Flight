@@ -1,4 +1,4 @@
-import type { Artifact, IngestJob, ProjectTimeline, RunReplay, SessionRecord } from "../../core/types";
+import type { Artifact, EventEvidence, IngestJob, ProjectTimeline, RunReplay, SessionRecord } from "../../core/types";
 
 export interface ProjectWithSessions {
   id: string;
@@ -34,10 +34,20 @@ export async function fetchIngestJob(jobId: string): Promise<IngestJob> {
   return (await response.json()) as IngestJob;
 }
 
-export async function fetchTimeline(projectId: string): Promise<ProjectTimeline> {
-  const response = await fetch(`/api/projects/${projectId}/timeline`);
+export async function fetchTimeline(projectId: string, query: { limit?: number; offset?: number } = {}): Promise<ProjectTimeline> {
+  const params = new URLSearchParams();
+  if (query.limit !== undefined) params.set("limit", String(query.limit));
+  if (query.offset !== undefined) params.set("offset", String(query.offset));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(`/api/projects/${projectId}/timeline${suffix}`);
   if (!response.ok) throw new Error("Failed to load timeline");
   return (await response.json()) as ProjectTimeline;
+}
+
+export async function fetchEventEvidence(eventId: string): Promise<EventEvidence> {
+  const response = await fetch(`/api/events/${eventId}/evidence`);
+  if (!response.ok) throw new Error("Failed to load event evidence");
+  return (await response.json()) as EventEvidence;
 }
 
 export async function fetchRun(sessionId: string): Promise<RunReplay & { artifacts: Artifact[] }> {

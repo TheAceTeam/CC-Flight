@@ -1,21 +1,28 @@
 import { AlertTriangle, ChevronRight, Database, FileText, Moon, Pause, Play, RotateCw, Search, Sun, TerminalSquare } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { Artifact, IngestJob, ProjectTimeline, ReplayNode, RunReplay, TimelineEvent } from "../../core/types";
-import { fetchIngestJob, fetchProjects, fetchRun, fetchTimeline, ProjectWithSessions, startIngest } from "./api";
+import type { Artifact, EventEvidence, IngestJob, ProjectTimeline, ReplayNode, RunReplay, TimelineEvent } from "../../core/types";
+import { fetchEventEvidence, fetchIngestJob, fetchProjects, fetchRun, fetchTimeline, ProjectWithSessions, startIngest } from "./api";
 
 type Theme = "light" | "dark";
 
 const LANES = ["Product", "Architecture", "Code", "Agent Runs", "Verification", "Risks"];
+const TIMELINE_LIMIT = 300;
+const LANE_RENDER_LIMIT = 28;
 
 export function App() {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("superview-theme") as Theme | null) ?? "light");
   const [projects, setProjects] = useState<ProjectWithSessions[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<ProjectTimeline | null>(null);
+  const [timelineOffset, setTimelineOffset] = useState(0);
+  const [timelineLoading, setTimelineLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
+  const [eventEvidence, setEventEvidence] = useState<EventEvidence | null>(null);
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [selectedRun, setSelectedRun] = useState<RunReplay | null>(null);
   const [selectedNode, setSelectedNode] = useState<ReplayNode | null>(null);
   const [job, setJob] = useState<IngestJob | null>(null);
+  const [codexHome, setCodexHome] = useState("");
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [playIndex, setPlayIndex] = useState(0);
@@ -32,11 +39,38 @@ export function App() {
 
   useEffect(() => {
     if (!selectedProjectId) return;
-    void fetchTimeline(selectedProjectId).then((next) => {
-      setTimeline(next);
-      setSelectedEvent(next.events[0] ?? null);
-    });
+    void loadTimeline(selectedProjectId, 0);
   }, [selectedProjectId]);
+
+  useEffect(() => {
+    if (!selectedEvent) {
+      setEventEvidence(null);
+      return;
+    }
+
+    let cancelled = false;
+    setEvidenceLoading(true);
+    void fetchEventEvidence(selectedEvent.id)
+      .then((next) => {
+        if (!cancelled) {
+          setEventEvidence(next);
+          setError(null);
+        }
+      })
+      .catch((evidenceError) => {
+        if (!cancelled) {
+          setEventEvidence({ event: selectedEvent, artifacts: [], rawEvent: null });
+          setError(evidenceError instanceof Error ? evidenceError.message : String(evidenceError));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setEvidenceLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedEvent]);
 
   useEffect(() => {
     if (!job || job.status === "completed" || job.status === "failed") return;
@@ -77,9 +111,39 @@ export function App() {
     }
   }
 
+  async function loadTimeline(projectId: string, offset: number) {
+    setTimelineLoading(true);
+    try {
+      const next = await fetchTimeline(projectId, { limit: TIMELINE_LIMIT, offset });
+      setTimeline(next);
+      setTimelineOffset(next.offset ?? offset);
+      setSelectedEvent(next.events[0] ?? null);
+      setSelectedRun(null);
+      setSelectedNode(null);
+      setPlaying(false);
+      setError(null);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : String(loadError));
+    } finally {
+      setTimelineLoading(false);
+    }
+  }
+
+  async function loadNextTimelinePage() {
+    if (!selectedProjectId || !timeline) return;
+    const nextOffset = timelineOffset + (timeline.limit ?? TIMELINE_LIMIT);
+    await loadTimeline(selectedProjectId, nextOffset);
+  }
+
+  async function loadPreviousTimelinePage() {
+    if (!selectedProjectId) return;
+    const previousOffset = Math.max(0, timelineOffset - TIMELINE_LIMIT);
+    await loadTimeline(selectedProjectId, previousOffset);
+  }
+
   async function handleScan() {
     setError(null);
-    const jobId = await startIngest();
+    const jobId = await startIngest(codexHome.trim() || undefined);
     setJob(await fetchIngestJob(jobId));
   }
 
@@ -102,7 +166,13 @@ export function App() {
   }, [timeline]);
 
   const drawerEvent = selectedNode ? selectedRun?.events.find((event) => event.id === selectedNode.eventId) ?? selectedEvent : selectedEvent;
-  const drawerArtifacts = selectedRun?.artifacts.filter((artifact) => artifact.eventId === drawerEvent?.id) ?? [];
+  const drawerEvidence = eventEvidence?.event.id === drawerEvent?.id ? eventEvidence : null;
+  const drawerArtifacts = drawerEvidence?.artifacts ?? selectedRun?.artifacts.filter((artifact) => artifact.eventId === drawerEvent?.id) ?? [];
+  const totalEvents = timeline?.totalEvents ?? timeline?.events.length ?? 0;
+  const currentLimit = timeline?.limit ?? TIMELINE_LIMIT;
+  const pageEnd = Math.min(timelineOffset + (timeline?.events.length ?? 0), totalEvents);
+  const hasPreviousPage = timelineOffset > 0;
+  const hasNextPage = totalEvents > timelineOffset + currentLimit;
 
   return (
     <div className="app-shell">
@@ -112,6 +182,15 @@ export function App() {
           <span>Codex timeline command center</span>
         </div>
         <div className="topbar-actions">
+          <label className="codex-home-control">
+            <span>Codex home</span>
+            <input
+              aria-label="Codex home path"
+              value={codexHome}
+              onChange={(event) => setCodexHome(event.target.value)}
+              placeholder="Server default"
+            />
+          </label>
           <button className="shell-button" onClick={handleScan} disabled={job?.status === "running"}>
             <RotateCw size={16} />
             Scan Codex Logs
@@ -131,7 +210,7 @@ export function App() {
           </div>
           <div className="status-cluster">
             <Metric label="Projects" value={projects.length} />
-            <Metric label="Events" value={timeline?.events.length ?? 0} />
+            <Metric label="Events" value={totalEvents} />
             <Metric label="Episodes" value={timeline?.episodes.length ?? 0} />
           </div>
         </section>
@@ -140,9 +219,9 @@ export function App() {
         {job ? <JobStrip job={job} /> : null}
 
         {loading ? (
-          <EmptyState title="Loading SuperView index" detail="Checking local SQLite state." onScan={handleScan} />
+          <EmptyState title="Loading SuperView index" detail="Checking local SQLite state." codexHome={codexHome} onCodexHomeChange={setCodexHome} onScan={handleScan} />
         ) : projects.length === 0 ? (
-          <EmptyState title="No Codex runs indexed" detail="Scan local rollout JSONL files from ~/.codex/sessions to build the first timeline." onScan={handleScan} />
+          <EmptyState title="No Codex runs indexed" detail="Scan local rollout JSONL files from ~/.codex/sessions to build the first timeline." codexHome={codexHome} onCodexHomeChange={setCodexHome} onScan={handleScan} />
         ) : (
           <div className="dashboard-grid">
             <aside className="run-ledger">
@@ -173,7 +252,14 @@ export function App() {
               <div className="panel-heading">
                 <FileText size={17} />
                 <span>Engineering Timeline</span>
-                <em>Auto grouped</em>
+                <em>{timelineOffset + 1}-{pageEnd} of {totalEvents}</em>
+              </div>
+              <div className="timeline-controls">
+                <span>{timeline?.events.length ?? 0} events loaded, lane dots capped at {LANE_RENDER_LIMIT} each</span>
+                <div>
+                  <button className="secondary-button" onClick={loadPreviousTimelinePage} disabled={!hasPreviousPage || timelineLoading}>Previous</button>
+                  <button className="secondary-button" onClick={loadNextTimelinePage} disabled={!hasNextPage || timelineLoading}>Load more</button>
+                </div>
               </div>
               <div className="episode-strip">
                 {(timeline?.episodes ?? []).map((episode) => (
@@ -186,13 +272,19 @@ export function App() {
               <div className="lanes">
                 {LANES.map((lane) => (
                   <div className="lane" key={lane}>
-                    <div className="lane-label">{lane}</div>
+                    <div className="lane-label">
+                      <span>{lane}</span>
+                      <small>{eventsByLane.get(lane)?.length ?? 0}</small>
+                    </div>
                     <div className="lane-track">
-                      {(eventsByLane.get(lane) ?? []).slice(0, 18).map((event) => (
+                      {(eventsByLane.get(lane) ?? []).slice(0, LANE_RENDER_LIMIT).map((event) => (
                         <button key={event.id} className={`event-dot ${event.status}`} title={event.title} onClick={() => setSelectedEvent(event)}>
                           <span>{shortLabel(event.title)}</span>
                         </button>
                       ))}
+                      {(eventsByLane.get(lane)?.length ?? 0) > LANE_RENDER_LIMIT ? (
+                        <span className="lane-overflow">+{(eventsByLane.get(lane)?.length ?? 0) - LANE_RENDER_LIMIT} more on this page</span>
+                      ) : null}
                     </div>
                   </div>
                 ))}
@@ -219,7 +311,7 @@ export function App() {
               ) : null}
             </section>
 
-            <EvidenceDrawer event={drawerEvent ?? null} artifacts={drawerArtifacts} />
+            <EvidenceDrawer event={drawerEvent ?? null} artifacts={drawerArtifacts} rawEvent={drawerEvidence?.rawEvent ?? null} loading={evidenceLoading} />
           </div>
         )}
       </main>
@@ -236,12 +328,28 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function EmptyState({ title, detail, onScan }: { title: string; detail: string; onScan: () => void }) {
+function EmptyState({
+  title,
+  detail,
+  codexHome,
+  onCodexHomeChange,
+  onScan
+}: {
+  title: string;
+  detail: string;
+  codexHome: string;
+  onCodexHomeChange: (value: string) => void;
+  onScan: () => void;
+}) {
   return (
     <section className="empty-state">
       <Search size={34} />
       <h2>{title}</h2>
       <p>{detail}</p>
+      <label className="empty-codex-home">
+        <span>Codex home path</span>
+        <input aria-label="Empty Codex home path" value={codexHome} onChange={(event) => onCodexHomeChange(event.target.value)} placeholder="Blank uses server default" />
+      </label>
       <button className="primary-button" onClick={onScan}>Scan Codex Logs</button>
     </section>
   );
@@ -308,12 +416,13 @@ function RunReplayPanel({
   );
 }
 
-function EvidenceDrawer({ event, artifacts }: { event: TimelineEvent | null; artifacts: Artifact[] }) {
+function EvidenceDrawer({ event, artifacts, rawEvent, loading }: { event: TimelineEvent | null; artifacts: Artifact[]; rawEvent: EventEvidence["rawEvent"]; loading: boolean }) {
   return (
     <aside className="evidence-drawer">
       <div className="panel-heading">
         <FileText size={17} />
         <span>Evidence</span>
+        {loading ? <em>Loading</em> : null}
       </div>
       {event ? (
         <>
@@ -328,13 +437,28 @@ function EvidenceDrawer({ event, artifacts }: { event: TimelineEvent | null; art
             {event.callId ? <><dt>Call</dt><dd>{event.callId}</dd></> : null}
           </dl>
           <pre>{event.detail ?? "No detail captured."}</pre>
-          {artifacts.map((artifact) => (
-            <div className="artifact" key={artifact.id}>
-              <strong>{artifact.type}</strong>
-              <small>{artifact.path}</small>
-              <pre>{artifact.excerpt}</pre>
+          <h3>Artifacts</h3>
+          {artifacts.length > 0 ? (
+            artifacts.map((artifact) => (
+              <div className="artifact" key={artifact.id}>
+                <strong>{artifact.type}</strong>
+                <small>{artifact.path ?? "Inline evidence"}</small>
+                <pre>{artifact.excerpt}</pre>
+              </div>
+            ))
+          ) : (
+            <p className="muted">No artifacts attached to this event.</p>
+          )}
+          <h3>Raw Event</h3>
+          {rawEvent ? (
+            <div className="artifact">
+              <strong>{rawEvent.type}</strong>
+              <small>{rawEvent.sourcePath}:{rawEvent.lineNo}</small>
+              <pre>{rawEvent.redactedPayloadJson}</pre>
             </div>
-          ))}
+          ) : (
+            <p className="muted">No raw event reference available.</p>
+          )}
         </>
       ) : (
         <p className="muted">Select an episode, timeline event, or replay node to inspect redacted evidence.</p>

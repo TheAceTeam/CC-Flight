@@ -118,6 +118,8 @@ export function normalizeCodexLines(lines: ParsedCodexLine[], options: Normalize
     events.push(makeEvent({ line, rawRef, projectId, sessionId, turnId, kind: "status", lane: "Agent Runs", title: line.type, detail: safeExcerpt(payload, 500) }));
   }
 
+  associateFunctionCallOutputs(events);
+
   return {
     project,
     session,
@@ -241,6 +243,8 @@ function makeEvent(input: {
   callId?: string | null;
   status?: TimelineEvent["status"];
   files?: string[];
+  durationMs?: number | null;
+  outputEventId?: string | null;
 }): TimelineEvent {
   return {
     id: stableId("event", input.sessionId, input.line.lineNo, input.kind, input.title),
@@ -256,8 +260,61 @@ function makeEvent(input: {
     callId: input.callId ?? null,
     status: input.status ?? "unknown",
     files: input.files ?? [],
-    rawEventRefId: input.rawRef.id
+    rawEventRefId: input.rawRef.id,
+    durationMs: input.durationMs ?? null,
+    outputEventId: input.outputEventId ?? null
   };
+}
+
+function associateFunctionCallOutputs(events: TimelineEvent[]): void {
+  const callsById = new Map<string, TimelineEvent>();
+
+  for (const event of events) {
+    if (event.callId && event.toolName && (event.kind === "tool_call" || event.kind === "file_change" || event.kind === "verification")) {
+      callsById.set(event.callId, event);
+    }
+  }
+
+  for (const output of events) {
+    if (!output.callId) continue;
+    const call = callsById.get(output.callId);
+    if (!call || call.id === output.id) continue;
+
+    const failed = output.status === "failed" || output.kind === "error";
+    call.status = failed ? "failed" : "success";
+    call.outputEventId = output.id;
+    call.durationMs = durationBetween(call.timestamp, output.timestamp);
+
+    const normalized = outputShapeForCall(call, output);
+    output.kind = normalized.kind;
+    output.lane = normalized.lane;
+    output.title = normalized.title;
+    output.status = normalized.status;
+    output.toolName = call.toolName;
+    output.files = Array.from(new Set([...call.files, ...output.files]));
+  }
+}
+
+function outputShapeForCall(call: TimelineEvent, output: TimelineEvent): Pick<TimelineEvent, "kind" | "lane" | "title" | "status"> {
+  if (output.status === "failed" || output.kind === "error") {
+    return { kind: "error", lane: "Risks", title: "Tool output failed", status: "failed" };
+  }
+  if (call.kind === "verification" || call.lane === "Verification") {
+    return { kind: "verification", lane: "Verification", title: "Verification output", status: "success" };
+  }
+  if (call.kind === "file_change") {
+    return { kind: "file_change", lane: call.lane, title: "Patch output", status: "success" };
+  }
+  return { kind: "tool_result", lane: call.lane, title: "Tool output", status: "success" };
+}
+
+function durationBetween(start: string, end: string): number | null {
+  const startMs = Date.parse(start);
+  const endMs = Date.parse(end);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) {
+    return null;
+  }
+  return endMs - startMs;
 }
 
 function makeArtifact(event: TimelineEvent, rawRef: RawEventRef, payload: unknown): Artifact {
@@ -282,6 +339,7 @@ function titleForToolCall(toolName: string, payload: Record<string, unknown>): s
 
 function laneForToolCall(toolName: string, payload: Record<string, unknown>): TimelineLane {
   const haystack = `${toolName} ${stringValue(payload.arguments) ?? ""}`;
+  if (mentionsArchitectureFile(haystack)) return "Architecture";
   if (/apply_patch|write|edit|patch|git diff/i.test(haystack)) return "Code";
   if (/test|lint|build|typecheck|tsc|playwright|curl/i.test(haystack)) return "Verification";
   return "Agent Runs";
@@ -314,6 +372,10 @@ function extractFiles(value: unknown): string[] {
   const text = typeof value === "string" ? value : JSON.stringify(value);
   const matches = text.match(/(?:[A-Za-z0-9_.-]+\/)+[A-Za-z0-9_.-]+\.[A-Za-z0-9]+/g) ?? [];
   return Array.from(new Set(matches)).slice(0, 20);
+}
+
+function mentionsArchitectureFile(text: string): boolean {
+  return /(?:^|[/"'\s])(?:docs?|design|plans?|architecture)(?:\/|[A-Za-z0-9_.-]*\.(?:md|mdx|txt|json|yaml|yml|toml))|(?:^|[/"'\s])(?:[A-Za-z0-9_.-]*-)?(?:design|plan|architecture)(?:-[A-Za-z0-9_.-]*)?\.(?:md|mdx|txt|json|yaml|yml|toml)/i.test(text);
 }
 
 function summarize(text: string | null | undefined, fallback: string): string {

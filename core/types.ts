@@ -101,6 +101,9 @@ export interface TimelineEvent {
   status: EventStatus;
   files: string[];
   rawEventRefId: string | null;
+  durationMs?: number | null;
+  outputEventId?: string | null;
+  commitHash?: string | null;
 }
 
 export interface Episode {
@@ -132,6 +135,7 @@ export interface IngestJob {
   processedFiles: number;
   totalEvents: number;
   errors: string[];
+  skippedFiles?: number;
 }
 
 export interface IngestResult {
@@ -164,6 +168,46 @@ export interface ProjectTimeline {
   project: ProjectRecord;
   episodes: Episode[];
   events: TimelineEvent[];
+  totalEvents?: number;
+  limit?: number;
+  offset?: number;
+}
+
+export interface TimelineQuery {
+  limit?: number;
+  offset?: number;
+  lane?: TimelineLane;
+  since?: string;
+  until?: string;
+}
+
+export interface EventEvidence {
+  event: TimelineEvent;
+  artifacts: Artifact[];
+  rawEvent: RawEventRef | null;
+}
+
+export interface GitCommitRecord {
+  id: string;
+  projectId: string;
+  repoRoot: string;
+  hash: string;
+  shortHash: string;
+  authorName: string | null;
+  authorEmail: string | null;
+  timestamp: string;
+  subject: string;
+  filesChanged: number;
+  insertions: number;
+  deletions: number;
+}
+
+export interface CodexHistoryPrompt {
+  sessionId: string;
+  ts: string;
+  text: string;
+  sourcePath: string;
+  lineNo: number;
 }
 
 export interface NormalizedBundle {
@@ -173,4 +217,6 @@ export interface NormalizedBundle {
   rawEventRefs: RawEventRef[];
   events: TimelineEvent[];
   artifacts: Artifact[];
+  historyPrompts?: CodexHistoryPrompt[];
+  gitCommits?: GitCommitRecord[];
 }

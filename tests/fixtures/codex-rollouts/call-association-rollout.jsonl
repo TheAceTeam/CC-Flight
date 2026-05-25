@@ -1,0 +1,8 @@
+{"timestamp":"2026-05-25T04:00:00.000Z","type":"session_meta","payload":{"id":"fixture-call-association-session","timestamp":"2026-05-25T04:00:00.000Z","cwd":"/tmp/superview-fixture","cli_version":"0.125.0","model_provider":"OpenAI","source":"cli"}}
+{"timestamp":"2026-05-25T04:00:01.000Z","type":"turn_context","payload":{"turn_id":"turn-1","cwd":"/tmp/superview-fixture","model":"gpt-5"}}
+{"timestamp":"2026-05-25T04:00:02.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Update architecture docs and retry failing tests"}]}}
+{"timestamp":"2026-05-25T04:00:03.000Z","type":"response_item","payload":{"type":"function_call","name":"functions.apply_patch","call_id":"call-docs","arguments":"*** Begin Patch\n*** Update File: docs/technical-design.md\n+Add normalized timeline notes.\n*** End Patch"}}
+{"timestamp":"2026-05-25T04:00:06.000Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call-docs","output":"Success. Updated files:\nM docs/technical-design.md"}}
+{"timestamp":"2026-05-25T04:00:07.000Z","type":"response_item","payload":{"type":"function_call","name":"functions.exec_command","call_id":"call-test","arguments":"{\"cmd\":\"pnpm test tests/core.test.ts\"}"}}
+{"timestamp":"2026-05-25T04:00:10.000Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call-test","output":"Tests failed with exit code 1\nFAIL tests/core.test.ts"}}
+{"timestamp":"2026-05-25T04:00:11.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Retrying after the failed assertion."}]}}

@@ -28,18 +28,19 @@ export function buildRunReplay(session: SessionRecord, events: TimelineEvent[]) 
 }
 
 function nodeTypeForEvent(event: TimelineEvent): ReplayNodeType {
+  if (hasRetrySignal(event)) return "loop";
   if (event.kind === "user_prompt") return "start";
   if (event.kind === "file_change") return "powerup";
   if (event.kind === "verification" && event.status === "success") return "finish";
-  if (event.kind === "verification") return "platform";
   if (event.status === "failed" || event.kind === "error") return "hazard";
+  if (event.kind === "verification") return "platform";
   if (/read|search|rg|find|open/i.test(`${event.title} ${event.detail ?? ""}`)) return "context";
-  if (/retry|again|loop/i.test(`${event.title} ${event.detail ?? ""}`)) return "loop";
   if (event.kind === "tool_call" || event.kind === "tool_result") return "platform";
   return "message";
 }
 
 function labelForEvent(event: TimelineEvent): string {
+  if (hasRetrySignal(event)) return "Retry";
   if (event.kind === "user_prompt") return "Start";
   if (event.kind === "file_change") return "Patch";
   if (event.kind === "verification" && event.status === "success") return "Flag";
@@ -47,4 +48,8 @@ function labelForEvent(event: TimelineEvent): string {
   if (event.status === "failed" || event.kind === "error") return "Hazard";
   if (event.kind === "tool_call") return event.toolName ?? "Tool";
   return event.title.length > 18 ? `${event.title.slice(0, 15)}...` : event.title;
+}
+
+function hasRetrySignal(event: TimelineEvent): boolean {
+  return /retry|re-?run|try again|again|repeat|loop|重试|再试/i.test(`${event.title} ${event.detail ?? ""}`);
 }

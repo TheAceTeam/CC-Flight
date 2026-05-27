@@ -133,6 +133,26 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
         exitType: "session_end",
         eventIds: taskEvents.map((event) => event.id),
         tokenUsage,
+        skills: offset + startIndex === 0 ? [
+          {
+            name: "abtest",
+            source: "user_prompt",
+            confidence: "inferred",
+            path: null,
+            command: "/abtest",
+            evidencePath: "rollout.jsonl",
+            excerpt: "/abtest"
+          },
+          {
+            name: "design-review",
+            source: "assistant_message",
+            confidence: "explicit",
+            path: "/Users/sean/.agents/skills/gstack/design-review/SKILL.md",
+            command: null,
+            evidencePath: "rollout.jsonl",
+            excerpt: "Using skill design-review"
+          }
+        ] : [],
         stageCounts: {
           Product: taskEvents.filter((event) => event.lane === "Product").length,
           Code: taskEvents.filter((event) => event.lane === "Code").length,
@@ -303,7 +323,21 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
       status: "success",
       files: [],
       rawEventRefId: `detail-raw-${offset + index}`,
-      tokenUsage: index === 1 ? tokenUsageForTask(offset) : null
+      tokenUsage: index === 1 ? tokenUsageForTask(offset) : null,
+      skills:
+        offset === 300 && index === 1
+          ? [
+              {
+                name: "ui-ux-pro-max",
+                source: "assistant_message",
+                confidence: "explicit",
+                path: null,
+                command: null,
+                evidencePath: "rollout.jsonl",
+                excerpt: "Using skill ui-ux-pro-max"
+              }
+            ]
+          : []
     }));
     const tokenUsage = tokenUsageForTask(offset);
     await route.fulfill({
@@ -323,6 +357,17 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
           exitType: "session_end",
           eventIds: events.map((event) => event.id),
           tokenUsage,
+          skills: offset === 300 ? [
+            {
+              name: "ui-ux-pro-max",
+              source: "assistant_message",
+              confidence: "explicit",
+              path: null,
+              command: null,
+              evidencePath: "rollout.jsonl",
+              excerpt: "Using skill ui-ux-pro-max"
+            }
+          ] : [],
           stageCounts: {
             Product: 1,
             Code: events.filter((event) => event.lane === "Code").length,
@@ -392,6 +437,8 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
   await expect(page.locator(".conversation-turn").first().getByText("1,420 tokens")).toBeVisible();
   await expect(page.locator(".conversation-turn").first().getByText("KV hit 25.0%")).toBeVisible();
   await expect(page.locator(".conversation-turn").first().locator(".message-row.user").getByText("Build task journey from input 0")).toHaveCount(1);
+  await expect(page.locator(".conversation-turn").first().locator(".message-row.user .skill-chip", { hasText: "abtest" })).toBeVisible();
+  await expect(page.locator(".conversation-turn").first().locator(".message-row.codex .skill-chip", { hasText: "design-review" }).first()).toBeVisible();
   await expect(page.locator(".conversation-turn")).toHaveCount(4);
   await expect(page.locator(".conversation-turn").filter({ hasText: "Build task journey from input 75" })).toBeVisible();
   await expect(page.locator(".conversation-turn").filter({ hasText: "Build task journey from input 150" })).toBeVisible();
@@ -423,6 +470,7 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
   await page.locator(".conversation-turn").filter({ hasText: "Build task journey from input 300" }).getByRole("button", { name: /Agent work.*查看过程\.\.\./ }).click();
   await expect.poll(() => journeyDetailRequests.filter((id) => id === "task-300").length).toBe(1);
   await expect(page.getByText("Codex completed task 300 in CLI output.")).toBeVisible();
+  await expect(page.locator(".conversation-turn").filter({ hasText: "Build task journey from input 300" }).locator(".skill-chip", { hasText: "ui-ux-pro-max" }).first()).toBeVisible();
   const task300CodexBody = page.locator(".conversation-turn").filter({ hasText: "Build task journey from input 300" }).locator(".message-row.codex .message-body");
   await expect(task300CodexBody).toHaveAttribute("data-expanded", "false");
   await expect.poll(async () => Math.round((await task300CodexBody.boundingBox())?.height ?? 0)).toBeLessThanOrEqual(250);

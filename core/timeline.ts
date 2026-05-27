@@ -1,5 +1,5 @@
 import { addMinutes, differenceInMinutes, isValid, parseISO } from "date-fns";
-import { CausalConfidence, CausalEdge, CausalEdgeType, Episode, EventStatus, ProjectRecord, ProjectTimeline, TaskJourney, TaskJourneyStage, TimelineEvent, TimelineLane, TokenUsage } from "./types";
+import { CausalConfidence, CausalEdge, CausalEdgeType, Episode, EventStatus, ProjectRecord, ProjectTimeline, SkillUsage, TaskJourney, TaskJourneyStage, TimelineEvent, TimelineLane, TokenUsage } from "./types";
 import { stableId } from "./id";
 
 const EPISODE_GAP_MINUTES = 90;
@@ -69,10 +69,24 @@ export function buildTaskJourneys(projectId: string, events: TimelineEvent[]): T
       exitType: nextPrompt ? "next_prompt" : "session_end",
       eventIds: journeyEvents.map((event) => event.id),
       tokenUsage: aggregateEventTokenUsage(journeyEvents),
+      skills: aggregateEventSkills(journeyEvents),
       stageCounts,
       stages
     };
   });
+}
+
+function aggregateEventSkills(events: TimelineEvent[]): SkillUsage[] {
+  const byIdentity = new Map<string, SkillUsage>();
+  for (const event of events) {
+    for (const skill of event.skills ?? []) {
+      const key = `${skill.name}\0${skill.path ?? ""}\0${skill.source}`;
+      if (!byIdentity.has(key)) {
+        byIdentity.set(key, skill);
+      }
+    }
+  }
+  return [...byIdentity.values()].sort((a, b) => a.name.localeCompare(b.name) || a.source.localeCompare(b.source));
 }
 
 function durationBetween(start: string, end: string): number {

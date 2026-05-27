@@ -107,6 +107,25 @@ export interface TokenUsage {
   total: number;
 }
 
+export type SkillUsageSource =
+  | "session_meta"
+  | "developer_message"
+  | "user_prompt"
+  | "assistant_message"
+  | "tool_input"
+  | "tool_output"
+  | "event_message";
+
+export interface SkillUsage {
+  name: string;
+  source: SkillUsageSource;
+  confidence: "explicit" | "inferred";
+  path: string | null;
+  command: string | null;
+  evidencePath: string;
+  excerpt: string;
+}
+
 export interface TimelineEvent {
   id: string;
   projectId: string;
@@ -126,6 +145,7 @@ export interface TimelineEvent {
   outputEventId?: string | null;
   commitHash?: string | null;
   tokenUsage?: TokenUsage | null;
+  skills?: SkillUsage[];
 }
 
 export interface Episode {
@@ -175,6 +195,7 @@ export interface TaskJourney {
   exitType: TaskJourneyExitType;
   eventIds: string[];
   tokenUsage: TokenUsage;
+  skills: SkillUsage[];
   stageCounts: Partial<Record<TimelineLane, number>>;
   stages: TaskJourneyStage[];
 }

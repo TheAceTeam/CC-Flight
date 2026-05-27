@@ -25,9 +25,10 @@ import { resolveDatabasePath } from "./paths";
 
 const SCHEMA_VERSION = 1;
 
-type EventRow = Omit<TimelineEvent, "files" | "tokenUsage"> & {
+type EventRow = Omit<TimelineEvent, "files" | "tokenUsage" | "skills"> & {
   filesJson: string;
   tokenUsageJson: string | null;
+  skillsJson: string | null;
 };
 
 export class SuperViewDatabase {
@@ -118,6 +119,7 @@ export class SuperViewDatabase {
         output_event_id TEXT,
         commit_hash TEXT,
         token_usage_json TEXT,
+        skills_json TEXT,
         FOREIGN KEY(project_id) REFERENCES projects(id),
         FOREIGN KEY(session_id) REFERENCES sessions(id)
       );
@@ -214,6 +216,7 @@ export class SuperViewDatabase {
     this.ensureColumn("events", "output_event_id", "TEXT");
     this.ensureColumn("events", "commit_hash", "TEXT");
     this.ensureColumn("events", "token_usage_json", "TEXT");
+    this.ensureColumn("events", "skills_json", "TEXT");
     this.ensureColumn("ingested_files", "processor_version", "TEXT");
     this.db.prepare("INSERT OR REPLACE INTO schema_meta(version, updated_at) VALUES (?, ?)").run(SCHEMA_VERSION, new Date().toISOString());
   }
@@ -299,8 +302,8 @@ export class SuperViewDatabase {
   upsertEvent(event: TimelineEvent) {
     this.db
       .prepare(
-        `INSERT OR REPLACE INTO events(id, project_id, session_id, turn_id, timestamp, kind, lane, title, detail, tool_name, call_id, status, files_json, raw_event_ref_id, duration_ms, output_event_id, commit_hash, token_usage_json)
-         VALUES (@id, @projectId, @sessionId, @turnId, @timestamp, @kind, @lane, @title, @detail, @toolName, @callId, @status, @filesJson, @rawEventRefId, @durationMs, @outputEventId, @commitHash, @tokenUsageJson)`
+        `INSERT OR REPLACE INTO events(id, project_id, session_id, turn_id, timestamp, kind, lane, title, detail, tool_name, call_id, status, files_json, raw_event_ref_id, duration_ms, output_event_id, commit_hash, token_usage_json, skills_json)
+         VALUES (@id, @projectId, @sessionId, @turnId, @timestamp, @kind, @lane, @title, @detail, @toolName, @callId, @status, @filesJson, @rawEventRefId, @durationMs, @outputEventId, @commitHash, @tokenUsageJson, @skillsJson)`
       )
       .run({
         ...event,
@@ -308,7 +311,8 @@ export class SuperViewDatabase {
         durationMs: event.durationMs ?? null,
         outputEventId: event.outputEventId ?? null,
         commitHash: event.commitHash ?? null,
-        tokenUsageJson: event.tokenUsage ? JSON.stringify(event.tokenUsage) : null
+        tokenUsageJson: event.tokenUsage ? JSON.stringify(event.tokenUsage) : null,
+        skillsJson: event.skills && event.skills.length > 0 ? JSON.stringify(event.skills) : null
       });
   }
 
@@ -458,7 +462,8 @@ export class SuperViewDatabase {
       .prepare(
         `SELECT id, project_id as projectId, session_id as sessionId, turn_id as turnId, timestamp, kind, lane, title, detail,
                 tool_name as toolName, call_id as callId, status, files_json as filesJson, raw_event_ref_id as rawEventRefId,
-                duration_ms as durationMs, output_event_id as outputEventId, commit_hash as commitHash, token_usage_json as tokenUsageJson
+                duration_ms as durationMs, output_event_id as outputEventId, commit_hash as commitHash, token_usage_json as tokenUsageJson,
+                skills_json as skillsJson
          FROM events ${where} ORDER BY timestamp ASC${pagination}`
       )
       .all(...params, ...paginationParams) as EventRow[];
@@ -592,7 +597,8 @@ export class SuperViewDatabase {
       .prepare(
         `SELECT id, project_id as projectId, session_id as sessionId, turn_id as turnId, timestamp, kind, lane, title, detail,
                 tool_name as toolName, call_id as callId, status, files_json as filesJson, raw_event_ref_id as rawEventRefId,
-                duration_ms as durationMs, output_event_id as outputEventId, commit_hash as commitHash, token_usage_json as tokenUsageJson
+                duration_ms as durationMs, output_event_id as outputEventId, commit_hash as commitHash, token_usage_json as tokenUsageJson,
+                skills_json as skillsJson
          FROM events WHERE project_id = ? AND session_id = ? ORDER BY timestamp ASC`
       )
       .all(projectId, sessionId) as EventRow[];
@@ -604,7 +610,8 @@ export class SuperViewDatabase {
       .prepare(
         `SELECT id, project_id as projectId, session_id as sessionId, turn_id as turnId, timestamp, kind, lane, title, detail,
                 tool_name as toolName, call_id as callId, status, files_json as filesJson, raw_event_ref_id as rawEventRefId,
-                duration_ms as durationMs, output_event_id as outputEventId, commit_hash as commitHash, token_usage_json as tokenUsageJson
+                duration_ms as durationMs, output_event_id as outputEventId, commit_hash as commitHash, token_usage_json as tokenUsageJson,
+                skills_json as skillsJson
          FROM events WHERE id = ?`
       )
       .get(eventId) as EventRow | undefined;
@@ -677,11 +684,12 @@ function normalizeLimit(limit: number | undefined): number {
 }
 
 function rowToTimelineEvent(row: EventRow): TimelineEvent {
-  const { filesJson, tokenUsageJson, ...event } = row;
+  const { filesJson, tokenUsageJson, skillsJson, ...event } = row;
   return {
     ...event,
     files: JSON.parse(filesJson) as string[],
-    tokenUsage: parseTokenUsage(tokenUsageJson)
+    tokenUsage: parseTokenUsage(tokenUsageJson),
+    skills: parseSkills(skillsJson)
   };
 }
 
@@ -698,5 +706,15 @@ function parseTokenUsage(value: string | null): TokenUsage | null {
     };
   } catch {
     return null;
+  }
+}
+
+function parseSkills(value: string | null): TimelineEvent["skills"] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
   }
 }

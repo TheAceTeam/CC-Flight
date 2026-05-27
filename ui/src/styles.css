@@ -606,6 +606,45 @@ select {
   overflow-wrap: anywhere;
 }
 
+.skill-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.skill-chip-label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.skill-chip {
+  display: inline-flex;
+  max-width: 180px;
+  min-height: 22px;
+  align-items: center;
+  padding: 0 7px;
+  border: 1px solid color-mix(in srgb, var(--orange) 36%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--orange) 9%, var(--surface-2));
+  color: var(--orange);
+  font: 800 11px/1.1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-message.codex .skill-chip {
+  background: color-mix(in srgb, var(--orange) 13%, var(--surface-2));
+}
+
+.skill-chip.more {
+  color: var(--muted);
+}
+
 .message-fade {
   position: absolute;
   right: 1px;

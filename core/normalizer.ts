@@ -6,6 +6,8 @@ import {
   ProjectRecord,
   RawEventRef,
   SessionRecord,
+  SkillUsage,
+  SkillUsageSource,
   TimelineEvent,
   TimelineLane,
   TokenUsage,
@@ -149,19 +151,21 @@ function normalizeResponseItem(input: {
   const payloadType = stringValue(payload.type) ?? stringValue(rawPayload.type);
   const role = stringValue(payload.role) ?? stringValue(rawPayload.role);
   const tokenUsage = extractTokenUsage(rawPayload);
+  const skillSource = skillSourceForResponse(payloadType, role);
+  const skills = extractSkillsForLine(line, skillSource);
 
   if (payloadType === "message") {
     const text = extractMessageText(payload);
     if (role === "user") {
-      return makeEvent({ line, rawRef, projectId, sessionId, turnId, kind: "user_prompt", lane: "Product", title: summarize(text, "User prompt"), detail: text, status: "success", tokenUsage });
+      return makeEvent({ line, rawRef, projectId, sessionId, turnId, kind: "user_prompt", lane: "Product", title: summarize(text, "User prompt"), detail: text, status: "success", tokenUsage, skills });
     }
     if (role === "assistant") {
-      return makeEvent({ line, rawRef, projectId, sessionId, turnId, kind: "assistant_message", lane: "Agent Runs", title: summarize(text, "Assistant message"), detail: text, status: "success", tokenUsage });
+      return makeEvent({ line, rawRef, projectId, sessionId, turnId, kind: "assistant_message", lane: "Agent Runs", title: summarize(text, "Assistant message"), detail: text, status: "success", tokenUsage, skills });
     }
-    return makeEvent({ line, rawRef, projectId, sessionId, turnId, kind: "status", lane: "Agent Runs", title: `${role ?? "System"} message`, detail: text, status: "success", tokenUsage });
+    return makeEvent({ line, rawRef, projectId, sessionId, turnId, kind: "status", lane: "Agent Runs", title: `${role ?? "System"} message`, detail: text, status: "success", tokenUsage, skills });
   }
 
-  if (payloadType === "function_call") {
+  if (payloadType === "function_call" || payloadType === "custom_tool_call") {
     const toolName = stringValue(payload.name) ?? stringValue(rawPayload.name) ?? "tool";
     const title = titleForToolCall(toolName, payload);
     const lane = laneForToolCall(toolName, payload);
@@ -180,11 +184,12 @@ function normalizeResponseItem(input: {
       callId: stringValue(payload.call_id) ?? stringValue(rawPayload.call_id),
       status: "running",
       files: extractFiles(payload),
-      tokenUsage
+      tokenUsage,
+      skills
     });
   }
 
-  if (payloadType === "function_call_output") {
+  if (payloadType === "function_call_output" || payloadType === "custom_tool_call_output") {
     const output = stringValue(payload.output) ?? safeExcerpt(payload, 900);
     const failed = /failed|error|exit code [1-9]|exception|traceback/i.test(output);
     const verification = /test|lint|build|typecheck|tsc|playwright|pytest|vitest|pass|fail/i.test(output);
@@ -201,15 +206,16 @@ function normalizeResponseItem(input: {
       callId: stringValue(payload.call_id) ?? stringValue(rawPayload.call_id),
       status: failed ? "failed" : "success",
       files: extractFiles(payload),
-      tokenUsage
+      tokenUsage,
+      skills
     });
   }
 
   if (payloadType === "reasoning") {
-    return makeEvent({ line, rawRef, projectId, sessionId, turnId, kind: "reasoning_marker", lane: "Agent Runs", title: "Reasoning segment", detail: "Reasoning content is not displayed.", status: "success", tokenUsage });
+    return makeEvent({ line, rawRef, projectId, sessionId, turnId, kind: "reasoning_marker", lane: "Agent Runs", title: "Reasoning segment", detail: "Reasoning content is not displayed.", status: "success", tokenUsage, skills });
   }
 
-  return makeEvent({ line, rawRef, projectId, sessionId, turnId, kind: "status", lane: "Agent Runs", title: payloadType ?? "Response item", detail: safeExcerpt(payload, 900), tokenUsage });
+  return makeEvent({ line, rawRef, projectId, sessionId, turnId, kind: "status", lane: "Agent Runs", title: payloadType ?? "Response item", detail: safeExcerpt(payload, 900), tokenUsage, skills });
 }
 
 function normalizeEventMessage(input: {
@@ -238,7 +244,8 @@ function normalizeEventMessage(input: {
       title: "Token usage update",
       detail: safeExcerpt(payload, 800),
       status: "success",
-      tokenUsage
+      tokenUsage,
+      skills: extractSkillsForLine(line, "event_message")
     });
   }
 
@@ -254,7 +261,8 @@ function normalizeEventMessage(input: {
     lane: failed ? "Risks" : "Agent Runs",
     title: summarize(message, payloadType ?? "Event"),
     detail: safeExcerpt(payload, 800),
-    status: failed ? "failed" : "success"
+    status: failed ? "failed" : "success",
+    skills: extractSkillsForLine(line, "event_message")
   });
 }
 
@@ -275,6 +283,7 @@ function makeEvent(input: {
   durationMs?: number | null;
   outputEventId?: string | null;
   tokenUsage?: TokenUsage | null;
+  skills?: SkillUsage[];
 }): TimelineEvent {
   return {
     id: stableId("event", input.sessionId, input.line.lineNo, input.kind, input.title),
@@ -293,7 +302,8 @@ function makeEvent(input: {
     rawEventRefId: input.rawRef.id,
     durationMs: input.durationMs ?? null,
     outputEventId: input.outputEventId ?? null,
-    tokenUsage: input.tokenUsage ?? null
+    tokenUsage: input.tokenUsage ?? null,
+    skills: input.skills ?? []
   };
 }
 
@@ -397,6 +407,113 @@ function extractMessageText(payload: Record<string, unknown>): string {
       .join("\n");
   }
   return safeExcerpt(payload, 500);
+}
+
+function skillSourceForResponse(payloadType: string | null | undefined, role: string | null | undefined): SkillUsageSource {
+  if (payloadType === "function_call" || payloadType === "custom_tool_call") return "tool_input";
+  if (payloadType === "function_call_output" || payloadType === "custom_tool_call_output") return "tool_output";
+  if (role === "developer") return "developer_message";
+  if (role === "user") return "user_prompt";
+  if (role === "assistant") return "assistant_message";
+  return "event_message";
+}
+
+function extractSkillsForLine(line: ParsedCodexLine, source: SkillUsageSource): SkillUsage[] {
+  if (source === "session_meta" || source === "developer_message") {
+    return [];
+  }
+  const text = skillSearchText(line.payload);
+  if (!text) return [];
+
+  const skills = new Map<string, SkillUsage>();
+  for (const match of matchSkillUsages(text, source, line.sourcePath)) {
+    const key = `${match.name}\0${match.path ?? ""}\0${match.source}`;
+    if (!skills.has(key)) skills.set(key, match);
+  }
+  return [...skills.values()];
+}
+
+function matchSkillUsages(text: string, source: SkillUsageSource, evidencePath: string): SkillUsage[] {
+  if (!mightContainSkillUsage(text, source)) {
+    return [];
+  }
+
+  const matches: SkillUsage[] = [];
+  const push = (name: string, confidence: SkillUsage["confidence"], path: string | null, command: string | null, excerpt: string) => {
+    const normalized = normalizeSkillName(name);
+    if (!normalized) return;
+    matches.push({
+      name: normalized,
+      source,
+      confidence,
+      path,
+      command,
+      evidencePath,
+      excerpt: cleanExcerpt(excerpt)
+    });
+  };
+
+  const pathPattern = /((?:~|\/)[^"'`\s]*\/skills\/([A-Za-z0-9_.:@-]+)(?:\/SKILL\.md)?)/gi;
+  for (const match of text.matchAll(pathPattern)) {
+    push(match[2], "explicit", match[1], null, match[0]);
+  }
+
+  for (const match of text.matchAll(/\b(?:using|use|activated|activate|loaded|loading)\s+(?:the\s+)?(?:skill|plugin skill)\s+[`"']?([A-Za-z0-9_.:@-]+)[`"']?/gi)) {
+    push(match[1], "explicit", null, null, match[0]);
+  }
+
+  for (const match of text.matchAll(/\b(?:skill|技能)\s*[:=]\s*[`"']?([A-Za-z0-9_.:@-]+)[`"']?/gi)) {
+    push(match[1], "explicit", null, null, match[0]);
+  }
+
+  for (const match of text.matchAll(/(?:^|[\s(])\/([A-Za-z][A-Za-z0-9_.:@-]{2,})(?=\s|$|[),.])/g)) {
+    push(match[1], "inferred", null, `/${match[1]}`, match[0]);
+  }
+
+  return matches;
+}
+
+function mightContainSkillUsage(text: string, source: SkillUsageSource): boolean {
+  if (/skill|技能|\/skills\//i.test(text)) return true;
+  return source === "user_prompt" && /(?:^|\s)\/[A-Za-z][A-Za-z0-9_.:@-]{2,}(?=\s|$|[),.])/.test(text);
+}
+
+function skillSearchText(value: unknown): string {
+  const fragments: string[] = [];
+  collectSkillText(value, fragments);
+  return fragments.join("\n");
+}
+
+function collectSkillText(value: unknown, fragments: string[]) {
+  if (typeof value === "string") {
+    fragments.push(value);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    for (const item of value) collectSkillText(item, fragments);
+    return;
+  }
+
+  for (const [key, child] of Object.entries(value)) {
+    const normalizedKey = key.toLowerCase();
+    if (typeof child === "string" && /skill|message|text|content|input|argument|output|command|cmd|path|source|aggregated_output|formatted_output/i.test(normalizedKey)) {
+      fragments.push(child);
+    } else if (typeof child === "object" && child) {
+      collectSkillText(child, fragments);
+    }
+  }
+}
+
+function normalizeSkillName(value: string): string | null {
+  const clean = value.replace(/^\/+/, "").replace(/\/SKILL\.md$/i, "").trim();
+  if (!/^[A-Za-z0-9_.:@-]{3,80}$/.test(clean)) return null;
+  if (/^(skill|skills|plugin|using|loaded)$/i.test(clean)) return null;
+  return clean;
+}
+
+function cleanExcerpt(value: string): string {
+  return value.replace(/\s+/g, " ").trim().slice(0, 180);
 }
 
 function extractFiles(value: unknown): string[] {

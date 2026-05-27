@@ -123,6 +123,29 @@ describe("Codex parser and normalizer", () => {
     expect(timeline.taskJourneys[0].tokenUsage).toEqual(timeline.tokenUsage);
   });
 
+  it("extracts skill usage from Codex messages, tool payloads, and slash commands", () => {
+    const lines = parseCodexJsonlContent(fixture("skill-usage-rollout.jsonl"), "skill-usage-rollout.jsonl");
+    const bundle = normalizeCodexLines(lines, { repoRoot: "/tmp/superview-fixture" });
+    expect(bundle).toBeTruthy();
+
+    const timeline = buildProjectTimeline(bundle!.project, bundle!.events);
+    const journey = timeline.taskJourneys[0];
+    const skillNames = journey.skills.map((skill) => skill.name);
+    const toolEvent = timeline.events.find((event) => event.callId === "call-skill");
+
+    expect(skillNames).toEqual(expect.arrayContaining(["abtest", "ui-ux-pro-max", "design-taste-frontend"]));
+    expect(skillNames).not.toContain("design-review");
+    expect(toolEvent?.skills).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "abtest",
+          source: expect.stringMatching(/tool_/),
+          path: expect.stringContaining("/skills/abtest")
+        })
+      ])
+    );
+  });
+
   it("builds task journeys from each user prompt boundary", () => {
     const lines = parseCodexJsonlContent(fixture("call-association-rollout.jsonl"), "call-association-rollout.jsonl");
     const bundle = normalizeCodexLines(lines, { repoRoot: "/tmp/superview-fixture" });

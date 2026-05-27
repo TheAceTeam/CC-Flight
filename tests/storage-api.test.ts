@@ -86,8 +86,8 @@ describe("SuperView API", () => {
     });
     expect(evidence.body.rawEvent.redactedPayloadJson).toBeUndefined();
 
-    const fullTimeline = await request(app).get(`/api/projects/${projectId}/timeline`).query({ limit: 50 });
-    const patchedCall = fullTimeline.body.events.find((event: { callId: string; toolName: string }) => event.callId === "call-2" && event.toolName === "functions.apply_patch");
+      const fullTimeline = await request(app).get(`/api/projects/${projectId}/timeline`).query({ limit: 50 });
+      const patchedCall = fullTimeline.body.events.find((event: { callId: string; toolName: string }) => event.callId === "call-2" && event.toolName === "functions.apply_patch");
     expect(patchedCall).toMatchObject({
       status: "success",
       durationMs: expect.any(Number),
@@ -120,6 +120,33 @@ describe("SuperView API", () => {
     expect(journeyDetail.body.journey.id).toBe(firstJourney.id);
     expect(journeyDetail.body.events.map((event: { id: string }) => event.id)).toEqual(firstJourney.eventIds);
     expect(Array.isArray(journeyDetail.body.causalEdges)).toBe(true);
+  });
+
+  it("persists skill usage and returns it in timelines and task journey details", async () => {
+    const skillCodexHome = mkdtempSync(path.join(tmpdir(), "superview-skill-codex-home-"));
+    try {
+      mkdirSync(path.join(skillCodexHome, "sessions", "2026", "05", "25"), { recursive: true });
+      cpSync(
+        path.resolve("tests/fixtures/codex-rollouts/skill-usage-rollout.jsonl"),
+        path.join(skillCodexHome, "sessions", "2026", "05", "25", "rollout-skill.jsonl")
+      );
+
+      const app = createServer();
+      const job = await runIngest(app, skillCodexHome);
+      expect(job.status).toBe("completed");
+
+      const projects = await request(app).get("/api/projects");
+      const projectId = projects.body.projects[0].id;
+      const timeline = await request(app).get(`/api/projects/${projectId}/timeline`).query({ limit: 20 });
+      const journey = timeline.body.taskJourneys[0];
+      expect(journey.skills.map((skill: { name: string }) => skill.name)).toEqual(expect.arrayContaining(["abtest", "ui-ux-pro-max", "design-taste-frontend"]));
+
+      const detail = await request(app).get(`/api/task-journeys/${journey.id}`);
+      expect(detail.body.events.some((event: { skills?: Array<{ name: string }> }) => event.skills?.some((skill) => skill.name === "abtest"))).toBe(true);
+      expect(detail.body.journey.skills.map((skill: { name: string }) => skill.name)).toContain("abtest");
+    } finally {
+      rmSync(skillCodexHome, { recursive: true, force: true });
+    }
   });
 
   it("reprocesses unchanged files when their stored processor version is stale", async () => {

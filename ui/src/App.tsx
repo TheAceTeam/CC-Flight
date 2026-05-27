@@ -1,6 +1,6 @@
 import { AlertTriangle, FileText, Moon, RotateCw, Search, Sun } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Artifact, EventEvidence, IngestJob, ProjectTimeline, TaskJourney, TaskJourneyDetail, TimelineEvent, TokenUsage } from "../../core/types";
+import type { Artifact, EventEvidence, IngestJob, ProjectTimeline, SkillUsage, TaskJourney, TaskJourneyDetail, TimelineEvent, TokenUsage } from "../../core/types";
 import { fetchEventEvidence, fetchIngestJob, fetchProjects, fetchTaskJourneyDetail, fetchTimeline, ProjectWithSessions, startIngest } from "./api";
 
 type Theme = "light" | "dark";
@@ -336,6 +336,7 @@ function ConversationTurn({
   const assistantMessage = events.find((event) => event.kind === "assistant_message");
   const backgroundEvents = events.filter((event) => event.kind !== "user_prompt" && event.id !== assistantMessage?.id);
   const logEvents = events.filter((event) => event.kind === "tool_call" || event.kind === "tool_result" || event.kind === "file_change" || event.kind === "verification" || event.kind === "error");
+  const skills = aggregateSkills(journey.skills, events);
   const codexOutput = assistantMessage?.detail ?? assistantMessage?.title ?? journey.summary;
   const promptText = prompt?.detail ?? journey.title;
 
@@ -356,6 +357,7 @@ function ConversationTurn({
         variant="user"
         label="User"
         text={promptText}
+        skills={skills}
         selected={prompt?.id === selectedEventId}
         disabled={!prompt}
         onSelect={() => prompt ? onSelectEvent(prompt) : undefined}
@@ -384,6 +386,7 @@ function ConversationTurn({
                   <button key={event.id} className={eventItemClass(event, selectedEventId)} data-event-id={event.id} onClick={() => onSelectEvent(event)}>
                     <span>{event.kind}</span>
                     <strong>{event.title}</strong>
+                    {event.skills && event.skills.length > 0 ? <small>Skills: {formatSkillNames(event.skills)}</small> : null}
                     <small>{event.detail ?? formatDate(event.timestamp)}</small>
                   </button>
                 ))
@@ -404,6 +407,7 @@ function ConversationTurn({
                   <button key={event.id} className={eventItemClass(event, selectedEventId)} data-event-id={event.id} onClick={() => onSelectEvent(event)}>
                     <span>{event.toolName ?? event.kind}</span>
                     <strong>{event.title}</strong>
+                    {event.skills && event.skills.length > 0 ? <small>Skills: {formatSkillNames(event.skills)}</small> : null}
                     <small>{event.detail ?? event.callId ?? formatDate(event.timestamp)}</small>
                   </button>
                 ))
@@ -419,6 +423,7 @@ function ConversationTurn({
         variant="codex"
         label="Codex CLI"
         text={codexOutput}
+        skills={skills}
         selected={assistantMessage?.id === selectedEventId}
         disabled={!assistantMessage}
         onSelect={() => assistantMessage ? onSelectEvent(assistantMessage) : undefined}
@@ -432,6 +437,7 @@ function ChatBubble({
   label,
   title,
   text,
+  skills = [],
   selected,
   disabled,
   onSelect
@@ -440,6 +446,7 @@ function ChatBubble({
   label: string;
   title?: string;
   text: string;
+  skills?: SkillUsage[];
   selected: boolean;
   disabled: boolean;
   onSelect: () => void;
@@ -476,6 +483,7 @@ function ChatBubble({
             {title ? <strong>{title}</strong> : null}
             <p>{text}</p>
           </div>
+          {skills.length > 0 ? <SkillChips skills={skills} /> : null}
           {canExpand && !expanded ? <span className="message-fade" aria-hidden="true" /> : null}
         </button>
         {canExpand ? (
@@ -486,6 +494,38 @@ function ChatBubble({
       </div>
     </div>
   );
+}
+
+function SkillChips({ skills }: { skills: SkillUsage[] }) {
+  const visibleSkills = dedupeSkills(skills).slice(0, 4);
+  const remaining = Math.max(0, dedupeSkills(skills).length - visibleSkills.length);
+  return (
+    <div className="skill-chip-row" aria-label={`Skills: ${formatSkillNames(skills)}`}>
+      <span className="skill-chip-label">Skills</span>
+      {visibleSkills.map((skill) => (
+        <span className="skill-chip" title={skill.excerpt || skill.path || skill.source} key={`${skill.name}-${skill.source}-${skill.path ?? ""}`}>
+          {skill.name}
+        </span>
+      ))}
+      {remaining > 0 ? <span className="skill-chip more">+{remaining}</span> : null}
+    </div>
+  );
+}
+
+function aggregateSkills(journeySkills: SkillUsage[] | undefined, events: TimelineEvent[]) {
+  return dedupeSkills([...(journeySkills ?? []), ...events.flatMap((event) => event.skills ?? [])]);
+}
+
+function dedupeSkills(skills: SkillUsage[]) {
+  const byName = new Map<string, SkillUsage>();
+  for (const skill of skills) {
+    if (!byName.has(skill.name)) byName.set(skill.name, skill);
+  }
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function formatSkillNames(skills: SkillUsage[]) {
+  return dedupeSkills(skills).map((skill) => skill.name).join(", ");
 }
 
 function formatExitType(exitType: TaskJourney["exitType"]) {

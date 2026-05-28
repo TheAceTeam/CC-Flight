@@ -6,6 +6,10 @@ export interface DailyTokenUsagePanelProps {
   loading?: boolean;
   initiallyExpanded?: boolean;
   title?: string;
+  subtitle?: string;
+  showHeaderToggle?: boolean;
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
   maxVisiblePoints?: number;
   className?: string;
 }
@@ -65,10 +69,15 @@ export function DailyTokenUsagePanel({
   loading = false,
   initiallyExpanded = false,
   title = "Daily Token Usage",
+  subtitle,
+  showHeaderToggle = true,
+  expanded: controlledExpanded,
+  onExpandedChange,
   maxVisiblePoints,
   className
 }: DailyTokenUsagePanelProps) {
-  const [expanded, setExpanded] = useState(initiallyExpanded);
+  const [uncontrolledExpanded, setUncontrolledExpanded] = useState(initiallyExpanded);
+  const expanded = controlledExpanded ?? uncontrolledExpanded;
   const headingId = useId();
   const bodyId = useId();
   const chartTitleId = useId();
@@ -77,6 +86,12 @@ export function DailyTokenUsagePanel({
   const chart = useMemo(() => buildChart(visiblePoints), [visiblePoints]);
   const hasPoints = visiblePoints.length > 0;
   const panelClassName = className ? `token-chart-panel ${className}` : "token-chart-panel";
+  const subtitleText = subtitle ?? (loading ? "Loading daily usage" : hasPoints ? `${visiblePoints.length} visible day${visiblePoints.length === 1 ? "" : "s"}` : "No visible days");
+
+  function setExpanded(next: boolean) {
+    onExpandedChange?.(next);
+    if (controlledExpanded === undefined) setUncontrolledExpanded(next);
+  }
 
   return (
     <section className={panelClassName} aria-labelledby={headingId}>
@@ -86,12 +101,10 @@ export function DailyTokenUsagePanel({
           <h2 id={headingId} className="token-chart-title">
             {title}
           </h2>
-          <p className="token-chart-subtitle">
-            {loading ? "Loading daily usage" : hasPoints ? `${visiblePoints.length} visible day${visiblePoints.length === 1 ? "" : "s"}` : "No visible days"}
-          </p>
+          <p className="token-chart-subtitle">{subtitleText}</p>
         </div>
 
-        <dl className="token-chart-summary" aria-label="Daily token usage summary">
+        {showHeaderToggle ? <dl className="token-chart-summary" aria-label="Daily token usage summary">
           <div className="token-chart-summary-item">
             <dt>Total tokens</dt>
             <dd>{formatTokens(summary.total)}</dd>
@@ -100,20 +113,20 @@ export function DailyTokenUsagePanel({
             <dt>KV hit</dt>
             <dd>{formatKvHit(summary.kvHit)}</dd>
           </div>
-        </dl>
+        </dl> : null}
 
-        <button
+        {showHeaderToggle ? <button
           className="token-chart-toggle"
           type="button"
           aria-controls={bodyId}
           aria-expanded={expanded}
-          onClick={() => setExpanded((current) => !current)}
+          onClick={() => setExpanded(!expanded)}
         >
           <span>{expanded ? "Hide daily token usage chart" : "Show daily token usage chart"}</span>
           <span className="token-chart-toggle-icon" aria-hidden="true">
             {expanded ? "-" : "+"}
           </span>
-        </button>
+        </button> : null}
       </div>
 
       {expanded ? (

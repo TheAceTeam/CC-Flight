@@ -1,5 +1,6 @@
-import { AlertTriangle, FileText, Moon, RotateCw, Search, Sun } from "lucide-react";
+import { AlertTriangle, ChartColumn, FileText, Moon, RotateCw, Search, Sun } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import type { AgentProvider, Artifact, DailyTokenUsageResponse, EventEvidence, IngestJob, ProjectTimeline, SkillUsage, TaskJourney, TaskJourneyDetail, TimelineEvent, TokenUsage } from "../../core/types";
 import { fetchDailyTokenUsage, fetchEventEvidence, fetchIngestJob, fetchProjects, fetchTaskJourneyDetail, fetchTimeline, ProjectWithSessions, startIngest } from "./api";
 import { DailyTokenUsagePanel } from "./DailyTokenUsagePanel";
@@ -18,6 +19,7 @@ export function App() {
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [dailyTokenUsage, setDailyTokenUsage] = useState<DailyTokenUsageResponse | null>(null);
   const [dailyTokenUsageLoading, setDailyTokenUsageLoading] = useState(false);
+  const [tokenChartExpanded, setTokenChartExpanded] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [journeyDetails, setJourneyDetails] = useState<Record<string, TaskJourneyDetail>>({});
   const [journeyLoadingIds, setJourneyLoadingIds] = useState<Record<string, boolean>>({});
@@ -286,7 +288,38 @@ export function App() {
               <Metric label="Projects" value={filteredProjects.length} />
               <Metric label="Events" value={totalEvents} />
               <Metric label="Tasks" value={timeline?.taskJourneys.length ?? 0} />
-              <Metric label="Tokens" value={projectTokenUsage.total} />
+              <Metric
+                label="Tokens"
+                value={projectTokenUsage.total}
+                action={
+                  selectedProject ? (
+                    <button
+                      className="metric-icon-button"
+                      type="button"
+                      aria-label={tokenChartExpanded ? "Hide daily token usage chart" : "Show daily token usage chart"}
+                      aria-expanded={tokenChartExpanded}
+                      onClick={() => setTokenChartExpanded((current) => !current)}
+                    >
+                      <ChartColumn size={15} />
+                    </button>
+                  ) : null
+                }
+                overlay={
+                  selectedProject && tokenChartExpanded ? (
+                    <DailyTokenUsagePanel
+                      data={dailyTokenUsage}
+                      loading={dailyTokenUsageLoading}
+                      title="Tokens"
+                      subtitle="Daily usage by day"
+                      maxVisiblePoints={30}
+                      className="token-chart-panel--metric-popover"
+                      showHeaderToggle={false}
+                      expanded={tokenChartExpanded}
+                      onExpandedChange={setTokenChartExpanded}
+                    />
+                  ) : null
+                }
+              />
               <RatioMetric label="KV hit" value={formatKvHitRate(projectTokenUsage)} />
             </div>
           </div>
@@ -294,7 +327,6 @@ export function App() {
 
         {error ? <div className="alert"><AlertTriangle size={16} />{error}</div> : null}
         {job ? <IngestLevelProgress job={job} /> : null}
-        {selectedProject ? <DailyTokenUsagePanel data={dailyTokenUsage} loading={dailyTokenUsageLoading} title="Token usage by day" maxVisiblePoints={30} /> : null}
         {blockingMessage ? <BlockingLoader message={blockingMessage} /> : null}
 
         {loading ? (
@@ -639,11 +671,15 @@ function avatarForProvider(provider: string) {
   return "C";
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({ label, value, action, overlay }: { label: string; value: number; action?: ReactNode; overlay?: ReactNode }) {
   return (
     <div className="metric">
-      <span>{label}</span>
+      <span>
+        {label}
+        {action}
+      </span>
       <strong>{value.toLocaleString()}</strong>
+      {overlay}
     </div>
   );
 }

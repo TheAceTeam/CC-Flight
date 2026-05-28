@@ -211,6 +211,7 @@ h1 {
 }
 
 .metric {
+  position: relative;
   min-width: 86px;
   padding: 12px 14px;
   border: 1px solid var(--line);
@@ -219,14 +220,35 @@ h1 {
   box-shadow: var(--shadow);
 }
 
-.metric span {
-  display: block;
+.metric > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   color: var(--muted);
   font-size: 12px;
 }
 
-.metric strong {
+.metric > strong {
   font-size: 24px;
+}
+
+.metric-icon-button {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--orange) 32%, var(--line));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--orange-soft) 62%, var(--surface-2));
+  color: var(--orange);
+}
+
+.metric-icon-button:hover,
+.metric-icon-button[aria-expanded="true"] {
+  border-color: var(--orange);
+  background: var(--orange);
+  color: #fff;
 }
 
 .alert, .job-strip {
@@ -939,6 +961,27 @@ pre {
   border-radius: 12px;
   background: color-mix(in srgb, var(--surface-2) 92%, transparent);
   box-shadow: var(--shadow);
+}
+
+.token-chart-panel--metric-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 6;
+  width: min(760px, calc(100vw - 56px));
+  text-align: left;
+}
+
+.token-chart-panel--metric-popover .token-chart-header {
+  grid-template-columns: 1fr;
+}
+
+.token-chart-panel--metric-popover .token-chart-title {
+  font-size: 15px;
+}
+
+.token-chart-panel--metric-popover .token-chart-body {
+  padding-top: 0;
 }
 
 .token-chart-header {

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges" role="img" aria-label="Pixel Mario running">
+  <path fill="#000000" d="M10 3h12v2h3v3h-6v2h5v3h2v4h-4v-2h-3v2h2v3h3v3h-4v-2h-4v3h-2v3H7v-3h4v-3H8v-4H6v-4h3v-3h2V8H8V5h2z"/>
+  <path fill="#d61f1f" d="M11 3h10v2h3v2H10V5h1zM9 13h10v4H9zM8 17h5v3H8zM17 17h5v3h-5z"/>
+  <path fill="#f2a45f" d="M12 7h7v2h3v3h-2v2h-7v-2h-2V9h1zM21 15h3v2h-3zM6 15h3v2H6z"/>
+  <path fill="#8a4a1f" d="M10 8h2v2h-2zM18 8h3v2h-3zM12 12h8v2h-8zM7 24h6v3H7zM19 23h5v3h-5z"/>
+  <path fill="#2453c9" d="M12 14h3v3h2v-3h3v7h-3v-3h-2v5h-4v-4H9v-2h3z"/>
+  <path fill="#ffd04d" d="M15 16h2v2h-2z"/>
+  <path fill="#ffffff" d="M5 14h4v3H5zM22 14h4v3h-4zM20 8h2v2h-2z"/>
+</svg>

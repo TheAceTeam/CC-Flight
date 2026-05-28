@@ -34,6 +34,7 @@ describe("IngestLevelProgress", () => {
     expect(screen.getByText("Cleared blocks 2")).toBeInTheDocument();
     expect(screen.getByText("Hazards 0")).toBeInTheDocument();
     expect(screen.getByText("Events 42")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Pixel Mario running" })).toBeInTheDocument();
   });
 
   test("surfaces completed and failed visual states", () => {
@@ -43,6 +44,7 @@ describe("IngestLevelProgress", () => {
 
     expect(screen.getByText("Castle clear")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveAccessibleName("Ingest completed, completed, 20 of 20 files processed, 100 percent");
+    expect(screen.getByRole("img", { name: "Pixel Mario victory" })).toBeInTheDocument();
 
     rerender(<IngestLevelProgress job={makeJob({ status: "failed", phase: "failed", errors: ["Parse failed"], processedFiles: 8 })} />);
 

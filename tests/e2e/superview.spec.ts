@@ -689,11 +689,14 @@ test("blocks conflicting controls while ingest is running", async ({ page }) => 
   await page.goto("/");
   await page.getByRole("button", { name: "Scan Agent Logs" }).first().click();
 
-  await expect(page.getByRole("status", { name: "Blocking operation" })).toContainText("Scanning agent logs");
+  const blockingLoader = page.getByRole("status", { name: "Blocking operation" });
+  await expect(blockingLoader).toContainText("Scanning agent logs");
   await expect(page.getByRole("button", { name: "Scan Agent Logs" }).first()).toBeDisabled();
   await expect(page.getByRole("textbox", { name: "Agent log root path", exact: true })).toBeDisabled();
   await expect(page.getByLabel("Toggle theme")).toBeEnabled();
-  await expect(page.getByRole("status", { name: /Ingest running, parsing, 7 of 20 files processed, 35 percent/ })).toBeVisible();
-  await expect(page.getByRole("status", { name: "Blocking operation" })).toHaveCount(0, { timeout: 10_000 });
+  await expect(blockingLoader.getByRole("status", { name: /Ingest running, parsing, 7 of 20 files processed, 35 percent/ })).toBeVisible();
+  await expect(page.locator(".workspace > .ingest-level-progress")).toHaveCount(0);
+  await expect(page.getByRole("img", { name: "Pixel Mario running" })).toBeVisible();
+  await expect(blockingLoader).toHaveCount(0, { timeout: 10_000 });
   await expect(page.getByRole("button", { name: "Scan Agent Logs" }).first()).toBeEnabled();
 });

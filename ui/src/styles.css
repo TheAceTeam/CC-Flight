@@ -269,15 +269,14 @@ h1 {
   display: grid;
   min-height: 320px;
   place-items: start center;
-  padding-top: 150px;
+  padding: 112px 24px 40px;
   background: color-mix(in srgb, var(--paper) 58%, transparent);
   backdrop-filter: blur(2px);
 }
 
 .blocking-loader-card {
-  display: inline-flex;
-  max-width: min(420px, calc(100vw - 48px));
-  align-items: center;
+  display: grid;
+  width: min(860px, calc(100vw - 48px));
   gap: 13px;
   padding: 14px 16px;
   border: 1px solid color-mix(in srgb, var(--orange) 38%, var(--line));
@@ -285,6 +284,12 @@ h1 {
   background: var(--surface-2);
   color: var(--ink);
   box-shadow: var(--shadow);
+}
+
+.blocking-loader-message {
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
 }
 
 .blocking-loader-card strong {
@@ -307,6 +312,11 @@ h1 {
   border-top-color: var(--orange);
   border-radius: 999px;
   animation: superview-spin 850ms linear infinite;
+}
+
+.blocking-loader-card .ingest-level-progress {
+  margin: 0;
+  box-shadow: none;
 }
 
 @keyframes superview-spin {
@@ -1385,13 +1395,11 @@ pre {
 
 .ingest-level-avatar {
   bottom: 0;
-  width: 24px;
-  height: 28px;
-  border: 2px solid color-mix(in srgb, var(--ink) 35%, #000);
-  border-radius: 6px 6px 4px 4px;
-  background: var(--orange);
-  color: #fff;
-  box-shadow: 0 4px 0 color-mix(in srgb, var(--orange) 55%, #000);
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 3px 0 color-mix(in srgb, var(--ink) 30%, transparent));
 }
 
 .ingest-level-flag {
@@ -1419,8 +1427,7 @@ pre {
 }
 
 .ingest-level-progress--completed .ingest-level-avatar {
-  background: var(--success);
-  box-shadow: 0 4px 0 color-mix(in srgb, var(--success) 55%, #000);
+  filter: drop-shadow(0 3px 0 color-mix(in srgb, var(--success) 40%, transparent));
 }
 
 .ingest-level-progress--completed .ingest-level-flag::before {
@@ -1439,8 +1446,7 @@ pre {
 }
 
 .ingest-level-progress--failed .ingest-level-avatar {
-  background: var(--danger);
-  box-shadow: 0 4px 0 color-mix(in srgb, var(--danger) 55%, #000);
+  filter: grayscale(.35) drop-shadow(0 3px 0 color-mix(in srgb, var(--danger) 40%, transparent));
 }
 
 .ingest-level-meta,

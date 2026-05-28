@@ -327,8 +327,8 @@ export function App() {
         </section>
 
         {error ? <div className="alert"><AlertTriangle size={16} />{error}</div> : null}
-        {job ? <IngestLevelProgress job={job} /> : null}
-        {blockingMessage ? <BlockingLoader message={blockingMessage} /> : null}
+        {job && !ingestBusy ? <IngestLevelProgress job={job} /> : null}
+        {blockingMessage ? <BlockingLoader message={blockingMessage} job={ingestBusy ? job : null} /> : null}
 
         {loading ? (
           <EmptyState title="Loading SuperView index" detail="Checking local SQLite state." agentProvider={agentProvider} onAgentProviderChange={setAgentProvider} agentLogRoot={agentLogRoot} onAgentLogRootChange={setAgentLogRoot} onScan={handleScan} disabled={ingestBusy} />
@@ -694,15 +694,18 @@ function RatioMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BlockingLoader({ message }: { message: string }) {
+function BlockingLoader({ message, job }: { message: string; job?: IngestJob | null }) {
   return (
     <div className="blocking-loader" role="status" aria-live="polite" aria-label="Blocking operation">
       <div className="blocking-loader-card">
-        <span className="blocking-loader-icon" aria-hidden="true" />
-        <div>
-          <strong>{message}</strong>
-          <span>Keeping the workspace steady while SuperView updates.</span>
+        <div className="blocking-loader-message">
+          <span className="blocking-loader-icon" aria-hidden="true" />
+          <div>
+            <strong>{message}</strong>
+            <span>Keeping the workspace steady while SuperView updates.</span>
+          </div>
         </div>
+        {job ? <IngestLevelProgress job={job} /> : null}
       </div>
     </div>
   );

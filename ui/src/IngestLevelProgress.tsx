@@ -1,4 +1,6 @@
 import type { IngestJob } from "../../core/types";
+import marioRunSprite from "./assets/mario-run.svg";
+import marioVictorySprite from "./assets/mario-victory.svg";
 
 const LEVEL_MARKERS = 9;
 
@@ -10,6 +12,7 @@ export function IngestLevelProgress({ job }: { job: IngestJob }) {
   const hazards = job.errors.length;
   const stateLabel = job.status === "completed" ? "Castle clear" : job.status === "failed" ? "Level failed" : "Running level";
   const ariaLabel = `Ingest ${job.status}, ${job.phase}, ${job.processedFiles} of ${job.totalFiles} files processed, ${displayPercent} percent`;
+  const marioSprite = job.status === "completed" ? marioVictorySprite : marioRunSprite;
 
   return (
     <section className={`ingest-level-progress ingest-level-progress--${job.status}`} role="status" aria-live="polite" aria-label={ariaLabel}>
@@ -24,8 +27,8 @@ export function IngestLevelProgress({ job }: { job: IngestJob }) {
         </div>
       </div>
 
-      <div className="ingest-level-stage" aria-hidden="true">
-        <div className="ingest-level-skyline">
+      <div className="ingest-level-stage">
+        <div className="ingest-level-skyline" aria-hidden="true">
           {Array.from({ length: LEVEL_MARKERS }, (_, index) => {
             const isCleared = skippedFiles > index;
             const hasCoin = changedFiles > index;
@@ -39,8 +42,8 @@ export function IngestLevelProgress({ job }: { job: IngestJob }) {
         </div>
         <div className="ingest-level-track">
           <span className="ingest-level-ground" style={{ width: `${percent}%` }} />
-          <span className="ingest-level-avatar" style={{ left: `clamp(0px, calc(${percent}% - 12px), calc(100% - 24px))` }}>M</span>
-          <span className="ingest-level-flag">F</span>
+          <img className="ingest-level-avatar" src={marioSprite} alt={job.status === "completed" ? "Pixel Mario victory" : "Pixel Mario running"} style={{ left: `clamp(0px, calc(${percent}% - 16px), calc(100% - 32px))` }} />
+          <span className="ingest-level-flag" aria-hidden="true">F</span>
         </div>
       </div>
 

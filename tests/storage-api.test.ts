@@ -282,6 +282,62 @@ describe("SuperView API", () => {
     }
   });
 
+  it("returns daily project token usage grouped by event day", async () => {
+    const tokenCodexHome = mkdtempSync(path.join(tmpdir(), "superview-daily-token-codex-home-"));
+    try {
+      mkdirSync(path.join(tokenCodexHome, "sessions", "2026", "05", "25"), { recursive: true });
+      writeFileSync(
+        path.join(tokenCodexHome, "sessions", "2026", "05", "25", "rollout-daily-token.jsonl"),
+        [
+          JSON.stringify({ timestamp: "2026-05-25T05:00:00.000Z", type: "session_meta", payload: { id: "daily-token-session", timestamp: "2026-05-25T05:00:00.000Z", cwd: "/tmp/superview-daily-token", cli_version: "0.125.0", model_provider: "OpenAI", source: "cli" } }),
+          JSON.stringify({ timestamp: "2026-05-25T05:00:01.000Z", type: "response_item", payload: { type: "message", role: "assistant", content: [{ type: "output_text", text: "day one first" }], usage: { input_tokens: 100, output_tokens: 20, output_tokens_details: { reasoning_tokens: 5 }, input_tokens_details: { cached_tokens: 30 } } } }),
+          JSON.stringify({ timestamp: "2026-05-25T23:59:59.000Z", type: "response_item", payload: { type: "message", role: "assistant", content: [{ type: "output_text", text: "day one second" }], usage: { input_tokens: 50, output_tokens: 10, output_tokens_details: { reasoning_tokens: 2 }, input_tokens_details: { cached_tokens: 15 } } } }),
+          JSON.stringify({ timestamp: "2026-05-26T00:00:01.000Z", type: "response_item", payload: { type: "message", role: "assistant", content: [{ type: "output_text", text: "day two" }], usage: { input_tokens: 25, output_tokens: 5, output_tokens_details: { reasoning_tokens: 1 }, input_tokens_details: { cached_tokens: 7 } } } })
+        ].join("\n")
+      );
+
+      const app = createServer();
+      const job = await runIngest(app, tokenCodexHome);
+      expect(job.status).toBe("completed");
+
+      const projects = await request(app).get("/api/projects");
+      const project = projects.body.projects.find((candidate: { name: string }) => candidate.name === "superview-daily-token");
+      const response = await request(app).get(`/api/projects/${project.id}/token-usage/daily`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        projectId: project.id,
+        points: [
+          {
+            date: "2026-05-25",
+            input: 150,
+            output: 30,
+            reasoning: 7,
+            cachedInput: 45,
+            total: 187
+          },
+          {
+            date: "2026-05-26",
+            input: 25,
+            output: 5,
+            reasoning: 1,
+            cachedInput: 7,
+            total: 31
+          }
+        ],
+        total: {
+          input: 175,
+          output: 35,
+          reasoning: 8,
+          cachedInput: 52,
+          total: 218
+        }
+      });
+    } finally {
+      rmSync(tokenCodexHome, { recursive: true, force: true });
+    }
+  });
+
   it("keeps read APIs responsive while ingesting 300+ rollout files", async () => {
     const largeCodexHome = createRolloutFixtureCodexHome(320);
     process.env.SUPERVIEW_TEST_INGEST_FILE_DELAY_MS = "1";

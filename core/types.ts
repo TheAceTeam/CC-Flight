@@ -117,6 +117,16 @@ export interface TokenUsage {
   total: number;
 }
 
+export type DailyTokenUsagePoint = TokenUsage & {
+  date: string;
+};
+
+export interface DailyTokenUsageResponse {
+  projectId: string;
+  points: DailyTokenUsagePoint[];
+  total: TokenUsage;
+}
+
 export type SkillUsageSource =
   | "session_meta"
   | "developer_message"

@@ -46,6 +46,15 @@ export function createServer() {
     res.json(timeline);
   });
 
+  app.get("/api/projects/:id/token-usage/daily", (req, res) => {
+    const usage = db.getProjectDailyTokenUsage(req.params.id);
+    if (!usage) {
+      res.status(404).json({ error: "project not found" });
+      return;
+    }
+    res.json(usage);
+  });
+
   app.get("/api/events/:id/evidence", (req, res) => {
     const evidence = db.getEventEvidence(req.params.id);
     if (!evidence) {

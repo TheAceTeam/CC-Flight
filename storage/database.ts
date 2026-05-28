@@ -4,6 +4,7 @@ import { mkdirSync } from "node:fs";
 import {
   Artifact,
   CodexHistoryPrompt,
+  DailyTokenUsageResponse,
   Episode,
   EventEvidence,
   GitCommitRecord,
@@ -518,6 +519,33 @@ export class SuperViewDatabase {
     }, { input: 0, output: 0, reasoning: 0, cachedInput: 0, total: 0 });
   }
 
+  getProjectDailyTokenUsage(projectId: string): DailyTokenUsageResponse | null {
+    if (!this.getProject(projectId)) return null;
+    const rows = this.db
+      .prepare(
+        `SELECT substr(timestamp, 1, 10) as date, token_usage_json as tokenUsageJson
+         FROM events
+         WHERE project_id = ? AND token_usage_json IS NOT NULL
+         ORDER BY timestamp ASC`
+      )
+      .all(projectId) as Array<{ date: string; tokenUsageJson: string | null }>;
+    const pointsByDate = new Map<string, TokenUsage>();
+    const total = emptyTokenUsage();
+    for (const row of rows) {
+      const usage = parseTokenUsage(row.tokenUsageJson);
+      if (!usage) continue;
+      const point = pointsByDate.get(row.date) ?? emptyTokenUsage();
+      addTokenUsage(point, usage);
+      addTokenUsage(total, usage);
+      pointsByDate.set(row.date, point);
+    }
+    return {
+      projectId,
+      points: Array.from(pointsByDate, ([date, usage]) => ({ date, ...usage })),
+      total
+    };
+  }
+
   getTaskJourneyDetail(journeyId: string, projectId?: string): TaskJourneyDetail | null {
     const projects = projectId ? [this.getProject(projectId)].filter((project): project is ProjectRecord => Boolean(project)) : this.listProjects();
     for (const project of projects) {
@@ -696,6 +724,18 @@ function phaseForStatus(status: IngestJob["status"]): IngestJob["phase"] {
 function normalizeLimit(limit: number | undefined): number {
   if (limit === undefined) return 200;
   return Math.min(500, Math.max(1, Math.trunc(limit)));
+}
+
+function emptyTokenUsage(): TokenUsage {
+  return { input: 0, output: 0, reasoning: 0, cachedInput: 0, total: 0 };
+}
+
+function addTokenUsage(total: TokenUsage, usage: TokenUsage) {
+  total.input += usage.input;
+  total.output += usage.output;
+  total.reasoning += usage.reasoning;
+  total.cachedInput += usage.cachedInput;
+  total.total += usage.total;
 }
 
 function rowToTimelineEvent(row: EventRow): TimelineEvent {

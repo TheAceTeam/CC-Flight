@@ -227,6 +227,14 @@ export class SuperViewDatabase {
     this.ensureColumn("sessions", "external_session_id", "TEXT");
     this.ensureColumn("sessions", "agent_name", "TEXT");
     this.ensureColumn("raw_event_refs", "provider", "TEXT NOT NULL DEFAULT 'codex'");
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_events_project_id ON events(project_id);
+      CREATE INDEX IF NOT EXISTS idx_events_project_timestamp ON events(project_id, timestamp);
+      CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id);
+      CREATE INDEX IF NOT EXISTS idx_sessions_project_id ON sessions(project_id);
+      CREATE INDEX IF NOT EXISTS idx_episodes_project_id ON episodes(project_id);
+      CREATE INDEX IF NOT EXISTS idx_artifacts_event_id ON artifacts(event_id);
+    `);
     this.db.prepare("INSERT OR REPLACE INTO schema_meta(version, updated_at) VALUES (?, ?)").run(SCHEMA_VERSION, new Date().toISOString());
   }
 
@@ -519,6 +527,23 @@ export class SuperViewDatabase {
     }, { input: 0, output: 0, reasoning: 0, cachedInput: 0, total: 0 });
   }
 
+  getProjectTokenUsageByProjectIds(projectIds: string[]): Map<string, TokenUsage> {
+    const usageByProject = new Map(projectIds.map((projectId) => [projectId, emptyTokenUsage()]));
+    if (projectIds.length === 0) return usageByProject;
+    const placeholders = projectIds.map(() => "?").join(", ");
+    const rows = this.db
+      .prepare(`SELECT project_id as projectId, token_usage_json as tokenUsageJson FROM events WHERE project_id IN (${placeholders}) AND token_usage_json IS NOT NULL`)
+      .all(...projectIds) as Array<{ projectId: string; tokenUsageJson: string | null }>;
+    for (const row of rows) {
+      const usage = parseTokenUsage(row.tokenUsageJson);
+      if (!usage) continue;
+      const total = usageByProject.get(row.projectId) ?? emptyTokenUsage();
+      addTokenUsage(total, usage);
+      usageByProject.set(row.projectId, total);
+    }
+    return usageByProject;
+  }
+
   getProjectDailyTokenUsage(projectId: string): DailyTokenUsageResponse | null {
     if (!this.getProject(projectId)) return null;
     const rows = this.db
@@ -599,6 +624,26 @@ export class SuperViewDatabase {
                         COALESCE(external_session_id, id) as externalSessionId, agent_name as agentName
                  FROM sessions ${projectId ? "WHERE project_id = ?" : ""} ORDER BY started_at DESC`;
     return (projectId ? this.db.prepare(sql).all(projectId) : this.db.prepare(sql).all()) as SessionRecord[];
+  }
+
+  listSessionsByProjectIds(projectIds: string[]): Map<string, SessionRecord[]> {
+    const sessionsByProject = new Map(projectIds.map((projectId) => [projectId, [] as SessionRecord[]]));
+    if (projectIds.length === 0) return sessionsByProject;
+    const placeholders = projectIds.map(() => "?").join(", ");
+    const rows = this.db
+      .prepare(
+        `SELECT id, project_id as projectId, path, cwd, started_at as startedAt, ended_at as endedAt,
+                cli_version as cliVersion, model_provider as modelProvider, source, provider,
+                COALESCE(external_session_id, id) as externalSessionId, agent_name as agentName
+         FROM sessions WHERE project_id IN (${placeholders}) ORDER BY started_at DESC`
+      )
+      .all(...projectIds) as SessionRecord[];
+    for (const session of rows) {
+      const bucket = sessionsByProject.get(session.projectId) ?? [];
+      bucket.push(session);
+      sessionsByProject.set(session.projectId, bucket);
+    }
+    return sessionsByProject;
   }
 
   getSession(sessionId: string): SessionRecord | null {

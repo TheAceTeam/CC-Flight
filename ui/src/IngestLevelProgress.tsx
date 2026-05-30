@@ -3,7 +3,6 @@ import brickBlockSprite from "./assets/brick-block.png";
 import coinSprite from "./assets/coin.png";
 import goalFlagSprite from "./assets/goal-flag.png";
 import hazardSprite from "./assets/hazard.png";
-import marioRunSprite from "./assets/mario-run.png";
 import marioVictorySprite from "./assets/mario-victory.png";
 import questionBlockSprite from "./assets/question-block.png";
 
@@ -17,7 +16,8 @@ export function IngestLevelProgress({ job }: { job: IngestJob }) {
   const hazards = job.errors.length;
   const stateLabel = job.status === "completed" ? "Castle clear" : job.status === "failed" ? "Level failed" : "Running level";
   const ariaLabel = `Ingest ${job.status}, ${job.phase}, ${job.processedFiles} of ${job.totalFiles} files processed, ${displayPercent} percent`;
-  const marioSprite = job.status === "completed" ? marioVictorySprite : marioRunSprite;
+  const isCompleted = job.status === "completed";
+  const avatarLabel = isCompleted ? "Pixel Mario victory" : "Pixel Mario running";
 
   return (
     <section className={`ingest-level-progress ingest-level-progress--${job.status}`} role="status" aria-live="polite" aria-label={ariaLabel}>
@@ -49,7 +49,11 @@ export function IngestLevelProgress({ job }: { job: IngestJob }) {
         </div>
         <div className="ingest-level-track">
           <span className="ingest-level-ground" style={{ width: `${percent}%` }} />
-          <img className="ingest-level-avatar" src={marioSprite} alt={job.status === "completed" ? "Pixel Mario victory" : "Pixel Mario running"} style={{ left: `clamp(0px, calc(${percent}% - 40px), calc(100% - 96px))` }} />
+          {isCompleted ? (
+            <img className="ingest-level-avatar ingest-level-avatar--victory" src={marioVictorySprite} alt={avatarLabel} style={{ left: `clamp(0px, calc(${percent}% - 32px), calc(100% - 72px))` }} />
+          ) : (
+            <span className="ingest-level-avatar ingest-level-avatar--running" role="img" aria-label={avatarLabel} style={{ left: `clamp(0px, calc(${percent}% - 26px), calc(100% - 64px))` }} />
+          )}
           <img className="ingest-level-flag" src={goalFlagSprite} alt="" aria-hidden="true" />
         </div>
       </div>

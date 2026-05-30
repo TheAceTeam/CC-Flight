@@ -1308,7 +1308,7 @@ pre {
 .ingest-level-stage {
   display: grid;
   gap: 8px;
-  min-height: 146px;
+  min-height: 118px;
   padding: 12px 10px 10px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--blue) 28%, var(--line));
@@ -1353,6 +1353,7 @@ pre {
   height: auto;
   image-rendering: pixelated;
   filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .18));
+  animation: ingest-level-bob 850ms ease-in-out infinite alternate;
 }
 
 .ingest-level-hazard {
@@ -1361,8 +1362,13 @@ pre {
 
 .ingest-level-track {
   position: relative;
-  min-height: 104px;
+  min-height: 68px;
   border-bottom: 10px solid color-mix(in srgb, var(--ink) 18%, var(--success));
+  background-image: repeating-linear-gradient(90deg, color-mix(in srgb, var(--success) 34%, transparent) 0 16px, transparent 16px 32px);
+  background-position: 0 100%;
+  background-repeat: repeat-x;
+  background-size: auto 8px;
+  animation: ingest-level-ground-scroll 720ms linear infinite;
 }
 
 .ingest-level-ground {
@@ -1382,11 +1388,21 @@ pre {
 
 .ingest-level-avatar {
   bottom: -3px;
-  width: 96px;
   height: auto;
   object-fit: contain;
   image-rendering: pixelated;
   filter: drop-shadow(0 3px 0 color-mix(in srgb, var(--ink) 30%, transparent));
+}
+
+.ingest-level-avatar--running {
+  width: 64px;
+  height: 94px;
+  background: url("./assets/mario-walk-cycle.png") 0 100% / 256px 94px no-repeat;
+  animation: ingest-level-run 420ms steps(4) infinite;
+}
+
+.ingest-level-avatar--victory {
+  width: 72px;
 }
 
 .ingest-level-flag {
@@ -1414,6 +1430,24 @@ pre {
 
 .ingest-level-progress--failed .ingest-level-avatar {
   filter: grayscale(.35) drop-shadow(0 3px 0 color-mix(in srgb, var(--danger) 40%, transparent));
+}
+
+@keyframes ingest-level-run {
+  to {
+    background-position-x: -256px;
+  }
+}
+
+@keyframes ingest-level-ground-scroll {
+  to {
+    background-position: -32px 100%;
+  }
+}
+
+@keyframes ingest-level-bob {
+  to {
+    transform: translateY(-4px);
+  }
 }
 
 .ingest-level-meta,

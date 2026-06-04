@@ -1,16 +1,20 @@
 # SuperView
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.md) | [Simplified Chinese](README.zh-CN.md)
 
 SuperView is a local-first dashboard for understanding how coding agents work from prompt to result. It ingests agent logs, reconstructs task journeys, and turns raw CLI sessions into a conversation-first view with hidden agent work, evidence, token usage, and project-level telemetry.
 
 The product goal is simple: make a coding agent run feel inspectable, replayable, and surprisingly visual.
 
+## Preview
+
+![SuperView dashboard showing the project with the most indexed logs](docs/assets/superview-most-logs-project-en.png)
+
 ## What It Shows
 
 - Conversation threads shaped like the agent CLI flow: `User -> agent work -> Codex/Claude/OpenCode result`.
 - IM-style bubbles for user prompts and agent responses, with long messages capped and expandable.
-- Hidden process details behind `查看过程...`, so the main thread stays readable until the user wants the background work.
+- Hidden process details behind `View process...`, so the main thread stays readable until the user wants the background work.
 - Evidence drawers for raw event context, source path, line number, and redacted payloads.
 - Project selector and provider filter for Codex, Claude Code, OpenCode, or all sources.
 - Project-level token metrics, KV cache hit rate, per-task runtime, and per-task token usage.

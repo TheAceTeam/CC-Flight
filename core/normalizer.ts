@@ -39,7 +39,7 @@ export function normalizeCodexLines(lines: ParsedCodexLine[], options: Normalize
   const cwd = stringValue(metaPayload.cwd) ?? process.cwd();
   const startedAt = stringValue(metaPayload.timestamp) ?? sessionMeta?.timestamp ?? lines[0]?.timestamp ?? new Date().toISOString();
   const repoRoot = options.repoRoot ?? null;
-  const projectId = stableId("project", repoRoot ?? cwd);
+  const projectId = stableId("project", provider, repoRoot ?? cwd);
 
   const project: ProjectRecord = {
     id: projectId,

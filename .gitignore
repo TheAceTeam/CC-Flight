@@ -2,7 +2,10 @@ node_modules/
 dist/
 .superview/
 .superview-e2e/
+.codegraph/
 test-results/
 playwright-report/
 *.log
 .DS_Store
+.gstack/
+.superpowers/

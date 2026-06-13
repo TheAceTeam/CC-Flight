@@ -222,6 +222,61 @@ describe("SuperView API", () => {
     expect(storedVersion).toBe(INGEST_PROCESSOR_VERSION);
   });
 
+  it("removes events from agent log files that disappeared before the next ingest", async () => {
+    const staleClaudeHome = mkdtempSync(path.join(tmpdir(), "superview-stale-claude-home-"));
+    const projectDir = path.join(staleClaudeHome, "projects", "-tmp-stale-project");
+    const staleSourcePath = path.join(projectDir, "stale-session.jsonl");
+    try {
+      mkdirSync(projectDir, { recursive: true });
+      writeFileSync(
+        staleSourcePath,
+        [
+          JSON.stringify({
+            cwd: "/tmp/stale-project",
+            sessionId: "stale-session",
+            version: "1.2.3",
+            type: "user",
+            message: {
+              role: "user",
+              content: "Implement the following plan:\n\n# Plan: complete-mapping.md -> complete-mapping.toml 转换"
+            },
+            timestamp: "2026-04-25T04:01:45.308Z"
+          }),
+          JSON.stringify({
+            cwd: "/tmp/stale-project",
+            sessionId: "stale-session",
+            version: "1.2.3",
+            type: "assistant",
+            message: {
+              role: "assistant",
+              content: "Converted the mapping plan."
+            },
+            timestamp: "2026-04-25T04:03:45.308Z"
+          })
+        ].join("\n")
+      );
+
+      const app = createServer();
+      const firstJob = await runIngestSources(app, [{ provider: "claude-code", root: staleClaudeHome }]);
+      expect(firstJob.status).toBe("completed");
+      expect(firstJob.totalFiles).toBe(1);
+
+      const firstProjects = await request(app).get("/api/projects");
+      expect(firstProjects.body.projects.some((project: { name: string }) => project.name === "stale-project")).toBe(true);
+
+      rmSync(staleSourcePath, { force: true });
+
+      const secondJob = await runIngestSources(app, [{ provider: "claude-code", root: staleClaudeHome }]);
+      expect(secondJob.status).toBe("completed");
+      expect(secondJob.totalFiles).toBe(0);
+
+      const secondProjects = await request(app).get("/api/projects");
+      expect(secondProjects.body.projects.some((project: { name: string }) => project.name === "stale-project")).toBe(false);
+    } finally {
+      rmSync(staleClaudeHome, { recursive: true, force: true });
+    }
+  });
+
   it("adds git commits to the project timeline when sessions belong to a git repo", async () => {
     const repoRoot = mkdtempSync(path.join(tmpdir(), "superview-api-git-"));
     const gitCodexHome = mkdtempSync(path.join(tmpdir(), "superview-git-codex-home-"));
@@ -363,6 +418,42 @@ describe("SuperView API", () => {
     }
   });
 
+  it("returns context replay snapshots with redacted evidence for a task journey", async () => {
+    const contextCodexHome = createContextReplayCodexHome();
+    try {
+      const app = createServer();
+      const job = await runIngest(app, contextCodexHome);
+      expect(job.status).toBe("completed");
+
+      const projects = await request(app).get("/api/projects");
+      const project = projects.body.projects.find((candidate: { name: string }) => candidate.name === "superview-context-replay");
+      expect(project).toBeTruthy();
+
+      const timeline = await request(app).get(`/api/projects/${project.id}/timeline`).query({ limit: 20 });
+      const journey = timeline.body.taskJourneys[0];
+      const response = await request(app).get(`/api/task-journeys/${journey.id}/context-replay`).query({ projectId: project.id });
+
+      expect(response.status).toBe(200);
+      expect(response.body.journey.id).toBe(journey.id);
+      expect(response.body.snapshots.map((snapshot: { phase: string }) => snapshot.phase)).toEqual(expect.arrayContaining(["prompt", "tool_result", "response"]));
+      expect(response.body.blocks.some((block: { excerpt: string }) => block.excerpt.includes("OPENAI_API_KEY=[REDACTED]"))).toBe(true);
+      expect(response.body.warnings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "warning-unverified-final",
+            severity: "high"
+          })
+        ])
+      );
+      const encoded = JSON.stringify(response.body);
+      expect(encoded).toContain("[REDACTED]");
+      expect(encoded).not.toContain("sk-live-secret");
+      expect(Object.keys(response.body.evidenceByEventId).length).toBeGreaterThan(0);
+    } finally {
+      rmSync(contextCodexHome, { recursive: true, force: true });
+    }
+  });
+
   it("keeps read APIs responsive while ingesting 300+ rollout files", async () => {
     const largeCodexHome = createRolloutFixtureCodexHome(320);
     process.env.SUPERVIEW_TEST_INGEST_FILE_DELAY_MS = "1";
@@ -459,6 +550,12 @@ async function runIngest(app: express.Express, sourceCodexHome: string) {
   return waitForJob(app, ingest.body.jobId);
 }
 
+async function runIngestSources(app: express.Express, sources: Array<{ provider: "codex" | "claude-code" | "opencode"; root: string }>) {
+  const ingest = await request(app).post("/api/ingest").send({ sources });
+  expect(ingest.status).toBe(202);
+  return waitForJob(app, ingest.body.jobId);
+}
+
 function git(repoRoot: string, args: string[]) {
   execFileSync("git", ["-C", repoRoot, ...args], {
     stdio: "pipe",
@@ -544,6 +641,57 @@ function createSingleSessionTimelineCodexHome(eventCount: number) {
   }
 
   writeFileSync(path.join(sessionsDir, "rollout-full-timeline.jsonl"), lines.join("\n"));
+  return fixtureHome;
+}
+
+function createContextReplayCodexHome() {
+  const fixtureHome = mkdtempSync(path.join(tmpdir(), "superview-context-codex-home-"));
+  const sessionsDir = path.join(fixtureHome, "sessions", "2026", "05", "28");
+  mkdirSync(sessionsDir, { recursive: true });
+  writeFileSync(
+    path.join(sessionsDir, "rollout-context-replay.jsonl"),
+    [
+      JSON.stringify({
+        timestamp: "2026-05-28T00:00:00.000Z",
+        type: "session_meta",
+        payload: {
+          id: "context-replay-session",
+          timestamp: "2026-05-28T00:00:00.000Z",
+          cwd: "/tmp/superview-context-replay",
+          cli_version: "fixture",
+          model_provider: "OpenAI",
+          source: "fixture"
+        }
+      }),
+      JSON.stringify({
+        timestamp: "2026-05-28T00:00:01.000Z",
+        type: "response_item",
+        payload: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: "Inspect context replay evidence and keep secrets redacted." }]
+        }
+      }),
+      JSON.stringify({
+        timestamp: "2026-05-28T00:00:02.000Z",
+        type: "response_item",
+        payload: {
+          type: "function_call_output",
+          call_id: "call-secret",
+          output: "OPENAI_API_KEY=sk-live-secret\nui/src/App.tsx"
+        }
+      }),
+      JSON.stringify({
+        timestamp: "2026-05-28T00:00:03.000Z",
+        type: "response_item",
+        payload: {
+          type: "message",
+          role: "assistant",
+          content: [{ type: "output_text", text: "Context replay evidence is available and secrets are redacted." }]
+        }
+      })
+    ].join("\n")
+  );
   return fixtureHome;
 }
 

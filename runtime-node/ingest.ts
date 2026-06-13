@@ -3,14 +3,14 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { AgentLogAdapter, AgentLogSource, AgentSourceConfig, CodexHistoryPrompt, GitCommitRecord, IngestJob, NormalizedBundle } from "../core/types";
+import { AgentLogAdapter, AgentLogSource, AgentProvider, AgentSourceConfig, CodexHistoryPrompt, GitCommitRecord, IngestJob, NormalizedBundle } from "../core/types";
 import { SuperViewDatabase } from "../storage/database";
 import { resolveCodexHome } from "../storage/paths";
 import { adapterForProvider, defaultAdapters } from "./adapters";
 import { getCommits, getRepoRoot } from "./git-provider";
 import { parseCodexHistoryJsonlFile } from "./history";
 
-export const INGEST_PROCESSOR_VERSION = "2026-05-27-multi-agent-v1";
+export const INGEST_PROCESSOR_VERSION = "2026-06-07-prune-stale-sources-v1";
 
 export interface IngestStartResult {
   job: IngestJob;
@@ -134,6 +134,8 @@ export async function runIngestJob(db: SuperViewDatabase, jobId: string, ingestO
     job.totalFiles = sources.length;
     job.candidateFiles = sources.length;
     db.upsertJob(job);
+    const currentSourceIds = new Set(sources.map((candidate) => candidate.source.id));
+    db.pruneMissingIngestedFiles(providersEligibleForPrune(adapterConfigs, sources), currentSourceIds);
 
     const candidates: IngestCandidate[] = [];
     let skippedFiles = 0;
@@ -253,6 +255,17 @@ async function scanAgentSources(configs: AgentSourceConfig[]): Promise<IngestCan
     candidates.push(...sources.map((source) => ({ source, adapter })));
   }
   return candidates;
+}
+
+function providersEligibleForPrune(configs: AgentSourceConfig[], candidates: IngestCandidate[]): AgentProvider[] {
+  const providersWithCurrentSources = new Set(candidates.map((candidate) => candidate.source.provider));
+  return Array.from(
+    new Set(
+      configs
+        .filter((config) => Boolean(config.root ?? config.path) || providersWithCurrentSources.has(config.provider))
+        .map((config) => config.provider)
+    )
+  );
 }
 
 async function parseCandidateWithRepoRoot(candidate: IngestCandidate, repoRootsByCwd: Map<string, string | null>): Promise<NormalizedBundle | null> {

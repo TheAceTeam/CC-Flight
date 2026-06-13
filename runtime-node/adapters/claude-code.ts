@@ -21,11 +21,13 @@ export const claudeCodeAdapter: AgentLogAdapter = {
   },
   async parseSource(source, options = {}) {
     const content = await readFile(source.path, "utf8");
-    return normalizeClaudeCodeJsonl(content, source.path, options.repoRoot);
+    const externalSessionId = externalSessionIdFromClaudeJsonl(content, source.path);
+    const historyProject = externalSessionId ? await claudeHistoryProjectForSession(source.path, externalSessionId) : null;
+    return normalizeClaudeCodeJsonl(content, source.path, options.repoRoot, historyProject);
   }
 };
 
-export function normalizeClaudeCodeJsonl(content: string, sourcePath: string, repoRoot?: string | null): NormalizedBundle | null {
+export function normalizeClaudeCodeJsonl(content: string, sourcePath: string, repoRoot?: string | null, projectCwdOverride?: string | null): NormalizedBundle | null {
   const rawLines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
   const records = rawLines.map((line) => JSON.parse(line) as unknown);
   if (records.length === 0) return null;
@@ -33,7 +35,7 @@ export function normalizeClaudeCodeJsonl(content: string, sourcePath: string, re
   const first = asRecord(records[0]);
   const externalSessionId = stringValue(first.sessionId) ?? path.basename(sourcePath, ".jsonl");
   const startedAt = stringValue(first.timestamp) ?? new Date(0).toISOString();
-  const cwd = stringValue(first.cwd) ?? process.cwd();
+  const cwd = projectCwdOverride ?? stringValue(first.cwd) ?? process.cwd();
   const version = stringValue(first.version);
 
   const lines: ParsedAgentEvent[] = [
@@ -89,6 +91,45 @@ export function normalizeClaudeCodeJsonl(content: string, sourcePath: string, re
     source: "claude-code",
     agentName: "Claude Code"
   });
+}
+
+function externalSessionIdFromClaudeJsonl(content: string, sourcePath: string): string | null {
+  const firstLine = content.split(/\r?\n/).find((line) => line.trim().length > 0);
+  if (!firstLine) return path.basename(sourcePath, ".jsonl");
+  try {
+    return stringValue(asRecord(JSON.parse(firstLine)).sessionId) ?? path.basename(sourcePath, ".jsonl");
+  } catch {
+    return path.basename(sourcePath, ".jsonl");
+  }
+}
+
+async function claudeHistoryProjectForSession(sourcePath: string, externalSessionId: string): Promise<string | null> {
+  const claudeRoot = claudeRootFromSourcePath(sourcePath);
+  if (!claudeRoot) return null;
+  try {
+    const history = await readFile(path.join(claudeRoot, "history.jsonl"), "utf8");
+    let project: string | null = null;
+    for (const line of history.split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      try {
+        const record = asRecord(JSON.parse(line));
+        if (stringValue(record.sessionId) === externalSessionId) {
+          project = stringValue(record.project) ?? project;
+        }
+      } catch {
+        continue;
+      }
+    }
+    return project;
+  } catch {
+    return null;
+  }
+}
+
+function claudeRootFromSourcePath(sourcePath: string): string | null {
+  const marker = `${path.sep}projects${path.sep}`;
+  const index = sourcePath.lastIndexOf(marker);
+  return index >= 0 ? sourcePath.slice(0, index) : null;
 }
 
 function claudePayloadsForRecord(content: unknown, role: string | null, usage: TokenUsage | null): Array<Record<string, unknown>> {

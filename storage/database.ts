@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { dirname } from "node:path";
 import { mkdirSync } from "node:fs";
 import {
+  AgentProvider,
   Artifact,
   CodexHistoryPrompt,
   DailyTokenUsageResponse,
@@ -231,15 +232,20 @@ export class SuperViewDatabase {
       CREATE INDEX IF NOT EXISTS idx_events_project_id ON events(project_id);
       CREATE INDEX IF NOT EXISTS idx_events_project_timestamp ON events(project_id, timestamp);
       CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id);
+      CREATE INDEX IF NOT EXISTS idx_events_raw_event_ref_id ON events(raw_event_ref_id);
       CREATE INDEX IF NOT EXISTS idx_sessions_project_id ON sessions(project_id);
       CREATE INDEX IF NOT EXISTS idx_episodes_project_id ON episodes(project_id);
       CREATE INDEX IF NOT EXISTS idx_artifacts_event_id ON artifacts(event_id);
+      CREATE INDEX IF NOT EXISTS idx_raw_event_refs_source_path ON raw_event_refs(source_path);
     `);
     this.db.prepare("INSERT OR REPLACE INTO schema_meta(version, updated_at) VALUES (?, ?)").run(SCHEMA_VERSION, new Date().toISOString());
   }
 
   upsertBundle(bundle: NormalizedBundle) {
     const tx = this.db.transaction(() => {
+      for (const sourcePath of new Set(bundle.rawEventRefs.map((raw) => raw.sourcePath))) {
+        this.deleteRawSource(sourcePath);
+      }
       this.upsertProject(bundle.project);
       this.upsertSession(bundle.session);
       for (const turn of bundle.turns) this.upsertTurn(turn);
@@ -249,7 +255,7 @@ export class SuperViewDatabase {
       for (const commit of bundle.gitCommits ?? []) this.upsertGitCommit(bundle.project.id, bundle.session.id, commit);
       for (const artifact of bundle.artifacts) this.upsertArtifact(artifact);
       for (const artifact of this.gitArtifactsForCommits(bundle.project.id, bundle.gitCommits ?? [])) this.upsertArtifact(artifact);
-      this.upsertEpisodes(groupEpisodes(bundle.project.id, bundle.events));
+      this.replaceProjectEpisodes(bundle.project.id, groupEpisodes(bundle.project.id, this.listEvents(bundle.project.id)));
     });
     tx();
   }
@@ -411,6 +417,129 @@ export class SuperViewDatabase {
       }
     });
     tx();
+  }
+
+  pruneMissingIngestedFiles(providers: AgentProvider[], retainedSourceIds: Set<string>): number {
+    const uniqueProviders = Array.from(new Set(providers));
+    if (uniqueProviders.length === 0) return 0;
+    const clauses = uniqueProviders.map(() => "path LIKE ?").join(" OR ");
+    const rows = this.db.prepare(`SELECT path FROM ingested_files WHERE ${clauses}`).all(...uniqueProviders.map((provider) => `${provider}:%`)) as Array<{ path: string }>;
+    const staleRows = rows.filter((row) => !retainedSourceIds.has(row.path));
+    if (staleRows.length === 0) return 0;
+    const tx = this.db.transaction(() => {
+      for (const row of staleRows) {
+        this.deleteIngestedSource(row.path);
+      }
+    });
+    tx();
+    return staleRows.length;
+  }
+
+  private replaceProjectEpisodes(projectId: string, episodes: Episode[]) {
+    this.db.prepare("DELETE FROM episodes WHERE project_id = ?").run(projectId);
+    for (const episode of episodes) {
+      this.db
+        .prepare(
+          `INSERT OR REPLACE INTO episodes(id, project_id, started_at, ended_at, title, summary, status, event_ids_json)
+           VALUES (@id, @projectId, @startedAt, @endedAt, @title, @summary, @status, @eventIdsJson)`
+        )
+        .run({ ...episode, eventIdsJson: JSON.stringify(episode.eventIds) });
+    }
+  }
+
+  private deleteIngestedSource(sourceId: string) {
+    const sourcePath = sourcePathFromIngestedId(sourceId);
+    this.deleteRawSource(sourcePath);
+    this.db.prepare("DELETE FROM ingested_files WHERE path = ?").run(sourceId);
+  }
+
+  private deleteRawSource(sourcePath: string) {
+    const projectRows = this.db
+      .prepare(
+        `SELECT DISTINCT e.project_id as projectId
+         FROM events e
+         JOIN raw_event_refs r ON r.id = e.raw_event_ref_id
+         WHERE r.source_path = ?
+         UNION
+         SELECT project_id as projectId FROM sessions WHERE path = ?`
+      )
+      .all(sourcePath, sourcePath) as Array<{ projectId: string }>;
+    const sessionRows = this.db
+      .prepare(
+        `SELECT DISTINCT session_id as sessionId FROM raw_event_refs WHERE source_path = ?
+         UNION
+         SELECT id as sessionId FROM sessions WHERE path = ?`
+      )
+      .all(sourcePath, sourcePath) as Array<{ sessionId: string }>;
+    const projectIds = projectRows.map((row) => row.projectId);
+    const sessionIds = sessionRows.map((row) => row.sessionId);
+
+    this.db
+      .prepare(
+        `DELETE FROM artifacts
+         WHERE event_id IN (
+           SELECT e.id
+           FROM events e
+           JOIN raw_event_refs r ON r.id = e.raw_event_ref_id
+           WHERE r.source_path = ?
+         )`
+      )
+      .run(sourcePath);
+    this.db
+      .prepare(
+        `DELETE FROM events
+         WHERE raw_event_ref_id IN (
+           SELECT id FROM raw_event_refs WHERE source_path = ?
+         )`
+      )
+      .run(sourcePath);
+    this.db.prepare("DELETE FROM raw_event_refs WHERE source_path = ?").run(sourcePath);
+    this.deleteIngestedRowsForSourcePath(sourcePath);
+
+    for (const sessionId of sessionIds) {
+      this.deleteSessionIfOrphan(sessionId);
+    }
+    for (const projectId of projectIds) {
+      this.refreshProjectEpisodes(projectId);
+      this.deleteProjectIfOrphan(projectId);
+    }
+  }
+
+  private refreshProjectEpisodes(projectId: string) {
+    this.replaceProjectEpisodes(projectId, groupEpisodes(projectId, this.listEvents(projectId)));
+  }
+
+  private deleteSessionIfOrphan(sessionId: string) {
+    const row = this.db
+      .prepare(
+        `SELECT
+           (SELECT COUNT(*) FROM events WHERE session_id = ?) as eventCount,
+           (SELECT COUNT(*) FROM raw_event_refs WHERE session_id = ?) as rawCount`
+      )
+      .get(sessionId, sessionId) as { eventCount: number; rawCount: number };
+    if (row.eventCount > 0 || row.rawCount > 0) return;
+    this.db.prepare("DELETE FROM turns WHERE session_id = ?").run(sessionId);
+    this.db.prepare("DELETE FROM history_prompts WHERE session_id = ?").run(sessionId);
+    this.db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
+  }
+
+  private deleteProjectIfOrphan(projectId: string) {
+    this.db
+      .prepare(
+        `DELETE FROM projects
+         WHERE id = ?
+           AND NOT EXISTS (SELECT 1 FROM events WHERE project_id = ?)
+           AND NOT EXISTS (SELECT 1 FROM sessions WHERE project_id = ?)
+           AND NOT EXISTS (SELECT 1 FROM git_commits WHERE project_id = ?)
+           AND NOT EXISTS (SELECT 1 FROM episodes WHERE project_id = ?)`
+      )
+      .run(projectId, projectId, projectId, projectId, projectId);
+  }
+
+  private deleteIngestedRowsForSourcePath(sourcePath: string) {
+    for (const provider of ALL_AGENT_PROVIDERS) {
+      this.db.prepare("DELETE FROM ingested_files WHERE path = ?").run(`${provider}:${sourcePath}`);
+    }
   }
 
   upsertJob(job: IngestJob) {
@@ -587,6 +716,38 @@ export class SuperViewDatabase {
       };
     }
     return null;
+  }
+
+  getEventEvidenceByEventIds(eventIds: string[]): Record<string, EventEvidence> {
+    if (eventIds.length === 0) return {};
+    const events = eventIds.map((eventId) => this.getEvent(eventId)).filter((event): event is TimelineEvent => Boolean(event));
+    const artifactsByEventId = new Map<string, Artifact[]>();
+    for (const artifact of this.listArtifactsForEvents(eventIds)) {
+      const artifacts = artifactsByEventId.get(artifact.eventId) ?? [];
+      artifacts.push(artifact);
+      artifactsByEventId.set(artifact.eventId, artifacts);
+    }
+
+    const evidence: Record<string, EventEvidence> = {};
+    for (const event of events) {
+      evidence[event.id] = {
+        event,
+        artifacts: artifactsByEventId.get(event.id) ?? [],
+        rawEvent: event.rawEventRefId ? this.getRawEvent(event.rawEventRefId) : null
+      };
+    }
+    return evidence;
+  }
+
+  listHistoryPromptsForSession(sessionId: string): CodexHistoryPrompt[] {
+    return this.db
+      .prepare(
+        `SELECT session_id as sessionId, ts, text, source_path as sourcePath, line_no as lineNo
+         FROM history_prompts
+         WHERE session_id = ?
+         ORDER BY ts ASC, line_no ASC`
+      )
+      .all(sessionId) as CodexHistoryPrompt[];
   }
 
   private timelineWhere(projectId: string, query: TimelineQuery) {
@@ -820,4 +981,14 @@ function parseSkills(value: string | null): TimelineEvent["skills"] {
   } catch {
     return [];
   }
+}
+
+const ALL_AGENT_PROVIDERS: AgentProvider[] = ["codex", "claude-code", "opencode"];
+
+function sourcePathFromIngestedId(sourceId: string): string {
+  for (const provider of ALL_AGENT_PROVIDERS) {
+    const prefix = `${provider}:`;
+    if (sourceId.startsWith(prefix)) return sourceId.slice(prefix.length);
+  }
+  return sourceId;
 }

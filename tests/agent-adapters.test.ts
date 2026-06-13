@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, cpSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, cpSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -30,6 +30,70 @@ describe("agent log adapters", () => {
           expect.objectContaining({ kind: "user_prompt", detail: "Review the checkout flow" }),
           expect.objectContaining({ kind: "assistant_message", detail: expect.stringContaining("inspect the checkout route") }),
           expect.objectContaining({ kind: "verification", callId: "toolu_1", detail: expect.stringContaining("PASS checkout.test.ts") })
+        ])
+      );
+    } finally {
+      rmSync(sourceRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("uses Claude history project mapping instead of stale transcript cwd", async () => {
+    const sourceRoot = mkdtempSync(path.join(tmpdir(), "superview-claude-history-home-"));
+    const mappedProject = "/Users/sean/workspace/cangjie_oss/EasyExcel4CJ";
+    try {
+      const projectDir = path.join(sourceRoot, "projects", "-Users-sean-workspace-exp-SuperView");
+      mkdirSync(projectDir, { recursive: true });
+      writeFileSync(
+        path.join(sourceRoot, "history.jsonl"),
+        JSON.stringify({
+          display: "plan/complete-mapping.toml 按计划执行...",
+          project: mappedProject,
+          sessionId: "history-session-1"
+        })
+      );
+      writeFileSync(
+        path.join(projectDir, "history-session-1.jsonl"),
+        [
+          JSON.stringify({
+            cwd: "/Users/sean/workspace/exp/SuperView",
+            sessionId: "history-session-1",
+            version: "1.2.3",
+            type: "user",
+            message: {
+              role: "user",
+              content: "Implement the following plan:\n\n# Plan: complete-mapping.md -> complete-mapping.toml 转换"
+            },
+            timestamp: "2026-04-25T04:01:45.308Z"
+          }),
+          JSON.stringify({
+            cwd: "/Users/sean/workspace/exp/SuperView",
+            sessionId: "history-session-1",
+            version: "1.2.3",
+            type: "assistant",
+            message: {
+              role: "assistant",
+              content: "I will work from the mapping plan."
+            },
+            timestamp: "2026-04-25T04:02:45.308Z"
+          })
+        ].join("\n")
+      );
+
+      const sources = await claudeCodeAdapter.scan({ provider: "claude-code", root: sourceRoot });
+      expect(sources).toHaveLength(1);
+
+      const bundle = requireBundle(await claudeCodeAdapter.parseSource(sources[0]));
+      expect(bundle.project).toMatchObject({
+        cwd: mappedProject,
+        name: "EasyExcel4CJ"
+      });
+      expect(bundle.session.cwd).toBe(mappedProject);
+      expect(bundle.events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "user_prompt",
+            detail: expect.stringContaining("complete-mapping.toml")
+          })
         ])
       );
     } finally {

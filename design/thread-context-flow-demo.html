@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SuperView Thread Context Flow Demo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #120f0b;
+      --panel: rgba(10, 9, 8, .74);
+      --panel-strong: rgba(0, 0, 0, .82);
+      --line: rgba(255, 255, 255, .13);
+      --line-strong: rgba(255, 255, 255, .24);
+      --ink: #fff8ef;
+      --muted: rgba(255, 248, 239, .66);
+      --soft: rgba(255, 248, 239, .08);
+      --orange: #fe6e00;
+      --amber: #ffb74d;
+      --blue: #3b82f6;
+      --green: #00c758;
+      --danger: #fb2c36;
+      --purple: #9b5de5;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 14% 8%, rgba(254, 110, 0, .20), transparent 30%),
+        radial-gradient(circle at 78% 18%, rgba(59, 130, 246, .16), transparent 32%),
+        linear-gradient(135deg, #211913, #100e0b 45%, #1f160f);
+      color: var(--ink);
+      font-family: var(--sans);
+      letter-spacing: 0;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: 64px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(0, 0, 0, .68);
+      backdrop-filter: blur(14px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand strong {
+      font-size: 23px;
+      line-height: 1;
+    }
+
+    .brand span,
+    .topbar-meta {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 18px;
+      width: min(1480px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 24px 0;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 48px);
+      line-height: 1;
+    }
+
+    .lead {
+      max-width: 720px;
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+
+    .tabs {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      backdrop-filter: blur(10px);
+    }
+
+    .tabs button {
+      min-height: 34px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .tabs button.active {
+      background: var(--orange);
+      color: white;
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
+      min-height: 680px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(252, 250, 247, .94);
+      color: #423d38;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .32);
+    }
+
+    .master {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-height: 0;
+      border-right: 1px solid #e3e0dd;
+      background: #f3f4f6;
+    }
+
+    .master-head {
+      padding: 16px;
+      border-bottom: 1px solid #e3e0dd;
+    }
+
+    .master-head span {
+      color: #797067;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .master-head strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 20px;
+      line-height: 1.1;
+    }
+
+    .run-list {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      min-height: 0;
+      overflow: auto;
+      padding: 14px;
+    }
+
+    .run-item {
+      display: grid;
+      gap: 7px;
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #e3e0dd;
+      border-radius: 8px;
+      background: #fff;
+      color: #423d38;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .run-item:hover,
+    .run-item.active {
+      border-color: rgba(254, 110, 0, .58);
+      box-shadow: 0 0 0 2px rgba(254, 110, 0, .11);
+    }
+
+    .run-item span,
+    .run-item em {
+      color: #797067;
+      font-size: 11px;
+      font-style: normal;
+      font-weight: 800;
+    }
+
+    .run-item strong {
+      display: -webkit-box;
+      overflow: hidden;
+      font-size: 13px;
+      line-height: 1.3;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .run-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .run-pills i {
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: #edebe9;
+      color: #797067;
+      font-size: 10px;
+      font-style: normal;
+      font-weight: 900;
+    }
+
+    .main {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-width: 0;
+      min-height: 0;
+      background: #fcfaf7;
+    }
+
+    .context-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 72px;
+      padding: 14px 18px;
+      border-bottom: 1px solid #e3e0dd;
+    }
+
+    .context-head span {
+      color: #797067;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .context-head strong {
+      display: block;
+      margin-top: 3px;
+      color: #423d38;
+      font-size: 19px;
+      line-height: 1.2;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: end;
+    }
+
+    .controls button {
+      min-height: 34px;
+      padding: 0 11px;
+      border: 1px solid #d1d5dc;
+      border-radius: 8px;
+      background: white;
+      color: #423d38;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .controls button.active {
+      border-color: var(--orange);
+      background: var(--orange);
+      color: white;
+    }
+
+    .context-stage {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      min-height: 0;
+      overflow: hidden;
+      background:
+        linear-gradient(90deg, rgba(227, 224, 221, .55) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(227, 224, 221, .45) 1px, transparent 1px),
+        #fcfaf7;
+      background-size: 32px 32px;
+    }
+
+    #three {
+      width: 100%;
+      height: 100%;
+      min-height: 606px;
+      outline: 0;
+    }
+
+    .inspector {
+      z-index: 2;
+      display: grid;
+      align-content: start;
+      gap: 12px;
+      min-width: 0;
+      padding: 16px;
+      border-left: 1px solid #e3e0dd;
+      background: rgba(255, 255, 255, .82);
+      backdrop-filter: blur(10px);
+    }
+
+    .inspector-card {
+      padding: 12px;
+      border: 1px solid #e3e0dd;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+    }
+
+    .inspector-card h3 {
+      margin: 0;
+      color: #423d38;
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .inspector-card p {
+      margin: 8px 0 0;
+      color: #797067;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .metric {
+      display: grid;
+      gap: 4px;
+      padding: 9px;
+      border: 1px solid #e3e0dd;
+      border-radius: 8px;
+      background: #f3f4f6;
+    }
+
+    .metric span {
+      color: #797067;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      color: #423d38;
+      font-family: var(--mono);
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    .legend {
+      display: grid;
+      gap: 8px;
+    }
+
+    .legend-row {
+      display: grid;
+      grid-template-columns: 12px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      color: #797067;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+    }
+
+    .dot.prompt { background: var(--orange); }
+    .dot.context { background: var(--blue); }
+    .dot.tool { background: var(--purple); }
+    .dot.file { background: var(--green); }
+    .dot.risk { background: var(--danger); }
+
+    .ticker {
+      position: absolute;
+      right: 340px;
+      bottom: 18px;
+      left: 18px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid rgba(66, 61, 56, .12);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .78);
+      color: #423d38;
+      backdrop-filter: blur(12px);
+    }
+
+    .ticker span {
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .ticker strong {
+      min-width: 0;
+      overflow: hidden;
+      font-size: 13px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ticker em {
+      color: #797067;
+      font-size: 11px;
+      font-style: normal;
+      font-weight: 900;
+    }
+
+    @media (max-width: 1040px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+
+      .master {
+        max-height: 260px;
+        border-right: 0;
+        border-bottom: 1px solid #e3e0dd;
+      }
+
+      .context-stage {
+        grid-template-columns: 1fr;
+      }
+
+      .inspector {
+        border-left: 0;
+        border-top: 1px solid #e3e0dd;
+      }
+
+      .ticker {
+        right: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <strong>SuperView</strong>
+        <span>Thread Context Flow demo</span>
+      </div>
+      <div class="topbar-meta">Three.js live context visualization prototype</div>
+    </header>
+
+    <main class="workspace">
+      <section class="title-row">
+        <div>
+          <p class="eyebrow">Parallel tab concept</p>
+          <h1>Agent Context Flow</h1>
+          <p class="lead">A companion tab beside Thread View that shows how prompt, retrieved context, tool evidence, file edits, and risk signals move through one agent turn.</p>
+        </div>
+        <div class="tabs" aria-label="Thread tabs">
+          <button>Thread</button>
+          <button class="active">Context Flow</button>
+        </div>
+      </section>
+
+      <section class="dashboard">
+        <aside class="master">
+          <div class="master-head">
+            <span>User inputs</span>
+            <strong>Latest engineering turns</strong>
+          </div>
+          <div class="run-list" id="runList"></div>
+        </aside>
+
+        <section class="main">
+          <div class="context-head">
+            <div>
+              <span id="runKicker">Selected run</span>
+              <strong id="runTitle">Loading context flow</strong>
+            </div>
+            <div class="controls">
+              <button id="playButton" class="active">Pause</button>
+              <button id="focusButton">Focus Risk</button>
+              <button id="resetButton">Reset View</button>
+            </div>
+          </div>
+
+          <div class="context-stage">
+            <canvas id="three" aria-label="Animated 3D context flow"></canvas>
+            <aside class="inspector">
+              <div class="inspector-card">
+                <h3 id="insightTitle">Context insight</h3>
+                <p id="insightText">The run starts by pulling prompt intent into the working context, then fans out to tools and files before compressing into the assistant result.</p>
+              </div>
+              <div class="metric-grid">
+                <div class="metric"><span>Context load</span><strong id="contextLoad">0%</strong></div>
+                <div class="metric"><span>Relevant</span><strong id="relevance">0%</strong></div>
+                <div class="metric"><span>Risk</span><strong id="risk">0</strong></div>
+                <div class="metric"><span>Compression</span><strong id="compression">0%</strong></div>
+              </div>
+              <div class="inspector-card">
+                <h3>Signal legend</h3>
+                <div class="legend">
+                  <div class="legend-row"><i class="dot prompt"></i><span>User intent</span><b>prompt</b></div>
+                  <div class="legend-row"><i class="dot context"></i><span>Context packets</span><b>memory</b></div>
+                  <div class="legend-row"><i class="dot tool"></i><span>Tool evidence</span><b>calls</b></div>
+                  <div class="legend-row"><i class="dot file"></i><span>File state</span><b>edits</b></div>
+                  <div class="legend-row"><i class="dot risk"></i><span>Risk / drift</span><b>alert</b></div>
+                </div>
+              </div>
+              <div class="inspector-card">
+                <h3>How to read it</h3>
+                <p>Thicker streams mean more tokens. Brighter nodes are active in the current phase. Red particles mark context that appears in logs but does not reach verification.</p>
+              </div>
+            </aside>
+            <div class="ticker">
+              <span id="phaseLabel">Prompt</span>
+              <strong id="phaseText">User request enters the active working context.</strong>
+              <em id="phaseTime">00:00</em>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "../node_modules/three/build/three.module.js",
+        "three/addons/": "../node_modules/three/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const runs = [
+      {
+        id: "superview-context",
+        title: "Show context passed from each user prompt to agent result",
+        time: "Jun 10, 09:42",
+        duration: "3m 18s",
+        tokens: "0.21M",
+        risk: 2,
+        relevance: 82,
+        compression: 64,
+        load: 71,
+        phases: [
+          ["Prompt", "User asks to reveal context movement during an agent turn.", "00:00"],
+          ["Recall", "Project history, selected thread, and loaded journey details enter working memory.", "00:23"],
+          ["Tooling", "Agent inspects App.tsx, runAtlasModel.ts, and design previews.", "01:11"],
+          ["Files", "Candidate UI surfaces are mapped to thread tabs and context inspector.", "02:04"],
+          ["Result", "The useful subset is compressed into a visual explanation and demo.", "03:18"]
+        ]
+      },
+      {
+        id: "ai-org",
+        title: "Investigate why AI Org only shows 1-500 / 4708 events",
+        time: "Jun 09, 08:51",
+        duration: "4m 07s",
+        tokens: "0.34M",
+        risk: 1,
+        relevance: 91,
+        compression: 58,
+        load: 84,
+        phases: [
+          ["Prompt", "User points at incomplete timeline loading in AI Org.", "00:00"],
+          ["Trace", "Frontend request limit and backend normalizeLimit are compared.", "00:41"],
+          ["Evidence", "Regression fixture creates more than 500 timeline events.", "01:50"],
+          ["Patch", "Backend max limit increases to support project-wide load.", "02:42"],
+          ["Result", "Test confirms 651 events return in a single request.", "04:07"]
+        ]
+      },
+      {
+        id: "scan-dropdown",
+        title: "Move Agent log root and source into scan dropdown panel",
+        time: "Jun 09, 09:37",
+        duration: "2m 44s",
+        tokens: "0.12M",
+        risk: 0,
+        relevance: 76,
+        compression: 70,
+        load: 49,
+        phases: [
+          ["Prompt", "User asks to compact secondary scan controls.", "00:00"],
+          ["UI State", "scanPanelOpen becomes the local topbar disclosure state.", "00:36"],
+          ["Interaction", "Panel holds source, root path, and submit button.", "01:18"],
+          ["Validation", "Playwright confirms controls are hidden until opened.", "02:08"],
+          ["Result", "Topbar is cleaner while scan flow remains intact.", "02:44"]
+        ]
+      }
+    ];
+
+    const runList = document.getElementById("runList");
+    const runTitle = document.getElementById("runTitle");
+    const runKicker = document.getElementById("runKicker");
+    const insightTitle = document.getElementById("insightTitle");
+    const insightText = document.getElementById("insightText");
+    const contextLoad = document.getElementById("contextLoad");
+    const relevance = document.getElementById("relevance");
+    const risk = document.getElementById("risk");
+    const compression = document.getElementById("compression");
+    const phaseLabel = document.getElementById("phaseLabel");
+    const phaseText = document.getElementById("phaseText");
+    const phaseTime = document.getElementById("phaseTime");
+    const playButton = document.getElementById("playButton");
+    const focusButton = document.getElementById("focusButton");
+    const resetButton = document.getElementById("resetButton");
+
+    let selectedRun = runs[0];
+    let playing = true;
+    let riskFocus = false;
+
+    for (const run of runs) {
+      const button = document.createElement("button");
+      button.className = "run-item";
+      button.dataset.run = run.id;
+      button.innerHTML = `
+        <span>${run.time}</span>
+        <strong>${run.title}</strong>
+        <em>${run.duration} · ${run.tokens}</em>
+        <div class="run-pills">
+          <i>context ${run.load}%</i>
+          <i>relevance ${run.relevance}%</i>
+          <i>risk ${run.risk}</i>
+        </div>
+      `;
+      button.addEventListener("click", () => selectRun(run.id));
+      runList.appendChild(button);
+    }
+
+    const canvas = document.getElementById("three");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0xfcfaf7, 13, 34);
+
+    const camera = new THREE.PerspectiveCamera(46, 1, .1, 100);
+    camera.position.set(0, 6.8, 15.5);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, .7, 0);
+    controls.maxDistance = 28;
+    controls.minDistance = 8;
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xd8c9b8, 1.6));
+    const key = new THREE.DirectionalLight(0xfff1de, 2.2);
+    key.position.set(5, 10, 7);
+    scene.add(key);
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(28, 18),
+      new THREE.MeshStandardMaterial({ color: 0xf4eee7, roughness: .8, metalness: 0 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -1.08;
+    scene.add(floor);
+
+    const grid = new THREE.GridHelper(28, 28, 0xd7d1ca, 0xe6e0da);
+    grid.position.y = -1.06;
+    scene.add(grid);
+
+    const colors = {
+      prompt: 0xfe6e00,
+      context: 0x3b82f6,
+      tool: 0x9b5de5,
+      file: 0x00c758,
+      risk: 0xfb2c36,
+      result: 0x423d38
+    };
+
+    const nodeSpecs = [
+      { key: "prompt", label: "Prompt", pos: [-7.2, .5, 0], color: colors.prompt, size: .82 },
+      { key: "memory", label: "Working Memory", pos: [-3.7, 1.15, 0], color: colors.context, size: 1.12 },
+      { key: "context", label: "History Context", pos: [-1.1, 2.65, -2.7], color: colors.context, size: .76 },
+      { key: "tools", label: "Tool Evidence", pos: [.7, 1.15, 2.7], color: colors.tool, size: .88 },
+      { key: "files", label: "File State", pos: [3.3, .65, -1.6], color: colors.file, size: .86 },
+      { key: "risk", label: "Context Drift", pos: [3.9, 2.3, 1.7], color: colors.risk, size: .58 },
+      { key: "result", label: "Assistant Result", pos: [7.3, .85, 0], color: colors.result, size: .98 }
+    ];
+
+    const nodeGroup = new THREE.Group();
+    const lineGroup = new THREE.Group();
+    const particleGroup = new THREE.Group();
+    scene.add(lineGroup, nodeGroup, particleGroup);
+
+    const nodes = new Map();
+    const labelSprites = [];
+    const links = [
+      ["prompt", "memory", "prompt enters context"],
+      ["context", "memory", "history retrieved"],
+      ["memory", "tools", "tool calls ask questions"],
+      ["tools", "files", "evidence changes file state"],
+      ["memory", "risk", "unused or conflicting context"],
+      ["files", "result", "verified file state feeds answer"],
+      ["memory", "result", "compressed response"]
+    ];
+
+    for (const spec of nodeSpecs) {
+      const material = new THREE.MeshStandardMaterial({
+        color: spec.color,
+        emissive: spec.color,
+        emissiveIntensity: .16,
+        roughness: .45,
+        metalness: .08
+      });
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(spec.size, 36, 20), material);
+      mesh.position.set(...spec.pos);
+      mesh.userData = spec;
+      nodes.set(spec.key, mesh);
+      nodeGroup.add(mesh);
+
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(spec.size * 1.38, .018, 8, 80),
+        new THREE.MeshBasicMaterial({ color: spec.color, transparent: true, opacity: .28 })
+      );
+      ring.position.copy(mesh.position);
+      ring.rotation.x = Math.PI / 2;
+      mesh.userData.ring = ring;
+      nodeGroup.add(ring);
+
+      const label = makeLabel(spec.label, spec.color);
+      label.position.set(spec.pos[0], spec.pos[1] + spec.size + .42, spec.pos[2]);
+      labelSprites.push(label);
+      nodeGroup.add(label);
+    }
+
+    for (const [from, to] of links) {
+      const a = nodes.get(from).position;
+      const b = nodes.get(to).position;
+      const curve = new THREE.CatmullRomCurve3([
+        a.clone(),
+        a.clone().lerp(b, .5).add(new THREE.Vector3(0, 1.25, 0)),
+        b.clone()
+      ]);
+      const geometry = new THREE.TubeGeometry(curve, 48, .035, 8, false);
+      const material = new THREE.MeshBasicMaterial({ color: 0x8d8176, transparent: true, opacity: .32 });
+      const tube = new THREE.Mesh(geometry, material);
+      tube.userData = { from, to, curve };
+      lineGroup.add(tube);
+    }
+
+    const particles = [];
+    const particleKinds = ["context", "context", "tool", "file", "risk", "prompt"];
+    for (let i = 0; i < 80; i += 1) {
+      const kind = particleKinds[i % particleKinds.length];
+      const material = new THREE.MeshBasicMaterial({
+        color: colors[kind] ?? colors.context,
+        transparent: true,
+        opacity: kind === "risk" ? .88 : .68
+      });
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(kind === "risk" ? .09 : .07, 12, 8), material);
+      const link = links[i % links.length];
+      mesh.userData = { kind, linkIndex: i % links.length, offset: Math.random(), speed: .05 + Math.random() * .08 };
+      particleGroup.add(mesh);
+      particles.push(mesh);
+    }
+
+    const clock = new THREE.Clock();
+    let elapsed = 0;
+
+    function makeLabel(text, color) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 512;
+      canvas.height = 128;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "rgba(252, 250, 247, .90)";
+      roundRect(ctx, 18, 28, 476, 58, 16);
+      ctx.fill();
+      ctx.strokeStyle = `#${color.toString(16).padStart(6, "0")}`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.fillStyle = "#423d38";
+      ctx.font = "800 28px ui-sans-serif, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, 256, 58);
+      const texture = new THREE.CanvasTexture(canvas);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+      sprite.scale.set(2.65, .66, 1);
+      return sprite;
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    function selectRun(id) {
+      selectedRun = runs.find((run) => run.id === id) ?? runs[0];
+      elapsed = 0;
+      updateRunUi();
+    }
+
+    function updateRunUi() {
+      document.querySelectorAll(".run-item").forEach((item) => {
+        item.classList.toggle("active", item.dataset.run === selectedRun.id);
+      });
+      runKicker.textContent = selectedRun.time + " · " + selectedRun.duration;
+      runTitle.textContent = selectedRun.title;
+      insightTitle.textContent = selectedRun.risk > 1 ? "Context drift needs review" : "Context path is explainable";
+      insightText.textContent = selectedRun.risk > 1
+        ? "Some retrieved context stays active after tool evidence changes direction. In a real build, this tab should point to the exact log events that introduced and retired that context."
+        : "The active context narrows cleanly from prompt to tools, files, and final answer. The visual makes the compression step visible instead of hiding it in the transcript.";
+      contextLoad.textContent = selectedRun.load + "%";
+      relevance.textContent = selectedRun.relevance + "%";
+      risk.textContent = String(selectedRun.risk);
+      compression.textContent = selectedRun.compression + "%";
+    }
+
+    function updatePhase(t) {
+      const index = Math.floor((t % 20) / 4);
+      const phase = selectedRun.phases[index] ?? selectedRun.phases[0];
+      phaseLabel.textContent = phase[0];
+      phaseText.textContent = phase[1];
+      phaseTime.textContent = phase[2];
+    }
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      renderer.setSize(rect.width, rect.height, false);
+      camera.aspect = rect.width / Math.max(1, rect.height);
+      camera.updateProjectionMatrix();
+    }
+
+    window.addEventListener("resize", resize);
+    resize();
+
+    playButton.addEventListener("click", () => {
+      playing = !playing;
+      playButton.textContent = playing ? "Pause" : "Play";
+      playButton.classList.toggle("active", playing);
+    });
+
+    focusButton.addEventListener("click", () => {
+      riskFocus = !riskFocus;
+      focusButton.classList.toggle("active", riskFocus);
+    });
+
+    resetButton.addEventListener("click", () => {
+      controls.target.set(0, .7, 0);
+      camera.position.set(0, 6.8, 15.5);
+      controls.update();
+    });
+
+    updateRunUi();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      if (playing) elapsed += delta;
+      const phaseIndex = Math.floor((elapsed % 20) / 4);
+      updatePhase(elapsed);
+
+      for (const [key, mesh] of nodes.entries()) {
+        const active = (
+          phaseIndex === 0 && key === "prompt" ||
+          phaseIndex === 1 && (key === "memory" || key === "context") ||
+          phaseIndex === 2 && (key === "tools" || key === "memory") ||
+          phaseIndex === 3 && (key === "files" || key === "risk") ||
+          phaseIndex === 4 && key === "result"
+        );
+        const riskActive = riskFocus && key === "risk";
+        const pulse = 1 + Math.sin(elapsed * 4 + mesh.position.x) * .04;
+        const targetScale = active || riskActive ? 1.28 * pulse : .98;
+        mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), .08);
+        mesh.material.emissiveIntensity = active || riskActive ? .42 : .13;
+        mesh.userData.ring.material.opacity = active || riskActive ? .58 : .20;
+        mesh.userData.ring.rotation.z += delta * (active ? 1.4 : .55);
+      }
+
+      for (const tube of lineGroup.children) {
+        const from = tube.userData.from;
+        const to = tube.userData.to;
+        const active = (
+          phaseIndex === 0 && from === "prompt" ||
+          phaseIndex === 1 && to === "memory" ||
+          phaseIndex === 2 && (from === "memory" || from === "tools") ||
+          phaseIndex === 3 && (to === "files" || to === "risk") ||
+          phaseIndex === 4 && to === "result"
+        );
+        tube.material.opacity = active ? .62 : .22;
+        tube.scale.setScalar(active ? 1.035 : 1);
+      }
+
+      for (const particle of particles) {
+        const link = lineGroup.children[particle.userData.linkIndex];
+        const curve = link.userData.curve;
+        const speed = riskFocus && particle.userData.kind !== "risk" ? .012 : particle.userData.speed;
+        if (playing) particle.userData.offset = (particle.userData.offset + speed * delta) % 1;
+        const p = curve.getPointAt(particle.userData.offset);
+        particle.position.copy(p);
+        const relevantRisk = particle.userData.kind === "risk" && (selectedRun.risk > 0 || riskFocus);
+        particle.visible = !riskFocus || relevantRisk;
+        const scale = relevantRisk ? 1.55 + Math.sin(elapsed * 8) * .2 : 1;
+        particle.scale.setScalar(scale);
+      }
+
+      nodeGroup.rotation.y = Math.sin(elapsed * .18) * .035;
+      lineGroup.rotation.y = nodeGroup.rotation.y;
+      particleGroup.rotation.y = nodeGroup.rotation.y;
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
+</body>
+</html>

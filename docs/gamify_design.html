@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SuperView Gamify Design - Run Atlas + Replay Sync</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #fcfaf7;
+        --ink: #423d38;
+        --muted: #797067;
+        --line: #e3e0dd;
+        --panel: #ffffff;
+        --soft: #f3f4f6;
+        --orange: #fe6e00;
+        --orange-strong: #ff6b00;
+        --orange-soft: #fff1e5;
+        --green: #00a85a;
+        --blue: #3080ff;
+        --red: #fb2c36;
+        --shell: rgba(0, 0, 0, 0.74);
+        --shadow: 0 18px 38px rgba(0, 0, 0, 0.12);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          linear-gradient(90deg, rgba(227, 224, 221, 0.65) 1px, transparent 1px),
+          linear-gradient(180deg, rgba(227, 224, 221, 0.5) 1px, transparent 1px),
+          var(--paper);
+        background-size: 32px 32px;
+        color: var(--ink);
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 18px 32px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        background: var(--shell);
+        color: white;
+        backdrop-filter: blur(12px);
+      }
+
+      header strong {
+        font-size: 22px;
+      }
+
+      header span {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 13px;
+      }
+
+      main {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 34px 28px 56px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 420px;
+        gap: 28px;
+        align-items: stretch;
+        margin-bottom: 28px;
+      }
+
+      h1 {
+        margin: 0 0 14px;
+        font-size: clamp(44px, 7vw, 86px);
+        line-height: 0.95;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin: 0 0 14px;
+        font-size: 24px;
+      }
+
+      h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .eyebrow {
+        margin-bottom: 10px;
+        color: var(--orange);
+        font: 800 12px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        text-transform: uppercase;
+      }
+
+      .lead {
+        max-width: 760px;
+        font-size: 18px;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.86);
+        box-shadow: var(--shadow);
+      }
+
+      .hero-copy {
+        padding: 34px;
+      }
+
+      .scoreboard {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+        background: rgba(0, 0, 0, 0.78);
+        color: white;
+      }
+
+      .score-card {
+        display: grid;
+        grid-template-columns: 48px 1fr;
+        gap: 12px;
+        align-items: center;
+        padding: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .score-icon {
+        display: grid;
+        width: 48px;
+        height: 48px;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--orange);
+        color: white;
+        font: 900 24px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+
+      .score-card strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .score-card span {
+        color: rgba(255, 255, 255, 0.68);
+        font-size: 13px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 28px;
+      }
+
+      .card {
+        padding: 22px;
+      }
+
+      .card code,
+      .table code {
+        border-radius: 6px;
+        background: var(--orange-soft);
+        color: #9a4300;
+        padding: 2px 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 13px;
+      }
+
+      .map-preview {
+        position: relative;
+        overflow: hidden;
+        min-height: 420px;
+        margin-bottom: 28px;
+        background:
+          radial-gradient(circle at 20% 24%, rgba(254, 110, 0, 0.2), transparent 18%),
+          radial-gradient(circle at 78% 44%, rgba(48, 128, 255, 0.16), transparent 20%),
+          linear-gradient(180deg, #fffaf4, #f1f4f8);
+      }
+
+      .atlas-track {
+        position: absolute;
+        inset: 40px 48px;
+      }
+
+      .route {
+        position: absolute;
+        left: 86px;
+        right: 88px;
+        top: 188px;
+        height: 10px;
+        border-radius: 999px;
+        background: repeating-linear-gradient(90deg, var(--orange), var(--orange) 26px, #ffbd74 26px, #ffbd74 42px);
+        box-shadow: 0 6px 0 rgba(154, 67, 0, 0.18);
+      }
+
+      .node {
+        position: absolute;
+        display: grid;
+        width: 78px;
+        height: 78px;
+        place-items: center;
+        border: 3px solid #2d2925;
+        border-radius: 18px;
+        background: white;
+        box-shadow: 0 10px 0 rgba(0, 0, 0, 0.16);
+        font-weight: 900;
+      }
+
+      .node small {
+        position: absolute;
+        left: 50%;
+        top: 88px;
+        width: 130px;
+        transform: translateX(-50%);
+        color: var(--ink);
+        font-size: 12px;
+        text-align: center;
+      }
+
+      .node.prompt { left: 30px; top: 150px; background: #dbeafe; color: #1447e6; }
+      .node.context { left: 236px; top: 92px; background: #f3e8ff; color: #8200da; }
+      .node.tool { left: 442px; top: 150px; background: var(--orange-soft); color: #9a4300; }
+      .node.patch { left: 648px; top: 90px; background: #dcfce7; color: #016630; }
+      .node.check { left: 854px; top: 150px; background: #fff8c6; color: #874b00; }
+
+      .avatar {
+        position: absolute;
+        left: 502px;
+        top: 254px;
+        width: 42px;
+        height: 42px;
+        border: 4px solid #2d2925;
+        border-radius: 50% 50% 45% 45%;
+        background: var(--orange);
+        box-shadow: 0 10px 0 rgba(0, 0, 0, 0.16);
+        animation: run 2.6s steps(5) infinite;
+      }
+
+      .avatar::after {
+        content: "";
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        bottom: -11px;
+        height: 8px;
+        border-radius: 999px;
+        background: #2d2925;
+      }
+
+      @keyframes run {
+        0% { transform: translate(0, 0); }
+        20% { transform: translate(60px, -24px); }
+        40% { transform: translate(160px, 0); }
+        60% { transform: translate(270px, -28px); }
+        80% { transform: translate(360px, 0); }
+        100% { transform: translate(0, 0); }
+      }
+
+      .caption {
+        position: absolute;
+        left: 28px;
+        right: 28px;
+        bottom: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.74);
+        backdrop-filter: blur(10px);
+      }
+
+      .caption strong {
+        color: var(--orange-strong);
+      }
+
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border-radius: 12px;
+        background: white;
+        box-shadow: var(--shadow);
+      }
+
+      .table th,
+      .table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .table th {
+        background: rgba(254, 110, 0, 0.06);
+        color: var(--orange-strong);
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin-top: 28px;
+      }
+
+      .steps {
+        display: grid;
+        gap: 12px;
+        padding-left: 0;
+        list-style: none;
+      }
+
+      .steps li {
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .steps b {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--orange);
+        color: white;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+
+      .steps strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      footer {
+        margin-top: 30px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 920px) {
+        header,
+        .hero,
+        .grid,
+        .split {
+          grid-template-columns: 1fr;
+        }
+
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .map-preview {
+          min-height: 520px;
+        }
+
+        .atlas-track {
+          inset: 28px 20px;
+        }
+
+        .route {
+          left: 56px;
+          right: auto;
+          top: 64px;
+          width: 10px;
+          height: 350px;
+          background: repeating-linear-gradient(180deg, var(--orange), var(--orange) 26px, #ffbd74 26px, #ffbd74 42px);
+        }
+
+        .node.prompt { left: 18px; top: 24px; }
+        .node.context { left: 134px; top: 92px; }
+        .node.tool { left: 18px; top: 170px; }
+        .node.patch { left: 134px; top: 248px; }
+        .node.check { left: 18px; top: 326px; }
+
+        .avatar {
+          left: 54px;
+          top: 438px;
+          animation: none;
+        }
+
+        .caption {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>SuperView Gamify Design</strong>
+      <span>Run Atlas + Replay Sync / 面向复杂工程 agent log 的游戏化可视化方案</span>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="panel hero-copy">
+          <p class="eyebrow">Design Direction</p>
+          <h1>把每次 agent run 变成一张可 replay 的工程地图</h1>
+          <p class="lead">
+            SuperView 的游戏化不应该只是积分、徽章或皮肤，而应该让用户用“通关视角”重新理解复杂工程：
+            用户 prompt 是起点，context 是补给，tool call 是机关，file change 是搭桥，verification 是 checkpoint，
+            最终输出是通关旗。Run Atlas 负责空间化，Replay Sync 负责把地图和对话、Evidence 同步起来。
+          </p>
+        </div>
+
+        <aside class="panel scoreboard">
+          <div class="score-card">
+            <div class="score-icon">1</div>
+            <div><strong>Run Atlas</strong><span>每轮任务是一座 3D 小岛，一页 timeline 是一片 archipelago。</span></div>
+          </div>
+          <div class="score-card">
+            <div class="score-icon">2</div>
+            <div><strong>Replay Sync</strong><span>播放地图节点时，同步选中 IM thread 与 Evidence drawer。</span></div>
+          </div>
+          <div class="score-card">
+            <div class="score-icon">3</div>
+            <div><strong>Context Trail</strong><span>把被传入的文件、工具结果、历史摘要表现成路线上的补给点。</span></div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="grid">
+        <article class="panel card">
+          <h2>为什么先做这两个</h2>
+          <p>
+            Run Atlas 是用户第一次感到 “wow” 的入口：复杂工程不再是一串 log，而是一段可观察的路线。
+            Replay Sync 则保证它不是玩具，点击或播放任何节点都能回到真实 log evidence。
+          </p>
+        </article>
+        <article class="panel card">
+          <h2>视觉语言</h2>
+          <p>
+            保留当前 warm command center 的 UI，3D 场景内部使用开发者能共情的游戏语义：
+            checkpoint、bridge、hazard、finish gate。避免直接依赖受保护 IP，形状和动效表达“平台跳跃感”即可。
+          </p>
+        </article>
+        <article class="panel card">
+          <h2>MVP 边界</h2>
+          <p>
+            当前先做可切换的 Atlas/Thread 视图、Three.js 场景、节点点击、自动 replay、Evidence 同步。
+            Context 先以节点和 metadata 表示，后续再扩展成完整 context inspector。
+          </p>
+        </article>
+      </section>
+
+      <section class="panel map-preview" aria-label="Run Atlas wireframe">
+        <div class="atlas-track">
+          <div class="route"></div>
+          <div class="node prompt">P<small>User Prompt</small></div>
+          <div class="node context">C<small>Context Load</small></div>
+          <div class="node tool">T<small>Tool Call</small></div>
+          <div class="node patch">Δ<small>File Change</small></div>
+          <div class="node check">✓<small>Verification</small></div>
+          <div class="avatar" aria-hidden="true"></div>
+        </div>
+        <div class="caption">
+          <p><strong>Replay:</strong> 播放时 avatar 沿 route 前进，右侧 Evidence drawer 随节点更新。</p>
+          <p><strong>Sync:</strong> 点击地图节点会预加载该 journey detail，并在 thread 里展开对应过程。</p>
+        </div>
+      </section>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>SuperView 数据</th>
+            <th>Run Atlas 表达</th>
+            <th>Replay 行为</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>TaskJourney</code></td>
+            <td>一座 task island，大小由事件数、时长、token 用量共同决定。</td>
+            <td>点击 island 选中该轮任务；若 detail 未加载，先展示摘要路线并后台加载。</td>
+          </tr>
+          <tr>
+            <td><code>user_prompt</code></td>
+            <td>起点 block，颜色偏蓝，表示用户输入触发 run。</td>
+            <td>同步选中用户气泡，Evidence 显示原始 prompt。</td>
+          </tr>
+          <tr>
+            <td><code>tool_call / tool_result</code></td>
+            <td>机关 block，偏橙，tool call 密集处形成连续平台。</td>
+            <td>播放到该节点时 Evidence 显示 tool、call id、inline evidence。</td>
+          </tr>
+          <tr>
+            <td><code>file_change</code></td>
+            <td>绿色 bridge，表示工程状态被修改。</td>
+            <td>点击后进入 artifacts / file evidence，后续可接 diff preview。</td>
+          </tr>
+          <tr>
+            <td><code>verification</code></td>
+            <td>checkpoint flag，表示测试、构建、QA 或人工验证。</td>
+            <td>Replay 到 checkpoint 时暂停一拍，突出成功或失败状态。</td>
+          </tr>
+          <tr>
+            <td><code>error</code></td>
+            <td>hazard，红色尖锥或障碍物。</td>
+            <td>同步 Evidence 并标记 route 中的绕路、重试、恢复行为。</td>
+          </tr>
+          <tr>
+            <td><code>assistant_message</code></td>
+            <td>finish gate，表示本轮输出。</td>
+            <td>同步选中 Codex 气泡；可作为 replay 终点。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <section class="split">
+        <article class="panel card">
+          <h2>实施切片</h2>
+          <ol class="steps">
+            <li><b>01</b><div><strong>Atlas 数据模型</strong><p>把当前页 <code>TaskJourney</code> 和已加载 detail 转成稳定的 atlas node/route。</p></div></li>
+            <li><b>02</b><div><strong>Three.js 场景</strong><p>渲染 island、route、node、agent avatar，支持 resize、hover、click。</p></div></li>
+            <li><b>03</b><div><strong>Replay Controller</strong><p>Play/Pause/Reset 逐节点推进，沿路线移动 avatar。</p></div></li>
+            <li><b>04</b><div><strong>Thread/Evidence Sync</strong><p>节点选择触发 detail 预加载、thread 展开、Evidence 选中。</p></div></li>
+          </ol>
+        </article>
+
+        <article class="panel card">
+          <h2>下一阶段</h2>
+          <ol class="steps">
+            <li><b>A</b><div><strong>Context Inspector</strong><p>专门展示每轮 run 的 context packets：文件、摘要、历史消息、工具结果。</p></div></li>
+            <li><b>B</b><div><strong>Boss Fight Mode</strong><p>把错误密集、重试多、token 高的任务标记为 boss fight，形成复盘入口。</p></div></li>
+            <li><b>C</b><div><strong>Engineering Achievements</strong><p>只奖励真实工程行为：测试闭环、回滚恢复、最少 context 解决高复杂任务。</p></div></li>
+            <li><b>D</b><div><strong>Desktop Performance</strong><p>Atlas 渲染和 ingest worker 隔离，桌面版使用本地缓存和离屏缩略图。</p></div></li>
+          </ol>
+        </article>
+      </section>
+
+      <footer>
+        设计原则：游戏化只负责让复杂过程可感知、可探索、可复盘；所有节点都必须能落回真实 log、thread 和 evidence。
+      </footer>
+    </main>
+  </body>
+</html>

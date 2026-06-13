@@ -1,0 +1,1323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SuperView Context Replay Ledger Preview</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #fcfaf7;
+      --ink: #423d38;
+      --muted: #797067;
+      --surface: #f3f4f6;
+      --surface-soft: #edebe9;
+      --surface-2: #ffffff;
+      --line: #e3e0dd;
+      --line-strong: #d1d5dc;
+      --orange: #fe6e00;
+      --orange-soft: #fff1e7;
+      --blue: #3080ff;
+      --blue-soft: #dbeafe;
+      --green: #00a949;
+      --green-soft: #dcfce7;
+      --yellow: #b77900;
+      --yellow-soft: #fef3c7;
+      --purple: #8200da;
+      --purple-soft: #f3e8ff;
+      --red: #c41420;
+      --red-soft: #fee2e2;
+      --shell: rgba(0, 0, 0, .72);
+      --shadow: 0 10px 30px rgba(0, 0, 0, .10);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(90deg, rgba(227, 224, 221, .46) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(227, 224, 221, .40) 1px, transparent 1px),
+        var(--bg);
+      background-size: 32px 32px;
+      color: var(--ink);
+      font-family: var(--sans);
+      letter-spacing: 0;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: 64px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 0 22px;
+      border-bottom: 1px solid rgba(255, 255, 255, .12);
+      background: var(--shell);
+      color: white;
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand strong {
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .brand span,
+    .topbar-meta {
+      color: rgba(255, 255, 255, .70);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 18px;
+      width: min(1500px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 24px 0;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4.6vw, 54px);
+      line-height: 1;
+    }
+
+    .lead {
+      max-width: 760px;
+      margin: 9px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .tabs {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      box-shadow: var(--shadow);
+    }
+
+    .tabs button {
+      min-height: 34px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .tabs button.active {
+      background: var(--orange);
+      color: white;
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr) 340px;
+      min-height: 710px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      box-shadow: var(--shadow);
+    }
+
+    .master {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-height: 0;
+      border-right: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 68px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, .56);
+    }
+
+    .panel-head span {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .panel-head strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 17px;
+      line-height: 1.15;
+    }
+
+    .count-pill {
+      min-width: 32px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: var(--orange);
+      color: white;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .run-list,
+    .snapshot-list,
+    .ledger-scroll,
+    .inspector-scroll {
+      min-height: 0;
+      overflow: auto;
+    }
+
+    .run-list {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      padding: 14px;
+    }
+
+    .run-item {
+      display: grid;
+      gap: 7px;
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .run-item.active,
+    .run-item:hover {
+      border-color: color-mix(in srgb, var(--orange) 58%, var(--line));
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--orange) 15%, transparent);
+    }
+
+    .run-item span,
+    .run-item em {
+      color: var(--muted);
+      font-size: 11px;
+      font-style: normal;
+      font-weight: 800;
+    }
+
+    .run-item strong {
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .run-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .run-pills i {
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 10px;
+      font-style: normal;
+      font-weight: 900;
+    }
+
+    .center {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-width: 0;
+      min-height: 0;
+      background: var(--bg);
+    }
+
+    .snapshot-rail {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(130px, 1fr));
+      gap: 8px;
+      overflow-x: auto;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-2);
+    }
+
+    .snapshot {
+      position: relative;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 6px 8px;
+      min-width: 130px;
+      padding: 10px 10px 9px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .snapshot::after {
+      content: "";
+      position: absolute;
+      right: -8px;
+      top: 50%;
+      width: 8px;
+      height: 2px;
+      background: var(--line-strong);
+    }
+
+    .snapshot:last-child::after {
+      display: none;
+    }
+
+    .snapshot.active {
+      border-color: var(--orange);
+      background: var(--orange-soft);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--orange) 18%, transparent);
+    }
+
+    .snapshot:focus-visible {
+      outline: 2px solid var(--orange);
+      outline-offset: 2px;
+    }
+
+    .snapshot-index {
+      display: inline-grid;
+      grid-row: 1 / span 2;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--ink);
+      color: white;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .snapshot.active .snapshot-index {
+      background: var(--orange);
+    }
+
+    .snapshot span {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .snapshot strong {
+      font-size: 12px;
+      line-height: 1.2;
+    }
+
+    .snapshot small {
+      display: flex;
+      grid-column: 1 / -1;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .snapshot small b {
+      color: var(--orange);
+    }
+
+    .ledger-area {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 248px;
+      min-height: 0;
+    }
+
+    .ledger-scroll {
+      padding: 16px;
+    }
+
+    .snapshot-summary {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+
+    .snapshot-summary h2 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.15;
+    }
+
+    .snapshot-summary p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .summary-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .summary-stats span {
+      padding: 5px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .context-groups {
+      display: grid;
+      gap: 14px;
+    }
+
+    .group {
+      display: grid;
+      gap: 8px;
+    }
+
+    .group-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .cards {
+      display: grid;
+      gap: 9px;
+    }
+
+    .context-card {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-left-width: 5px;
+      border-radius: 8px;
+      background: var(--surface-2);
+      cursor: pointer;
+    }
+
+    .context-card.active {
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--orange) 20%, transparent);
+    }
+
+    .context-card[data-state="new"] { border-left-color: var(--blue); }
+    .context-card[data-state="retained"] { border-left-color: var(--green); }
+    .context-card[data-state="cited"] { border-left-color: var(--purple); }
+    .context-card[data-state="changed"] { border-left-color: var(--orange); }
+    .context-card[data-state="dropped"] { border-left-color: var(--muted); opacity: .82; }
+    .context-card[data-state="stale"] { border-left-color: var(--yellow); }
+    .context-card[data-state="contradicted"] { border-left-color: var(--red); }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .badge {
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .badge.new { background: var(--blue-soft); color: #1447e6; }
+    .badge.retained { background: var(--green-soft); color: #016630; }
+    .badge.cited { background: var(--purple-soft); color: var(--purple); }
+    .badge.changed { background: var(--orange-soft); color: var(--orange); }
+    .badge.dropped { background: var(--surface-soft); color: var(--muted); }
+    .badge.stale { background: var(--yellow-soft); color: var(--yellow); }
+    .badge.contradicted { background: var(--red-soft); color: var(--red); }
+
+    .source {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .context-card h3 {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .excerpt {
+      margin: 0;
+      padding: 9px 10px;
+      overflow: auto;
+      border-radius: 7px;
+      background: #171410;
+      color: #fff8ef;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .reason {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .mini-scene {
+      position: relative;
+      overflow: hidden;
+      border-left: 1px solid var(--line);
+      background:
+        linear-gradient(180deg, rgba(254, 110, 0, .08), transparent 36%),
+        var(--surface);
+    }
+
+    .lane-label {
+      position: absolute;
+      left: 12px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .lane-label.active { top: 14px; }
+    .lane-label.dropped { bottom: 126px; }
+    .lane-label.warning { bottom: 14px; }
+
+    .flow-card {
+      position: absolute;
+      left: 22px;
+      right: 22px;
+      min-height: 44px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .10);
+      transition:
+        transform 520ms cubic-bezier(.2, .8, .2, 1),
+        opacity 260ms ease,
+        filter 260ms ease;
+      will-change: transform, opacity;
+    }
+
+    .flow-card strong {
+      display: block;
+      overflow: hidden;
+      font-size: 11px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .flow-card span {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .flow-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 2px;
+      min-width: 0;
+    }
+
+    .flow-step {
+      display: inline-grid;
+      flex: 0 0 auto;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: var(--ink);
+      color: white;
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 900;
+    }
+
+    .flow-card.retained .flow-step,
+    .flow-card.cited .flow-step {
+      background: var(--green);
+    }
+
+    .flow-meta span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .flow-card.new { border-color: color-mix(in srgb, var(--blue) 45%, var(--line)); }
+    .flow-card.retained { border-color: color-mix(in srgb, var(--green) 45%, var(--line)); }
+    .flow-card.cited { border-color: color-mix(in srgb, var(--purple) 45%, var(--line)); }
+    .flow-card.changed { border-color: color-mix(in srgb, var(--orange) 50%, var(--line)); }
+    .flow-card.dropped { opacity: .62; filter: grayscale(.35); }
+    .flow-card.stale { border-color: color-mix(in srgb, var(--yellow) 50%, var(--line)); }
+    .flow-card.contradicted { border-color: color-mix(in srgb, var(--red) 50%, var(--line)); animation: shake 860ms infinite; }
+    .flow-card.entering { opacity: 0; }
+    .flow-card.moving { z-index: 3; }
+    .flow-card.exiting {
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0;
+      filter: grayscale(.6);
+    }
+
+    @keyframes shake {
+      0%, 100% { margin-left: 0; }
+      25% { margin-left: -2px; }
+      75% { margin-left: 2px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .flow-card {
+        transition: none;
+      }
+
+      .flow-card.contradicted {
+        animation: none;
+      }
+    }
+
+    .inspector {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-height: 0;
+      border-left: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .inspector-scroll {
+      display: grid;
+      align-content: start;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .inspector-card,
+    .warning-card {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+    }
+
+    .warning-card {
+      border-color: color-mix(in srgb, var(--yellow) 46%, var(--line));
+      background: color-mix(in srgb, var(--yellow-soft) 52%, white);
+      cursor: pointer;
+    }
+
+    .warning-card.high {
+      border-color: color-mix(in srgb, var(--red) 48%, var(--line));
+      background: color-mix(in srgb, var(--red-soft) 50%, white);
+    }
+
+    .inspector-card h3,
+    .warning-card h3 {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .inspector-card p,
+    .warning-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .meta-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .meta-row {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr);
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .meta-row b {
+      overflow: hidden;
+      color: var(--ink);
+      font-family: var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 1180px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+
+      .master,
+      .inspector {
+        max-height: 280px;
+        border-right: 0;
+        border-left: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .ledger-area {
+        grid-template-columns: 1fr;
+      }
+
+      .mini-scene {
+        min-height: 280px;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <strong>SuperView</strong>
+        <span>Context Replay Ledger preview</span>
+      </div>
+      <div class="topbar-meta">Observable context, not hidden model context</div>
+    </header>
+
+    <main class="workspace">
+      <section class="title-row">
+        <div>
+          <p class="eyebrow">Thread View parallel tab</p>
+          <h1>Context Replay</h1>
+          <p class="lead">Replay a user-prompt task as observable context snapshots. The main surface is the content ledger: what text entered, stayed, changed, was cited, dropped, or went stale.</p>
+        </div>
+        <div class="tabs" aria-label="Thread detail tabs">
+          <button>Conversation</button>
+          <button class="active">Context Replay</button>
+        </div>
+      </section>
+
+      <section class="dashboard">
+        <aside class="master">
+          <div class="panel-head">
+            <div>
+              <span>User inputs</span>
+              <strong>Latest tasks</strong>
+            </div>
+            <div class="count-pill">3</div>
+          </div>
+          <div class="run-list" id="runList"></div>
+        </aside>
+
+        <section class="center">
+          <div class="snapshot-rail" id="snapshotRail"></div>
+          <div class="ledger-area">
+            <div class="ledger-scroll">
+              <div class="snapshot-summary">
+                <div>
+                  <p class="eyebrow" id="summaryPhase">Prompt</p>
+                  <h2 id="summaryTitle">Snapshot title</h2>
+                  <p id="summaryText">Snapshot summary</p>
+                </div>
+                <div class="summary-stats" id="summaryStats"></div>
+              </div>
+              <div class="context-groups" id="contextGroups"></div>
+            </div>
+            <div class="mini-scene" id="miniScene">
+              <div class="lane-label active">Carried forward context</div>
+              <div class="lane-label dropped">Retired blocks</div>
+              <div class="lane-label warning">Warning signals</div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="inspector">
+          <div class="panel-head">
+            <div>
+              <span>Evidence inspector</span>
+              <strong id="inspectorTitle">Selected block</strong>
+            </div>
+          </div>
+          <div class="inspector-scroll">
+            <div class="inspector-card">
+              <h3 id="blockTitle">No block selected</h3>
+              <p id="blockReason">Click a context card to inspect source, raw line, and why SuperView thinks it changed.</p>
+              <div class="meta-grid" id="blockMeta"></div>
+            </div>
+            <div id="warningList"></div>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const runs = [
+      {
+        id: "timeline-limit",
+        title: "AI Org shows 1-500 / 4708 instead of full timeline",
+        time: "Jun 09, 08:51",
+        duration: "4m 07s",
+        stats: ["651 events fixture", "limit=100000", "backend cap"],
+        snapshots: [
+          {
+            id: "prompt",
+            phase: "Prompt",
+            title: "User reports timeline truncation",
+            text: "The exact symptom enters context and stays active: AI Org displays 1-500 / 4708 even after pagination UI was removed.",
+            eventId: "event-user-001",
+            stats: { added: 2, retained: 0, changed: 0, dropped: 0, warnings: 0 },
+            warnings: [],
+            blocks: [
+              block("b-user", "new", "user_prompt", "User symptom", "似乎并没有全加载，只是删除了翻页功能：比如 AI Org 项目显示：1-500 / 4708", "Direct user prompt. This is the primary constraint the run must preserve.", "rollout.jsonl:128", "event-user-001"),
+              block("b-ui-context", "new", "history_prompt", "Recent UI change context", "Frontend now requests PROJECT_TIMELINE_LIMIT = 100000 and offset = 0 after removing prev/next page controls.", "Observable from earlier project context; useful but must be verified against code.", "memory/summary", "history-017")
+            ]
+          },
+          {
+            id: "trace",
+            phase: "Tool Result",
+            title: "Root cause appears in storage layer",
+            text: "Search results add concrete code evidence: frontend asks for 100000, but storage normalizes all limits down to 500.",
+            eventId: "event-tool-014",
+            stats: { added: 3, retained: 2, changed: 0, dropped: 0, warnings: 0 },
+            warnings: [],
+            blocks: [
+              block("b-user", "retained", "user_prompt", "User symptom", "AI Org 项目显示：1-500 / 4708", "Retained because all later searches are checking this exact mismatch.", "rollout.jsonl:128", "event-user-001"),
+              block("b-client-limit", "new", "tool_output", "Frontend request evidence", "const PROJECT_TIMELINE_LIMIT = 100000; fetchTimeline(projectId, { limit: PROJECT_TIMELINE_LIMIT, offset: 0 })", "New evidence: frontend did request a full project timeline.", "ui/src/App.tsx:37", "event-tool-010"),
+              block("b-backend-cap", "new", "tool_output", "Backend cap evidence", "function normalizeLimit(limit) { return Math.min(500, Math.max(1, Math.trunc(limit))); }", "New evidence directly explains why UI still shows only 500 events.", "storage/database.ts:898", "event-tool-014"),
+              block("b-ui-context", "cited", "history_prompt", "Recent UI change context", "Pagination UI was removed, but backend cap remained.", "Cited by code evidence: the client-side change is real but insufficient.", "memory/summary", "history-017")
+            ]
+          },
+          {
+            id: "patch",
+            phase: "File Change",
+            title: "Context changes from diagnosis to patch",
+            text: "The active context shifts: symptom and backend evidence remain; raw UI search output drops; regression-test context is added.",
+            eventId: "event-patch-022",
+            stats: { added: 2, retained: 2, changed: 1, dropped: 1, warnings: 1 },
+            warnings: [
+              warning("Context overload", "low", "Raw search output is no longer needed after the root cause is identified.", ["b-client-limit"])
+            ],
+            blocks: [
+              block("b-user", "retained", "user_prompt", "User symptom", "AI Org 项目显示：1-500 / 4708", "Still active as acceptance criterion: response must fix project-wide loading.", "rollout.jsonl:128", "event-user-001"),
+              block("b-backend-cap", "changed", "file_excerpt", "Backend limit changed", "const MAX_TIMELINE_LIMIT = 100000; return Math.min(MAX_TIMELINE_LIMIT, Math.max(1, Math.trunc(limit)));", "Changed from hard-coded 500 to explicit max aligned with client full-load request.", "storage/database.ts:898", "event-patch-022"),
+              block("b-regression", "new", "file_excerpt", "Regression fixture", "createSingleSessionTimelineCodexHome(650); expect(timeline.body.events).toHaveLength(651);", "New context ensures the original failure cannot return silently.", "tests/storage-api.test.ts:155", "event-patch-023"),
+              block("b-client-limit", "dropped", "tool_output", "Frontend request evidence", "PROJECT_TIMELINE_LIMIT = 100000", "Dropped from active working set: it explained the mismatch but does not need patching.", "ui/src/App.tsx:37", "event-tool-010")
+            ]
+          },
+          {
+            id: "verify",
+            phase: "Verification",
+            title: "Verification becomes the dominant context",
+            text: "The test output is now the strongest retained block. Unrelated UI/context visual work is explicitly ignored.",
+            eventId: "event-verify-031",
+            stats: { added: 1, retained: 3, changed: 0, dropped: 1, warnings: 0 },
+            warnings: [],
+            blocks: [
+              block("b-user", "retained", "user_prompt", "User symptom", "1-500 / 4708", "Retained for final answer framing.", "rollout.jsonl:128", "event-user-001"),
+              block("b-backend-cap", "cited", "file_excerpt", "Backend limit changed", "MAX_TIMELINE_LIMIT = 100000", "Cited by focused regression and full API test.", "storage/database.ts:898", "event-patch-022"),
+              block("b-regression", "cited", "verification_output", "Focused regression passes", "Tests 2 passed | 11 skipped: returns all timeline events + paginates timelines", "Direct verification for the root cause and old pagination behavior.", "vitest output", "event-verify-031"),
+              block("b-unrelated", "dropped", "assistant_summary", "Unrelated visual context", "Mario loader / Run Atlas visual work", "Dropped because it is unrelated to timeline limit behavior.", "prior context", "history-044")
+            ]
+          },
+          {
+            id: "response",
+            phase: "Response",
+            title: "Final answer compresses the useful context",
+            text: "The response keeps symptom, root cause, changed files, and verification. It drops raw command noise.",
+            eventId: "event-final-039",
+            stats: { added: 1, retained: 3, changed: 0, dropped: 2, warnings: 0 },
+            warnings: [],
+            blocks: [
+              block("b-final", "new", "final_response", "Final response", "Root cause was backend normalizeLimit still clamping to 500; fixed by raising max timeline limit and adding regression coverage.", "New final answer block composed from verified context only.", "assistant message", "event-final-039"),
+              block("b-user", "cited", "user_prompt", "Original symptom cited", "AI Org only returned 500 of 4708", "Cited directly in final explanation.", "rollout.jsonl:128", "event-user-001"),
+              block("b-backend-cap", "cited", "file_excerpt", "Root cause cited", "normalizeLimit() capped requests at 500", "Cited as the root cause.", "storage/database.ts:898", "event-patch-022"),
+              block("b-regression", "cited", "verification_output", "Verification cited", "pnpm test, pnpm build, e2e, diff check", "Cited in final verification list.", "tool output", "event-verify-031")
+            ]
+          }
+        ]
+      },
+      {
+        id: "scan-dropdown",
+        title: "Move Agent log root and source into scan dropdown panel",
+        time: "Jun 09, 09:37",
+        duration: "2m 44s",
+        stats: ["UI chrome", "dropdown", "Playwright"],
+        snapshots: []
+      },
+      {
+        id: "context-replay",
+        title: "Design Context Replay to show content changes, not abstract flow",
+        time: "Jun 10, 01:32",
+        duration: "draft",
+        stats: ["observable context", "ledger", "warnings"],
+        snapshots: []
+      }
+    ];
+
+    function block(id, state, type, title, excerpt, reason, source, eventId) {
+      return {
+        id,
+        state,
+        type,
+        title,
+        excerpt,
+        reason,
+        source,
+        eventId,
+        confidence: source.includes("memory") || source.includes("history") || source.includes("prior") ? "inferred" : "direct"
+      };
+    }
+
+    function warning(title, severity, detail, blockIds) {
+      return { title, severity, detail, blockIds };
+    }
+
+    const fallbackSnapshots = runs[0].snapshots;
+    const runList = document.getElementById("runList");
+    const snapshotRail = document.getElementById("snapshotRail");
+    const contextGroups = document.getElementById("contextGroups");
+    const summaryPhase = document.getElementById("summaryPhase");
+    const summaryTitle = document.getElementById("summaryTitle");
+    const summaryText = document.getElementById("summaryText");
+    const summaryStats = document.getElementById("summaryStats");
+    const blockTitle = document.getElementById("blockTitle");
+    const blockReason = document.getElementById("blockReason");
+    const blockMeta = document.getElementById("blockMeta");
+    const inspectorTitle = document.getElementById("inspectorTitle");
+    const warningList = document.getElementById("warningList");
+    const miniScene = document.getElementById("miniScene");
+
+    let activeRun = runs[0];
+    let activeSnapshot = activeRun.snapshots[0];
+    let activeBlockId = activeSnapshot.blocks[0].id;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function getSnapshotIndex(snapshotId = activeSnapshot.id) {
+      return Math.max(0, activeRun.snapshots.findIndex((snapshot) => snapshot.id === snapshotId));
+    }
+
+    function activateSnapshot(index, shouldFocus = false) {
+      const nextSnapshot = activeRun.snapshots[index];
+      if (!nextSnapshot) return;
+      activeSnapshot = nextSnapshot;
+      activeBlockId = nextSnapshot.blocks[0]?.id ?? "";
+      render();
+      if (shouldFocus) {
+        const button = snapshotRail.querySelector(`[data-snapshot-id="${nextSnapshot.id}"]`);
+        button?.focus();
+        button?.scrollIntoView({ block: "nearest", inline: "nearest" });
+      }
+    }
+
+    function getNextSnapshotIndex(key) {
+      const index = getSnapshotIndex();
+      const lastIndex = activeRun.snapshots.length - 1;
+
+      if (key === "ArrowRight") return Math.min(lastIndex, index + 1);
+      if (key === "ArrowLeft") return Math.max(0, index - 1);
+      if (key === "Home") return 0;
+      if (key === "End") return lastIndex;
+      return null;
+    }
+
+    function shouldIgnoreGlobalShortcut(event) {
+      const target = event.target;
+      const tagName = target?.tagName?.toLowerCase();
+      return event.altKey
+        || event.ctrlKey
+        || event.metaKey
+        || event.shiftKey
+        || tagName === "input"
+        || tagName === "textarea"
+        || tagName === "select"
+        || target?.isContentEditable;
+    }
+
+    function handleSnapshotKeydown(event) {
+      const nextIndex = getNextSnapshotIndex(event.key);
+      if (nextIndex === null) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      activateSnapshot(nextIndex, true);
+    }
+
+    function handleGlobalSnapshotKeydown(event) {
+      if (shouldIgnoreGlobalShortcut(event)) return;
+      const nextIndex = getNextSnapshotIndex(event.key);
+      if (nextIndex === null || nextIndex === getSnapshotIndex()) return;
+
+      event.preventDefault();
+      activateSnapshot(nextIndex, true);
+    }
+
+    function getBlockOriginStep(blockId) {
+      const firstIndex = activeRun.snapshots.findIndex((snapshot) =>
+        snapshot.blocks.some((block) => block.id === blockId)
+      );
+      return firstIndex >= 0 ? firstIndex + 1 : getSnapshotIndex() + 1;
+    }
+
+    function renderRuns() {
+      runList.innerHTML = "";
+      for (const run of runs) {
+        const button = document.createElement("button");
+        button.className = "run-item" + (run.id === activeRun.id ? " active" : "");
+        button.innerHTML = `
+          <span>${run.time}</span>
+          <strong>${run.title}</strong>
+          <em>${run.duration}</em>
+          <div class="run-pills">${run.stats.map((item) => `<i>${item}</i>`).join("")}</div>
+        `;
+        button.addEventListener("click", () => {
+          activeRun = run;
+          activeRun.snapshots = activeRun.snapshots.length ? activeRun.snapshots : fallbackSnapshots;
+          activeSnapshot = activeRun.snapshots[0];
+          activeBlockId = activeSnapshot.blocks[0].id;
+          render();
+        });
+        runList.appendChild(button);
+      }
+    }
+
+    function renderSnapshots() {
+      snapshotRail.innerHTML = "";
+      activeRun.snapshots.forEach((snapshot, index) => {
+        const button = document.createElement("button");
+        button.className = "snapshot" + (snapshot.id === activeSnapshot.id ? " active" : "");
+        button.dataset.snapshotId = snapshot.id;
+        button.type = "button";
+        button.tabIndex = snapshot.id === activeSnapshot.id ? 0 : -1;
+        button.setAttribute("aria-label", `Step ${index + 1}: ${snapshot.title}`);
+        button.setAttribute("aria-current", snapshot.id === activeSnapshot.id ? "step" : "false");
+        button.innerHTML = `
+          <b class="snapshot-index">${index + 1}</b>
+          <span>${snapshot.phase}</span>
+          <strong>${snapshot.title}</strong>
+          <small><b>+${snapshot.stats.added}</b><span>keep ${snapshot.stats.retained}</span><span>drop ${snapshot.stats.dropped}</span></small>
+        `;
+        button.addEventListener("click", () => {
+          activateSnapshot(index);
+        });
+        button.addEventListener("keydown", handleSnapshotKeydown);
+        snapshotRail.appendChild(button);
+      });
+    }
+
+    function renderSummary() {
+      summaryPhase.textContent = activeSnapshot.phase;
+      summaryTitle.textContent = activeSnapshot.title;
+      summaryText.textContent = activeSnapshot.text;
+      summaryStats.innerHTML = Object.entries(activeSnapshot.stats)
+        .map(([key, value]) => `<span>${key}: ${value}</span>`)
+        .join("");
+    }
+
+    function renderGroups() {
+      const groups = [
+        { title: "Active context", states: ["new", "retained", "cited", "changed"] },
+        { title: "Dropped / stale", states: ["dropped", "stale", "contradicted"] }
+      ];
+      contextGroups.innerHTML = "";
+      for (const group of groups) {
+        const blocks = activeSnapshot.blocks.filter((item) => group.states.includes(item.state));
+        if (!blocks.length) continue;
+        const section = document.createElement("section");
+        section.className = "group";
+        section.innerHTML = `
+          <div class="group-title"><span>${group.title}</span><b>${blocks.length}</b></div>
+          <div class="cards"></div>
+        `;
+        const cards = section.querySelector(".cards");
+        for (const item of blocks) {
+          const card = document.createElement("article");
+          card.className = "context-card" + (item.id === activeBlockId ? " active" : "");
+          card.dataset.state = item.state;
+          card.innerHTML = `
+            <div class="card-top">
+              <div class="badges">
+                <span class="badge ${item.state}">${item.state}</span>
+                <span class="badge">${item.type.replace(/_/g, " ")}</span>
+                <span class="badge">${item.confidence}</span>
+              </div>
+              <span class="source">${item.source}</span>
+            </div>
+            <h3>${item.title}</h3>
+            <pre class="excerpt">${escapeHtml(item.excerpt)}</pre>
+            <p class="reason">${item.reason}</p>
+          `;
+          card.addEventListener("click", () => {
+            activeBlockId = item.id;
+            render();
+          });
+          cards.appendChild(card);
+        }
+        contextGroups.appendChild(section);
+      }
+    }
+
+    function renderInspector() {
+      const block = activeSnapshot.blocks.find((item) => item.id === activeBlockId) ?? activeSnapshot.blocks[0];
+      if (!block) return;
+      inspectorTitle.textContent = block.state + " context";
+      blockTitle.textContent = block.title;
+      blockReason.textContent = block.reason;
+      blockMeta.innerHTML = `
+        <div class="meta-row"><span>Type</span><b>${block.type}</b></div>
+        <div class="meta-row"><span>State</span><b>${block.state}</b></div>
+        <div class="meta-row"><span>Confidence</span><b>${block.confidence}</b></div>
+        <div class="meta-row"><span>Event</span><b>${block.eventId}</b></div>
+        <div class="meta-row"><span>Source</span><b>${block.source}</b></div>
+      `;
+
+      warningList.innerHTML = "";
+      for (const item of activeSnapshot.warnings) {
+        const warning = document.createElement("button");
+        warning.className = "warning-card " + item.severity;
+        warning.innerHTML = `<h3>${item.title}</h3><p>${item.detail}</p>`;
+        warning.addEventListener("click", () => {
+          activeBlockId = item.blockIds[0] ?? activeBlockId;
+          render();
+        });
+        warningList.appendChild(warning);
+      }
+    }
+
+    function isRetiredState(state) {
+      return ["dropped", "stale", "contradicted"].includes(state);
+    }
+
+    function getFlowCardTop(item, index) {
+      return isRetiredState(item.state) ? 420 + (index % 3) * 62 : 52 + (index % 5) * 74;
+    }
+
+    function readFlowCardY(card) {
+      const transform = getComputedStyle(card).transform;
+      if (transform && transform !== "none") {
+        try {
+          return new DOMMatrixReadOnly(transform).m42;
+        } catch {
+          const values = transform.match(/matrix.*\((.+)\)/)?.[1]?.split(",").map((value) => Number(value.trim()));
+          if (values?.length === 6) return values[5];
+          if (values?.length === 16) return values[13];
+        }
+      }
+      return Number(card.dataset.flowY ?? 0);
+    }
+
+    function setFlowCardY(card, top) {
+      card.dataset.flowY = String(top);
+      card.style.transform = `translate3d(0, ${top}px, 0)`;
+    }
+
+    function getExistingFlowCards() {
+      return new Map(Array.from(miniScene.querySelectorAll(".flow-card:not(.exiting)")).map((card) => [
+        card.dataset.blockId,
+        {
+          id: card.dataset.blockId,
+          state: card.dataset.flowState,
+          title: card.dataset.flowTitle,
+          type: card.dataset.flowType,
+          originStep: Number(card.dataset.originStep ?? 0),
+          y: readFlowCardY(card)
+        }
+      ]));
+    }
+
+    function createFlowCard(item) {
+        const card = document.createElement("div");
+        card.className = "flow-card " + item.state;
+        const originStep = item.originStep ?? getBlockOriginStep(item.id);
+        card.dataset.blockId = item.id;
+        card.dataset.flowState = item.state;
+        card.dataset.flowTitle = item.title;
+        card.dataset.flowType = item.type;
+        card.dataset.originStep = String(originStep);
+        card.innerHTML = `
+          <strong>${item.title}</strong>
+          <div class="flow-meta">
+            <b class="flow-step">${originStep}</b>
+            <span>${item.state} · ${item.type.replace(/_/g, " ")} · from step ${originStep}</span>
+          </div>
+        `;
+        card.addEventListener("click", () => {
+          activeBlockId = item.id;
+          render();
+        });
+        return card;
+    }
+
+    function animateFlowCard(card, fromY, toY) {
+      if (reducedMotion || Math.abs(fromY - toY) < 1) {
+        setFlowCardY(card, toY);
+        return;
+      }
+
+      card.classList.add("moving");
+      card.style.transition = "none";
+      setFlowCardY(card, fromY);
+      card.offsetHeight;
+      card.style.transition = "";
+      requestAnimationFrame(() => {
+        setFlowCardY(card, toY);
+        window.setTimeout(() => card.classList.remove("moving"), 560);
+      });
+    }
+
+    function renderMiniScene() {
+      const previousCards = getExistingFlowCards();
+      const shouldAnimate = previousCards.size > 0 && !reducedMotion;
+      const nextIds = new Set(activeSnapshot.blocks.map((item) => item.id));
+
+      miniScene.querySelectorAll(".flow-card").forEach((item) => item.remove());
+
+      activeSnapshot.blocks.forEach((item, index) => {
+        const card = createFlowCard(item);
+        const top = getFlowCardTop(item, index);
+        const previousCard = previousCards.get(item.id);
+
+        if (shouldAnimate && previousCard) {
+          miniScene.appendChild(card);
+          animateFlowCard(card, previousCard.y, top);
+        } else if (shouldAnimate) {
+          card.classList.add("entering");
+          setFlowCardY(card, top + 28);
+          miniScene.appendChild(card);
+          requestAnimationFrame(() => {
+            card.classList.remove("entering");
+            setFlowCardY(card, top);
+          });
+        } else {
+          setFlowCardY(card, top);
+          miniScene.appendChild(card);
+        }
+      });
+
+      if (!shouldAnimate) return;
+
+      for (const previousCard of previousCards.values()) {
+        if (nextIds.has(previousCard.id)) continue;
+        const card = createFlowCard(previousCard);
+        card.classList.add("exiting");
+        setFlowCardY(card, previousCard.y);
+        miniScene.appendChild(card);
+        requestAnimationFrame(() => {
+          setFlowCardY(card, previousCard.y + 92);
+          window.setTimeout(() => card.remove(), 560);
+        });
+      }
+    }
+
+    function render() {
+      renderRuns();
+      renderSnapshots();
+      renderSummary();
+      renderGroups();
+      renderInspector();
+      renderMiniScene();
+    }
+
+    function escapeHtml(value) {
+      return value.replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[char]));
+    }
+
+    document.addEventListener("keydown", handleGlobalSnapshotKeydown);
+    render();
+  </script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 import express from "express";
 import { AgentProvider, AgentSourceConfig, TimelineLane, TimelineQuery } from "../core/types";
+import { buildContextReplay } from "../core/contextReplay";
 import { SuperViewDatabase } from "../storage/database";
 import { IngestService } from "./ingest";
 
@@ -91,6 +92,18 @@ export function createServer() {
       return;
     }
     res.json(detail);
+  });
+
+  app.get("/api/task-journeys/:id/context-replay", (req, res) => {
+    const projectId = firstQueryValue(req.query.projectId);
+    const detail = db.getTaskJourneyDetail(req.params.id, projectId);
+    if (!detail) {
+      res.status(404).json({ error: "task journey not found" });
+      return;
+    }
+    const evidenceByEventId = db.getEventEvidenceByEventIds(detail.events.map((event) => event.id));
+    const historyPrompts = db.listHistoryPromptsForSession(detail.journey.sessionId);
+    res.json(buildContextReplay({ detail, evidenceByEventId, historyPrompts }));
   });
 
   app.get("/api/runs/:id", (req, res) => {

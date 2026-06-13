@@ -1,0 +1,1359 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SuperView Context X-Ray Tunnel Preview</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #fcfaf7;
+      --surface: #f3f4f6;
+      --surface-soft: #edebe9;
+      --surface-elevated: #ffffff;
+      --ink: #423d38;
+      --muted: #797067;
+      --line: #e3e0dd;
+      --line-strong: #d1d5dc;
+      --orange: #fe6e00;
+      --orange-strong: #ff6b00;
+      --orange-soft: #fff1e5;
+      --warm: #ffb74d;
+      --blue: #3080ff;
+      --blue-soft: #dbeafe;
+      --purple: #9b5de5;
+      --purple-soft: #f3e8ff;
+      --green: #00c758;
+      --green-soft: #dcfce7;
+      --yellow: #edb200;
+      --yellow-soft: #fef9c2;
+      --red: #fb2c36;
+      --red-soft: #fee2e2;
+      --shell: rgba(0, 0, 0, .72);
+      --shell-border: rgba(255, 255, 255, .10);
+      --on-shell: #ffffff;
+      --shadow: 0 1px 3px rgba(0,0,0,.10), 0 1px 2px rgba(0,0,0,.06);
+      --raised: 0 14px 34px rgba(0,0,0,.16);
+      --radius: 8px;
+      --font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --paper: #413830;
+      --surface: #4a423a;
+      --surface-soft: #3a332d;
+      --surface-elevated: #554d45;
+      --ink: #fafaf9;
+      --muted: #b9b3ac;
+      --line: #665b51;
+      --line-strong: #7b7065;
+      --orange-soft: #5a3218;
+      --blue-soft: #26384e;
+      --purple-soft: #3b2c48;
+      --green-soft: #173f29;
+      --yellow-soft: #4a3c13;
+      --red-soft: #512327;
+      --shell: rgba(0, 0, 0, .80);
+      --shadow: 0 1px 3px rgba(0,0,0,.30), 0 1px 2px rgba(0,0,0,.20);
+      --raised: 0 18px 40px rgba(0,0,0,.36);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--line) 34%, transparent) 1px, transparent 1px),
+        linear-gradient(180deg, color-mix(in srgb, var(--line) 28%, transparent) 1px, transparent 1px),
+        var(--paper);
+      background-size: 32px 32px;
+      color: var(--ink);
+      font-family: var(--font);
+      letter-spacing: 0;
+    }
+
+    button { font: inherit; }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: 64px 1fr;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-width: 0;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--shell-border);
+      background: var(--shell);
+      color: var(--on-shell);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand strong {
+      font-size: 23px;
+      font-weight: 800;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .brand span {
+      overflow: hidden;
+      color: rgba(255,255,255,.68);
+      font-size: 13px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .project-pill,
+    .theme-button {
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 8px;
+      background: rgba(255,255,255,.10);
+      color: var(--on-shell);
+      padding: 0 12px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .theme-button { cursor: pointer; }
+
+    .app {
+      display: grid;
+      grid-template-columns: 72px minmax(0, 1fr);
+      min-height: 0;
+    }
+
+    .sidebar {
+      background: var(--shell);
+      color: var(--on-shell);
+      border-right: 1px solid var(--shell-border);
+      backdrop-filter: blur(12px);
+      padding: 14px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .nav-dot {
+      width: 48px;
+      height: 40px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      display: grid;
+      place-items: center;
+      color: rgba(255,255,255,.72);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .nav-dot.active {
+      background: var(--orange);
+      color: #fff;
+    }
+
+    main {
+      min-width: 0;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .page-title {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 16px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      font-size: 28px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 920px;
+      line-height: 1.45;
+    }
+
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      min-height: 74px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--surface-elevated) 92%, transparent);
+      box-shadow: var(--shadow);
+      padding: 12px;
+      display: grid;
+      align-content: center;
+      gap: 4px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 11px;
+      font-family: var(--mono);
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .metric.danger strong { color: var(--red); }
+    .metric.accent strong { color: var(--orange); }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 294px minmax(460px, 1fr) 330px;
+      gap: 14px;
+      min-height: 620px;
+      align-items: stretch;
+    }
+
+    .panel {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--surface-elevated) 96%, transparent);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      min-height: 56px;
+      border-bottom: 1px solid var(--line);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .panel-header span {
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .panel-header strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 15px;
+    }
+
+    .queue {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .insight-card {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-elevated);
+      color: var(--ink);
+      text-align: left;
+      padding: 12px;
+      cursor: pointer;
+      display: grid;
+      gap: 10px;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .insight-card:hover,
+    .insight-card.active {
+      transform: translateY(-1px);
+      border-color: var(--orange);
+      background: var(--orange-soft);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .card-top strong {
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .rank {
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .score {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 4px;
+      color: var(--red);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .insight-card p {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.42;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 0 8px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .chip.danger { background: var(--red-soft); color: var(--red); }
+    .chip.warn { background: var(--yellow-soft); color: #874b00; }
+    .chip.ok { background: var(--green-soft); color: #016630; }
+
+    [data-theme="dark"] .chip.ok { color: #8cffb8; }
+    [data-theme="dark"] .chip.warn { color: #ffd36d; }
+
+    .meters {
+      display: grid;
+      gap: 7px;
+    }
+
+    .meter {
+      display: grid;
+      gap: 4px;
+    }
+
+    .meter-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-family: var(--mono);
+    }
+
+    .meter-track {
+      height: 6px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--line) 70%, transparent);
+      overflow: hidden;
+    }
+
+    .meter-track b {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--orange);
+    }
+
+    .stage-panel {
+      display: grid;
+      grid-template-rows: 56px minmax(0, 1fr);
+      background: #1b1714;
+      color: #fff;
+      border-color: rgba(0,0,0,.24);
+      box-shadow: var(--raised);
+    }
+
+    [data-theme="dark"] .stage-panel {
+      background: #17120f;
+    }
+
+    .stage-header {
+      min-height: 56px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .stage-title span {
+      display: block;
+      color: rgba(255,255,255,.64);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .stage-title strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 16px;
+    }
+
+    .mode-tabs {
+      display: inline-flex;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 8px;
+      padding: 3px;
+      background: rgba(255,255,255,.08);
+      gap: 3px;
+    }
+
+    .mode-tabs button {
+      min-height: 30px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 10px;
+      background: transparent;
+      color: rgba(255,255,255,.72);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .mode-tabs button.active {
+      background: var(--orange);
+      color: #fff;
+    }
+
+    .xray-stage {
+      position: relative;
+      min-height: 560px;
+      overflow: hidden;
+      isolation: isolate;
+      perspective: 1200px;
+      background:
+        radial-gradient(circle at 52% 36%, rgba(254,110,0,.16), transparent 38%),
+        linear-gradient(180deg, #251f1a 0%, #181411 48%, #100d0b 100%);
+    }
+
+    .xray-floor {
+      position: absolute;
+      left: -12%;
+      right: -12%;
+      bottom: -30px;
+      height: 220px;
+      transform: rotateX(66deg);
+      transform-origin: bottom;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255,255,255,.05) 1px, transparent 1px);
+      background-size: 42px 34px;
+      opacity: .62;
+      z-index: 0;
+    }
+
+    .tunnel {
+      position: absolute;
+      left: 48px;
+      right: 48px;
+      top: 180px;
+      height: 190px;
+      transform: rotateX(50deg) rotateZ(-1deg);
+      transform-style: preserve-3d;
+      z-index: 2;
+    }
+
+    .main-pipe {
+      position: absolute;
+      left: 42px;
+      right: 42px;
+      top: 84px;
+      height: 18px;
+      border-radius: 999px;
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.22) 0 2px, transparent 2px 18px),
+        linear-gradient(90deg, var(--blue), var(--purple) 18%, var(--orange) 44%, var(--green) 62%, var(--yellow) 76%, var(--red) 86%, var(--warm));
+      box-shadow: 0 0 24px rgba(255,183,77,.32), inset 0 0 10px rgba(255,255,255,.28);
+    }
+
+    .flow-dot {
+      position: absolute;
+      top: 78px;
+      left: 42px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 18px rgba(255,255,255,.8);
+      animation: flow 5.2s linear infinite;
+      z-index: 6;
+    }
+
+    @keyframes flow {
+      from { transform: translateX(0) scale(.75); opacity: .25; }
+      15% { opacity: .88; }
+      to { transform: translateX(calc(100vw - 520px)) scale(.42); opacity: 0; }
+    }
+
+    .node {
+      position: absolute;
+      width: 72px;
+      min-height: 72px;
+      border: 0;
+      border-radius: 999px;
+      color: #fff;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1.1;
+      transform: translateZ(36px);
+      box-shadow: 0 16px 28px rgba(0,0,0,.32), inset 0 0 16px rgba(255,255,255,.20);
+      transition: transform 180ms ease, box-shadow 180ms ease, outline-color 180ms ease;
+      z-index: 8;
+    }
+
+    .node:hover,
+    .node.active {
+      transform: translateZ(76px) translateY(-8px) scale(1.08);
+      outline: 3px solid rgba(255,255,255,.72);
+      outline-offset: 4px;
+      box-shadow: 0 20px 38px rgba(0,0,0,.40), 0 0 34px color-mix(in srgb, currentColor 55%, transparent);
+    }
+
+    .node.prompt { left: 2%; top: 42px; background: var(--blue); }
+    .node.context { left: 18%; top: -28px; background: var(--purple); border-radius: 14px; }
+    .node.tool { left: 37%; top: 42px; background: var(--orange); border-radius: 10px; }
+    .node.patch { left: 56%; top: 34px; background: var(--green); border-radius: 12px; }
+    .node.verify { left: 72%; top: 44px; background: var(--yellow); color: #2d2100; border-radius: 10px; }
+    .node.result { left: 88%; top: 42px; background: #fff3c4; color: #332600; }
+
+    .unused-context {
+      position: absolute;
+      left: 18%;
+      top: 274px;
+      width: 74px;
+      height: 74px;
+      border-radius: 16px;
+      background: rgba(155,93,229,.22);
+      border: 1px solid rgba(255,255,255,.22);
+      color: rgba(255,255,255,.82);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 900;
+      animation: drift 4s ease-in-out infinite;
+      z-index: 5;
+    }
+
+    @keyframes drift {
+      0%, 100% { transform: translateY(0) rotate(-3deg); }
+      50% { transform: translateY(-14px) rotate(3deg); }
+    }
+
+    .loop-tower {
+      position: absolute;
+      left: 40%;
+      top: -62px;
+      width: 58px;
+      height: 118px;
+      display: grid;
+      align-content: center;
+      gap: 7px;
+      z-index: 7;
+      animation: loop 3.4s ease-in-out infinite;
+    }
+
+    .loop-tower i {
+      display: block;
+      height: 23px;
+      border-radius: 7px;
+      background: var(--orange);
+      box-shadow: 0 0 14px rgba(254,110,0,.42);
+    }
+
+    @keyframes loop {
+      0%, 100% { transform: translateZ(54px) rotateY(-10deg); }
+      50% { transform: translateZ(54px) rotateY(12deg); }
+    }
+
+    .broken-bridge {
+      position: absolute;
+      left: 66%;
+      top: 78px;
+      width: 118px;
+      height: 30px;
+      transform: translateZ(42px);
+      z-index: 9;
+    }
+
+    .broken-bridge span {
+      position: absolute;
+      top: 12px;
+      width: 48px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--red);
+      box-shadow: 0 0 20px rgba(251,44,54,.58);
+      animation: flicker 1.4s ease-in-out infinite;
+    }
+
+    .broken-bridge span:first-child { left: 0; transform: rotate(-15deg); }
+    .broken-bridge span:last-child { right: 0; transform: rotate(15deg); }
+
+    @keyframes flicker {
+      0%, 100% { opacity: .88; }
+      45% { opacity: .35; }
+      60% { opacity: 1; }
+    }
+
+    .label-line {
+      position: absolute;
+      left: 48px;
+      right: 48px;
+      bottom: 24px;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+      z-index: 10;
+    }
+
+    .label-line span {
+      min-height: 38px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 8px;
+      background: rgba(255,255,255,.07);
+      color: rgba(255,255,255,.78);
+      display: grid;
+      place-items: center;
+      padding: 0 8px;
+      text-align: center;
+      font-size: 11px;
+      font-family: var(--mono);
+      font-weight: 800;
+    }
+
+    .stage-callout {
+      position: absolute;
+      left: 22px;
+      bottom: 84px;
+      width: min(330px, calc(100% - 44px));
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 8px;
+      background: rgba(255,255,255,.08);
+      backdrop-filter: blur(12px);
+      padding: 12px;
+      z-index: 12;
+    }
+
+    .stage-callout span {
+      display: block;
+      color: rgba(255,255,255,.62);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .stage-callout strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .stage-callout p {
+      margin-top: 7px;
+      color: rgba(255,255,255,.72);
+      font-size: 12px;
+      line-height: 1.42;
+    }
+
+    .inspector {
+      display: grid;
+      grid-template-rows: 56px minmax(0, 1fr);
+    }
+
+    .inspector-body {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .selected-summary {
+      display: grid;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 12px;
+    }
+
+    .selected-summary h2 {
+      font-size: 18px;
+      line-height: 1.15;
+    }
+
+    .selected-summary p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .confidence {
+      display: inline-flex;
+      width: fit-content;
+      min-height: 24px;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0 9px;
+      background: var(--yellow-soft);
+      color: #874b00;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    [data-theme="dark"] .confidence { color: #ffd36d; }
+
+    .fact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .fact {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-elevated);
+      padding: 10px;
+      display: grid;
+      gap: 3px;
+    }
+
+    .fact span {
+      color: var(--muted);
+      font-size: 10px;
+      font-family: var(--mono);
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .fact strong {
+      font-size: 14px;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+
+    .event-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .event-row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-elevated);
+      padding: 10px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .event-row span {
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .event-row strong {
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    .event-row p {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .action-box {
+      border: 1px solid color-mix(in srgb, var(--orange) 45%, var(--line));
+      border-radius: 8px;
+      background: var(--orange-soft);
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .action-box span {
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .action-box strong {
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .bottom-band {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 14px;
+    }
+
+    .mini-panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--surface-elevated) 96%, transparent);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+      min-height: 132px;
+    }
+
+    .mini-panel span {
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .mini-panel strong {
+      font-size: 15px;
+    }
+
+    .mini-panel p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.44;
+    }
+
+    @media (max-width: 1180px) {
+      .workspace {
+        grid-template-columns: 280px minmax(0, 1fr);
+      }
+
+      .inspector {
+        grid-column: 1 / -1;
+      }
+
+      .bottom-band {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 820px) {
+      .topbar {
+        align-items: flex-start;
+        min-height: 92px;
+        padding: 12px;
+        flex-direction: column;
+      }
+
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      main {
+        padding: 14px;
+      }
+
+      .page-title,
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .metric-strip {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .stage-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .xray-stage {
+        min-height: 520px;
+      }
+
+      .tunnel {
+        left: 18px;
+        right: 18px;
+        top: 176px;
+        transform: rotateX(48deg) scale(.86);
+      }
+
+      .label-line {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .001ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <strong>SuperView</strong>
+        <span>Run Atlas / Context X-Ray Tunnel MVP Preview</span>
+      </div>
+      <div class="top-actions">
+        <div class="project-pill">Project: SuperView</div>
+        <div class="project-pill">Provider: Codex</div>
+        <button class="theme-button" type="button" id="themeButton">Toggle theme</button>
+      </div>
+    </header>
+
+    <div class="app">
+      <nav class="sidebar" aria-label="Primary">
+        <div class="nav-dot">TH</div>
+        <div class="nav-dot active">XA</div>
+        <div class="nav-dot">TK</div>
+        <div class="nav-dot">DB</div>
+      </nav>
+
+      <main>
+        <section class="page-title">
+          <div>
+            <p class="eyebrow">MVP Preview</p>
+            <h1>Context X-Ray Tunnel</h1>
+            <p class="subtitle">The 2D board finds suspicious runs. The 3D tunnel explains one selected run: context in, tool churn, patch evidence, missing verification, and final output.</p>
+          </div>
+        </section>
+
+        <section class="metric-strip" aria-label="Project insight summary">
+          <div class="metric accent"><span>Selected run</span><strong>Task 312</strong></div>
+          <div class="metric danger"><span>Risk score</span><strong>92</strong></div>
+          <div class="metric"><span>Token burn</span><strong>0.148M</strong></div>
+          <div class="metric"><span>KV hit rate</span><strong>38.4%</strong></div>
+        </section>
+
+        <section class="workspace">
+          <aside class="panel">
+            <div class="panel-header">
+              <div>
+                <span>Insight Queue</span>
+                <strong>Ranked by review value</strong>
+              </div>
+            </div>
+            <div class="queue">
+              <button class="insight-card active" type="button" data-insight="verification">
+                <div class="card-top">
+                  <span class="rank">01</span>
+                  <span class="score">92</span>
+                </div>
+                <strong>Patch without verification</strong>
+                <p>Code changed and final output was produced, but no build/test checkpoint appears after the patch.</p>
+                <div class="chips">
+                  <span class="chip danger">critical</span>
+                  <span class="chip">inferred</span>
+                </div>
+                <div class="meters">
+                  <div class="meter"><div class="meter-row"><span>Verification gap</span><span>100%</span></div><div class="meter-track"><b style="width:100%"></b></div></div>
+                  <div class="meter"><div class="meter-row"><span>Tool loop</span><span>74%</span></div><div class="meter-track"><b style="width:74%"></b></div></div>
+                </div>
+              </button>
+
+              <button class="insight-card" type="button" data-insight="loop">
+                <div class="card-top">
+                  <span class="rank">02</span>
+                  <span class="score">71</span>
+                </div>
+                <strong>Tool loop pressure</strong>
+                <p>Repeated reads and searches suggest the run lacked a stable context packet before editing.</p>
+                <div class="chips">
+                  <span class="chip warn">high</span>
+                  <span class="chip">same tool</span>
+                </div>
+                <div class="meters">
+                  <div class="meter"><div class="meter-row"><span>Repeated tools</span><span>81%</span></div><div class="meter-track"><b style="width:81%"></b></div></div>
+                </div>
+              </button>
+
+              <button class="insight-card" type="button" data-insight="context">
+                <div class="card-top">
+                  <span class="rank">03</span>
+                  <span class="score">64</span>
+                </div>
+                <strong>Context-heavy run</strong>
+                <p>Several context packets entered the run, but one packet never connected to tool, patch, or result.</p>
+                <div class="chips">
+                  <span class="chip warn">medium</span>
+                  <span class="chip">unused context</span>
+                </div>
+                <div class="meters">
+                  <div class="meter"><div class="meter-row"><span>Context debt</span><span>68%</span></div><div class="meter-track"><b style="width:68%"></b></div></div>
+                </div>
+              </button>
+            </div>
+          </aside>
+
+          <section class="panel stage-panel">
+            <header class="stage-header">
+              <div class="stage-title">
+                <span>Selected Journey</span>
+                <strong id="stageTitle">Patch without verification</strong>
+              </div>
+              <div class="mode-tabs" role="group" aria-label="Preview mode">
+                <button type="button">2D Board</button>
+                <button type="button" class="active">3D X-Ray</button>
+              </div>
+            </header>
+
+            <div class="xray-stage" aria-label="Context X-Ray Tunnel preview">
+              <div class="xray-floor"></div>
+              <div class="tunnel">
+                <div class="main-pipe"></div>
+                <div class="flow-dot"></div>
+                <button class="node prompt active" type="button" data-node="prompt">Prompt</button>
+                <button class="node context" type="button" data-node="context">Context</button>
+                <button class="node tool" type="button" data-node="tool">Tools</button>
+                <button class="node patch" type="button" data-node="patch">Patch</button>
+                <button class="node verify" type="button" data-node="verify">Verify</button>
+                <button class="node result" type="button" data-node="result">Result</button>
+                <button class="unused-context" type="button" data-node="unused">Unused context</button>
+                <div class="loop-tower" aria-hidden="true"><i></i><i></i><i></i></div>
+                <div class="broken-bridge" aria-hidden="true"><span></span><span></span></div>
+              </div>
+              <div class="stage-callout">
+                <span id="calloutType">Direct prompt</span>
+                <strong id="calloutTitle">User asked for a Context X-Ray MVP</strong>
+                <p id="calloutCopy">The tunnel starts from the user task, then shows how context, tools, patch work, and verification evidence connect or fail to connect.</p>
+              </div>
+              <div class="label-line">
+                <span>Prompt</span>
+                <span>Context</span>
+                <span>Tool Loop</span>
+                <span>Patch</span>
+                <span>Verification</span>
+                <span>Result</span>
+              </div>
+            </div>
+          </section>
+
+          <aside class="panel inspector">
+            <div class="panel-header">
+              <div>
+                <span>Inspector</span>
+                <strong id="inspectorKicker">Selected node</strong>
+              </div>
+            </div>
+            <div class="inspector-body">
+              <section class="selected-summary">
+                <span class="confidence" id="confidence">direct</span>
+                <h2 id="inspectorTitle">Prompt</h2>
+                <p id="inspectorDetail">User input anchors the journey. Every inferred chain should be traceable back to this prompt.</p>
+              </section>
+
+              <div class="fact-grid">
+                <div class="fact"><span>Events</span><strong id="factEvents">1</strong></div>
+                <div class="fact"><span>Tokens</span><strong id="factTokens">0.012M</strong></div>
+                <div class="fact"><span>Files</span><strong id="factFiles">0</strong></div>
+                <div class="fact"><span>Link</span><strong id="factLink">direct</strong></div>
+              </div>
+
+              <section class="event-list" aria-label="Related evidence">
+                <div class="event-row">
+                  <span>Evidence</span>
+                  <strong id="evidenceTitle">user_prompt</strong>
+                  <p id="evidenceCopy">"Implement the Context X-Ray Tunnel MVP from the approved spec."</p>
+                </div>
+                <div class="event-row">
+                  <span>Reason</span>
+                  <strong id="reasonTitle">Prompt is the route root</strong>
+                  <p id="reasonCopy">This is direct evidence. Later links may be direct or inferred depending on causal edges.</p>
+                </div>
+              </section>
+
+              <section class="action-box">
+                <span>Suggested action</span>
+                <strong id="suggestedAction">Use this prompt as the root when comparing context packets with final patch evidence.</strong>
+              </section>
+            </div>
+          </aside>
+        </section>
+
+        <section class="bottom-band">
+          <div class="mini-panel">
+            <span>MVP behavior</span>
+            <strong>One selected run, not an all-project terrain</strong>
+            <p>The 2D queue decides what to inspect. The 3D X-Ray explains why the selected run deserves attention.</p>
+          </div>
+          <div class="mini-panel">
+            <span>Inference policy</span>
+            <strong>Direct when edges exist, inferred when only time order exists</strong>
+            <p>The UI should label confidence. It should never pretend that heuristic context influence is ground truth.</p>
+          </div>
+          <div class="mini-panel">
+            <span>Useful signals</span>
+            <strong>Unused context, tool churn, missing verification</strong>
+            <p>These are the first diagnostics that make 3D worth opening for a developer.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const nodeData = {
+      prompt: {
+        confidence: "direct",
+        title: "Prompt",
+        detail: "User input anchors the journey. Every inferred chain should be traceable back to this prompt.",
+        events: "1",
+        tokens: "0.012M",
+        files: "0",
+        link: "direct",
+        evidence: "user_prompt",
+        evidenceCopy: "\"Implement the Context X-Ray Tunnel MVP from the approved spec.\"",
+        reason: "Prompt is the route root",
+        reasonCopy: "This is direct evidence. Later links may be direct or inferred depending on causal edges.",
+        action: "Use this prompt as the root when comparing context packets with final patch evidence.",
+        calloutType: "Direct prompt",
+        calloutTitle: "User asked for a Context X-Ray MVP",
+        calloutCopy: "The tunnel starts from the user task, then shows how context, tools, patch work, and verification evidence connect or fail to connect."
+      },
+      context: {
+        confidence: "inferred",
+        title: "Context packet",
+        detail: "Prior messages and tool outputs entered the run before patch work began.",
+        events: "5",
+        tokens: "0.084M",
+        files: "3",
+        link: "temporal",
+        evidence: "reasoning_marker + tool_result",
+        evidenceCopy: "Context appears before repeated reads and patch activity.",
+        reason: "Likely influenced tool selection",
+        reasonCopy: "No direct causal edge proves influence, so the link is marked inferred.",
+        action: "Compare this context packet with the files changed later in the run.",
+        calloutType: "Inferred context",
+        calloutTitle: "Context packet may have influenced patch work",
+        calloutCopy: "MVP uses temporal proximity and existing causal edges. Weak links stay visibly inferred."
+      },
+      tool: {
+        confidence: "inferred",
+        title: "Tool loop tower",
+        detail: "Repeated file reads and searches happened before editing, suggesting churn or missing context.",
+        events: "9",
+        tokens: "0.031M",
+        files: "6",
+        link: "same tool",
+        evidence: "tool_call cluster",
+        evidenceCopy: "Read/search calls repeat around the same files before the patch.",
+        reason: "Tool loop pressure",
+        reasonCopy: "The orange stack turns repeated operations into a spatial signal instead of a flat count.",
+        action: "Check whether the prompt scope or context packet was too vague before the agent started editing.",
+        calloutType: "Tool loop",
+        calloutTitle: "Repeated tool calls are stacked into a loop tower",
+        calloutCopy: "This should let a developer see churn immediately instead of scanning every hidden background event."
+      },
+      patch: {
+        confidence: "direct",
+        title: "Patch",
+        detail: "The run edited product UI files and produced a final output.",
+        events: "4",
+        tokens: "0.009M",
+        files: "4",
+        link: "implements_prompt",
+        evidence: "file_change",
+        evidenceCopy: "ui/src/RunAtlas.tsx, ui/src/runAtlasModel.ts, ui/src/styles.css",
+        reason: "Patch produced from prompt chain",
+        reasonCopy: "Existing causal edges can promote this link from inferred to direct.",
+        action: "Inspect changed files and check whether verification follows this patch.",
+        calloutType: "Direct patch",
+        calloutTitle: "Patch node carries file-change evidence",
+        calloutCopy: "Green means source changed. It is not considered safe until the verification segment closes the chain."
+      },
+      verify: {
+        confidence: "inferred",
+        title: "Missing verification",
+        detail: "No test/build/lint checkpoint appears after the patch in this journey.",
+        events: "0",
+        tokens: "0",
+        files: "0",
+        link: "missing-evidence",
+        evidence: "verification gap",
+        evidenceCopy: "Patch happened, final output happened, but no later verification event was found.",
+        reason: "Broken evidence chain",
+        reasonCopy: "The red bridge appears because the patch-result path lacks a verification checkpoint.",
+        action: "Open the task detail and look for missing test, build, lint, or typecheck evidence.",
+        calloutType: "Broken link",
+        calloutTitle: "Patch to result has no verification bridge",
+        calloutCopy: "This is the highest-value MVP diagnostic: a developer can see exactly why this run is risky."
+      },
+      result: {
+        confidence: "direct",
+        title: "Result",
+        detail: "The assistant completed the task, but the result has a broken verification path.",
+        events: "1",
+        tokens: "0.012M",
+        files: "0",
+        link: "temporal",
+        evidence: "assistant_message",
+        evidenceCopy: "\"Implemented the MVP preview.\"",
+        reason: "Result exists without proof chain",
+        reasonCopy: "A final answer is not enough when code changed and no verification follows.",
+        action: "Trust this result only after finding or adding verification evidence.",
+        calloutType: "Final output",
+        calloutTitle: "Result is visible, but proof is incomplete",
+        calloutCopy: "The tunnel turns a subtle confidence problem into a visible broken path."
+      },
+      unused: {
+        confidence: "inferred",
+        title: "Unused context",
+        detail: "A context packet floated into the run but did not connect to tool, patch, verification, or result.",
+        events: "2",
+        tokens: "0.021M",
+        files: "0",
+        link: "weak",
+        evidence: "status + reasoning",
+        evidenceCopy: "The packet appears in the journey but has no nearby downstream evidence.",
+        reason: "Context debt",
+        reasonCopy: "Floating packets show likely waste without hiding the fact that this is an inference.",
+        action: "Compare this packet with final changes. If it had no effect, remove it from future prompts.",
+        calloutType: "Unused context",
+        calloutTitle: "Floating context shows likely waste",
+        calloutCopy: "This answers the user question: what context was passed through the run but did not matter?"
+      }
+    };
+
+    const cards = Array.from(document.querySelectorAll(".insight-card"));
+    const nodes = Array.from(document.querySelectorAll("[data-node]"));
+    const setText = (id, value) => { document.getElementById(id).textContent = value; };
+
+    function selectNode(key) {
+      const data = nodeData[key] || nodeData.prompt;
+      nodes.forEach((node) => node.classList.toggle("active", node.dataset.node === key));
+      setText("confidence", data.confidence);
+      setText("inspectorTitle", data.title);
+      setText("inspectorDetail", data.detail);
+      setText("factEvents", data.events);
+      setText("factTokens", data.tokens);
+      setText("factFiles", data.files);
+      setText("factLink", data.link);
+      setText("evidenceTitle", data.evidence);
+      setText("evidenceCopy", data.evidenceCopy);
+      setText("reasonTitle", data.reason);
+      setText("reasonCopy", data.reasonCopy);
+      setText("suggestedAction", data.action);
+      setText("calloutType", data.calloutType);
+      setText("calloutTitle", data.calloutTitle);
+      setText("calloutCopy", data.calloutCopy);
+    }
+
+    nodes.forEach((node) => {
+      node.addEventListener("click", () => selectNode(node.dataset.node));
+    });
+
+    cards.forEach((card) => {
+      card.addEventListener("click", () => {
+        cards.forEach((item) => item.classList.remove("active"));
+        card.classList.add("active");
+        const insight = card.dataset.insight;
+        if (insight === "loop") {
+          setText("stageTitle", "Tool loop pressure");
+          selectNode("tool");
+        } else if (insight === "context") {
+          setText("stageTitle", "Context-heavy run");
+          selectNode("unused");
+        } else {
+          setText("stageTitle", "Patch without verification");
+          selectNode("verify");
+        }
+      });
+    });
+
+    document.getElementById("themeButton").addEventListener("click", () => {
+      const root = document.documentElement;
+      root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    });
+  </script>
+</body>
+</html>

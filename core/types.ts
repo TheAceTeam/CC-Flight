@@ -226,6 +226,82 @@ export interface TaskJourneyDetail {
   causalEdges: CausalEdge[];
 }
 
+export type ContextBlockType =
+  | "user_prompt"
+  | "developer_instruction"
+  | "history_prompt"
+  | "assistant_summary"
+  | "reasoning_summary"
+  | "tool_input"
+  | "tool_output"
+  | "file_reference"
+  | "file_excerpt"
+  | "error_output"
+  | "verification_output"
+  | "skill_instruction"
+  | "final_response";
+
+export type ContextBlockState =
+  | "new"
+  | "retained"
+  | "changed"
+  | "cited"
+  | "dropped"
+  | "stale"
+  | "contradicted";
+
+export type ContextSnapshotPhase =
+  | "prompt"
+  | "history"
+  | "planning"
+  | "tool_call"
+  | "tool_result"
+  | "file_change"
+  | "verification"
+  | "response";
+
+export interface ContextBlock {
+  id: string;
+  type: ContextBlockType;
+  state: ContextBlockState;
+  title: string;
+  excerpt: string;
+  sourceEventId: string | null;
+  rawEventRefId: string | null;
+  sourcePath: string | null;
+  lineNo: number | null;
+  timestamp: string;
+  tokenEstimate: number;
+  confidence: "direct" | "inferred";
+  reason: string;
+  files: string[];
+  skills: string[];
+}
+
+export interface ContextWarning {
+  id: string;
+  severity: "low" | "medium" | "high";
+  title: string;
+  detail: string;
+  blockIds: string[];
+  eventIds: string[];
+}
+
+export interface ContextSnapshot {
+  id: string;
+  phase: ContextSnapshotPhase;
+  timestamp: string;
+  eventId: string;
+  title: string;
+  blocks: ContextBlock[];
+  addedBlockIds: string[];
+  retainedBlockIds: string[];
+  changedBlockIds: string[];
+  droppedBlockIds: string[];
+  warnings: ContextWarning[];
+  tokenUsage: TokenUsage | null;
+}
+
 export interface Artifact {
   id: string;
   eventId: string;
@@ -339,6 +415,14 @@ export interface EventEvidence {
   event: TimelineEvent;
   artifacts: Artifact[];
   rawEvent: RawEventRef | null;
+}
+
+export interface ContextReplayResponse {
+  journey: TaskJourney;
+  snapshots: ContextSnapshot[];
+  blocks: ContextBlock[];
+  evidenceByEventId: Record<string, EventEvidence>;
+  warnings: ContextWarning[];
 }
 
 export interface GitCommitRecord {

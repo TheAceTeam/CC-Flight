@@ -71,11 +71,50 @@ export type AppCopy = {
     nextPage: string;
     emptyPage: string;
     aria: string;
+    masterAria: string;
+    detailsAria: string;
+    masterTitle: string;
+    detailsTitle: string;
+    detailTabsAria: string;
+    conversationTab: string;
+    contextReplayTab: string;
+    contextReplayLedgerAria: string;
+    contextReplayLoading: string;
+    contextReplayEmpty: string;
+    contextReplayObserved: string;
+    contextReplayBlocks: string;
+    contextReplaySnapshotRail: string;
+    contextReplayWarnings: string;
+    contextReplayNoWarnings: string;
+    contextReplayWarningJump: string;
+    contextReplayActiveContext: string;
+    contextReplayAdded: string;
+    contextReplayChanged: string;
+    contextReplayDropped: string;
+    contextReplayLaneActive: string;
+    contextReplayLaneRetired: string;
+    contextReplayLaneWarnings: string;
+    contextReplayMiniSceneAria: string;
+    contextReplaySource: string;
+    contextReplayReason: string;
+    contextReplayTokens: string;
+    contextReplayInput: string;
+    contextReplayOutput: string;
+    contextReplayTokenUsage: string;
+    contextReplayStep: string;
+    contextReplayFromStep: (step: number) => string;
+    contextReplayInspector: string;
+    contextReplaySelectedBlock: string;
+    contextReplayEvent: string;
+    contextReplayConfidence: string;
+    contextReplayNoSelection: string;
+    emptySelection: string;
     nextInput: string;
     sessionEnd: string;
     eventCount: (count: number) => string;
     loadingDetails: string;
     tokens: string;
+    kvHit: string;
     agentWork: string;
     viewProcess: string;
     hideProcess: string;
@@ -88,6 +127,7 @@ export type AppCopy = {
     expand: string;
     collapse: string;
     skills: string;
+    hotkeyHint: string;
   };
   evidence: {
     heading: string;
@@ -182,11 +222,50 @@ export const COPY: Record<Language, AppCopy> = {
       nextPage: "Next page",
       emptyPage: "No user-input task journeys are visible on this page.",
       aria: "Task conversation thread",
+      masterAria: "User input index",
+      detailsAria: "Conversation details",
+      masterTitle: "User inputs",
+      detailsTitle: "Conversation details",
+      detailTabsAria: "Thread detail tabs",
+      conversationTab: "Conversation",
+      contextReplayTab: "Context Replay",
+      contextReplayLedgerAria: "Context Replay ledger",
+      contextReplayLoading: "Loading observable context...",
+      contextReplayEmpty: "Open this task after details are indexed to inspect observable context.",
+      contextReplayObserved: "Observable log evidence only: prompt, tool I/O, file references, verification, warnings, and final response.",
+      contextReplayBlocks: "blocks",
+      contextReplaySnapshotRail: "Context snapshot rail",
+      contextReplayWarnings: "Context warnings",
+      contextReplayNoWarnings: "No warnings for this snapshot",
+      contextReplayWarningJump: "Jump to the related context block",
+      contextReplayActiveContext: "Carried forward context",
+      contextReplayAdded: "Newly added",
+      contextReplayChanged: "Changed or contradicted",
+      contextReplayDropped: "Dropped or stale",
+      contextReplayLaneActive: "Carried forward context",
+      contextReplayLaneRetired: "Retired blocks",
+      contextReplayLaneWarnings: "Warning signals",
+      contextReplayMiniSceneAria: "Context flow swim lanes",
+      contextReplaySource: "Source",
+      contextReplayReason: "Why",
+      contextReplayTokens: "Est. tokens",
+      contextReplayInput: "Input",
+      contextReplayOutput: "Output",
+      contextReplayTokenUsage: "Tokens",
+      contextReplayStep: "Step",
+      contextReplayFromStep: (step) => `from step ${step}`,
+      contextReplayInspector: "Context evidence",
+      contextReplaySelectedBlock: "Selected block",
+      contextReplayEvent: "Event",
+      contextReplayConfidence: "Confidence",
+      contextReplayNoSelection: "Select a context block to inspect its source, state, and reason.",
+      emptySelection: "Select a user input",
       nextInput: "Next input",
       sessionEnd: "Session end",
       eventCount: (count: number) => `${count} events`,
       loadingDetails: "Loading details",
       tokens: "tokens",
+      kvHit: "KV hit",
       agentWork: "Agent work",
       viewProcess: "View process...",
       hideProcess: "Hide process...",
@@ -198,7 +277,8 @@ export const COPY: Record<Language, AppCopy> = {
       user: "User",
       expand: "Expand",
       collapse: "Collapse",
-      skills: "Skills"
+      skills: "Skills",
+      hotkeyHint: "↑↓ switch journey · ←→ switch step · W S A D switch block"
     },
     evidence: {
       heading: "Evidence",
@@ -326,11 +406,50 @@ export const COPY: Record<Language, AppCopy> = {
       nextPage: "下一页",
       emptyPage: "当前页没有可见的用户输入任务旅程。",
       aria: "任务对话 thread",
+      masterAria: "用户输入索引",
+      detailsAria: "对话详情",
+      masterTitle: "用户输入",
+      detailsTitle: "对话详情",
+      detailTabsAria: "Thread 详情标签",
+      conversationTab: "Conversation",
+      contextReplayTab: "Context Replay",
+      contextReplayLedgerAria: "Context Replay ledger",
+      contextReplayLoading: "正在加载可观察上下文...",
+      contextReplayEmpty: "打开这轮任务后，可查看日志中可观察到的上下文。",
+      contextReplayObserved: "仅展示日志中可观察证据：prompt、tool I/O、文件引用、验证、warning 和最终回复。",
+      contextReplayBlocks: "blocks",
+      contextReplaySnapshotRail: "Context snapshot rail",
+      contextReplayWarnings: "Context warnings",
+      contextReplayNoWarnings: "这个快照没有 warning",
+      contextReplayWarningJump: "跳转到相关上下文块",
+      contextReplayActiveContext: "Carried forward context",
+      contextReplayAdded: "新增上下文",
+      contextReplayChanged: "变化或冲突",
+      contextReplayDropped: "丢失或过期",
+      contextReplayLaneActive: "延续上下文",
+      contextReplayLaneRetired: "已退出",
+      contextReplayLaneWarnings: "风险信号",
+      contextReplayMiniSceneAria: "上下文流泳道",
+      contextReplaySource: "来源",
+      contextReplayReason: "原因",
+      contextReplayTokens: "估算 tokens",
+      contextReplayInput: "输入",
+      contextReplayOutput: "输出",
+      contextReplayTokenUsage: "Token 用量",
+      contextReplayStep: "Step",
+      contextReplayFromStep: (step) => `来自步骤 ${step}`,
+      contextReplayInspector: "上下文证据",
+      contextReplaySelectedBlock: "选中 block",
+      contextReplayEvent: "事件",
+      contextReplayConfidence: "置信度",
+      contextReplayNoSelection: "选择一个 context block，查看来源、状态和保留原因。",
+      emptySelection: "选择一条用户输入",
       nextInput: "下一次输入",
       sessionEnd: "Session 结束",
       eventCount: (count: number) => `${count} 个事件`,
       loadingDetails: "正在加载细节",
       tokens: "tokens",
+      kvHit: "KV 命中",
       agentWork: "Agent 工作过程",
       viewProcess: "查看过程...",
       hideProcess: "收起过程...",
@@ -342,7 +461,8 @@ export const COPY: Record<Language, AppCopy> = {
       user: "用户",
       expand: "展开",
       collapse: "收起",
-      skills: "Skills"
+      skills: "Skills",
+      hotkeyHint: "↑↓ 切换对话 · ←→ 切换步骤 · W S A D 切换上下文块"
     },
     evidence: {
       heading: "证据",

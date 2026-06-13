@@ -1,4 +1,4 @@
-import type { AgentSourceConfig, Artifact, DailyTokenUsageResponse, EventEvidence, IngestJob, ProjectTimeline, RunReplay, SessionRecord, TaskJourneyDetail, TokenUsage } from "../../core/types";
+import type { AgentSourceConfig, Artifact, ContextReplayResponse, DailyTokenUsageResponse, EventEvidence, IngestJob, ProjectTimeline, RunReplay, SessionRecord, TaskJourneyDetail, TokenUsage } from "../../core/types";
 
 export interface ProjectWithSessions {
   id: string;
@@ -64,6 +64,15 @@ export async function fetchTaskJourneyDetail(journeyId: string, projectId?: stri
   const response = await fetch(`/api/task-journeys/${journeyId}${suffix}`);
   if (!response.ok) throw new Error("Failed to load task journey detail");
   return (await response.json()) as TaskJourneyDetail;
+}
+
+export async function fetchContextReplay(journeyId: string, projectId?: string): Promise<ContextReplayResponse> {
+  const params = new URLSearchParams();
+  if (projectId) params.set("projectId", projectId);
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(`/api/task-journeys/${journeyId}/context-replay${suffix}`);
+  if (!response.ok) throw new Error("Failed to load context replay");
+  return (await response.json()) as ContextReplayResponse;
 }
 
 export async function fetchRun(sessionId: string): Promise<RunReplay & { artifacts: Artifact[] }> {

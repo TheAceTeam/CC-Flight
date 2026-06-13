@@ -93,6 +93,55 @@ test("shows the Mario loading game while the project index loads", async ({ page
   await expect(blockingLoader).toHaveCount(0);
 });
 
+test("opens scan controls from the Scan Agent Logs dropdown", async ({ page }) => {
+  let ingestBody: unknown = null;
+  await page.route("**/api/projects", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ projects: [] })
+    });
+  });
+  await page.route("**/api/ingest", async (route) => {
+    ingestBody = route.request().postDataJSON();
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ jobId: "job-dropdown" }) });
+  });
+  await page.route("**/api/ingest/jobs/job-dropdown", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "job-dropdown",
+        status: "completed",
+        phase: "completed",
+        startedAt: "2026-05-25T02:00:00.000Z",
+        finishedAt: "2026-05-25T02:00:01.000Z",
+        totalFiles: 1,
+        processedFiles: 1,
+        totalEvents: 4,
+        skippedFiles: 0,
+        changedFiles: 1,
+        currentFile: null,
+        errors: []
+      })
+    });
+  });
+
+  await page.goto("/");
+
+  await expect(page.getByRole("textbox", { name: "Agent log root path", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Scan Agent Logs" }).first().click();
+
+  const scanPanel = page.getByRole("region", { name: "Scan Agent Logs" });
+  await expect(scanPanel).toBeVisible();
+  await scanPanel.getByLabel("Agent log source", { exact: true }).selectOption("claude-code");
+  await scanPanel.getByRole("textbox", { name: "Agent log root path", exact: true }).fill("/tmp/claude-logs");
+  await scanPanel.getByRole("button", { name: "Scan Agent Logs" }).click();
+
+  await expect.poll(() => ingestBody).toEqual({
+    sources: [{ provider: "claude-code", root: "/tmp/claude-logs", path: "/tmp/claude-logs" }]
+  });
+  await expect(scanPanel).toHaveCount(0);
+});
+
 function projectFixture(id: string, name: string, provider: "codex" | "claude-code" | "opencode") {
   return {
     id,
@@ -121,10 +170,116 @@ function projectFixture(id: string, name: string, provider: "codex" | "claude-co
   };
 }
 
+function contextReplayFixture(journeyId: string, offset: number) {
+  const tokenUsage = {
+    input: 1000 + offset,
+    output: 300,
+    reasoning: 120,
+    cachedInput: 250,
+    total: 1420 + offset
+  };
+  const promptBlock = {
+    id: `context-block-${journeyId}-prompt`,
+    type: "user_prompt",
+    state: "cited",
+    title: `User task ${offset}`,
+    excerpt: `Build task journey from input ${offset}`,
+    sourceEventId: `event-${offset}`,
+    rawEventRefId: `raw-${offset}`,
+    sourcePath: "rollout.jsonl",
+    lineNo: 2,
+    timestamp: "2026-05-25T02:00:00.000Z",
+    tokenEstimate: 8,
+    confidence: "inferred",
+    reason: "Cited by the final response via observable prompt text.",
+    files: [],
+    skills: []
+  };
+  const fileBlock = {
+    id: `context-block-${journeyId}-file`,
+    type: "file_reference",
+    state: "new",
+    title: "ui/src/App.tsx",
+    excerpt: "ui/src/App.tsx",
+    sourceEventId: `event-${offset + 2}`,
+    rawEventRefId: `raw-${offset + 2}`,
+    sourcePath: "ui/src/App.tsx",
+    lineNo: null,
+    timestamp: "2026-05-25T02:00:02.000Z",
+    tokenEstimate: 4,
+    confidence: "direct",
+    reason: "File path changed during this task.",
+    files: ["ui/src/App.tsx"],
+    skills: []
+  };
+  const warning = {
+    id: "warning-unverified-final",
+    severity: "high",
+    title: "Unverified final response",
+    detail: "The final assistant response is observable, but no verification event appears before it in this task journey.",
+    blockIds: [promptBlock.id],
+    eventIds: [`event-${offset + 3}`]
+  };
+  return {
+    journey: {
+      id: journeyId,
+      projectId: "project-fixture",
+      sessionId: "fixture-tool-session",
+      promptEventId: `event-${offset}`,
+      startedAt: "2026-05-25T02:00:00.000Z",
+      endedAt: "2026-05-25T02:00:03.000Z",
+      durationMs: 3000,
+      title: `User task ${offset}`,
+      summary: `Loaded dynamic detail for task ${offset}.`,
+      status: "success",
+      exitType: "session_end",
+      eventIds: [`event-${offset}`, `event-${offset + 2}`, `event-${offset + 3}`],
+      tokenUsage,
+      skills: [],
+      stageCounts: {},
+      stages: []
+    },
+    snapshots: [
+      {
+        id: `snapshot-${journeyId}-prompt`,
+        phase: "prompt",
+        timestamp: "2026-05-25T02:00:00.000Z",
+        eventId: `event-${offset}`,
+        title: "Prompt",
+        blocks: [promptBlock],
+        addedBlockIds: [promptBlock.id],
+        retainedBlockIds: [],
+        changedBlockIds: [],
+        droppedBlockIds: [],
+        warnings: [],
+        tokenUsage: null
+      },
+      {
+        id: `snapshot-${journeyId}-response`,
+        phase: "response",
+        timestamp: "2026-05-25T02:00:03.000Z",
+        eventId: `event-${offset + 3}`,
+        title: "Response",
+        blocks: [promptBlock, fileBlock],
+        addedBlockIds: [fileBlock.id],
+        retainedBlockIds: [promptBlock.id],
+        changedBlockIds: [],
+        droppedBlockIds: [],
+        warnings: [warning],
+        tokenUsage
+      }
+    ],
+    blocks: [promptBlock, fileBlock],
+    evidenceByEventId: {},
+    warnings: [warning]
+  };
+}
+
 test("scans fixture logs, renders an IM-style task thread, hides background detail, and toggles theme", async ({ page }) => {
   let timelineRequestCount = 0;
   let evidenceRequested = false;
   const journeyDetailRequests: string[] = [];
+  const contextReplayRequests: string[] = [];
   const tokenUsageForTask = (taskOffset: number) => ({
     input: 1000 + taskOffset,
     output: 300 + Math.floor(taskOffset / 3),
@@ -219,12 +374,12 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
   await page.route("**/api/projects/*/timeline?**", async (route) => {
     timelineRequestCount += 1;
     const url = new URL(route.request().url());
-    expect(url.searchParams.get("limit")).toBe("300");
-    expect(url.searchParams.get("offset")).toBe(timelineRequestCount === 1 ? "0" : "300");
+    expect(Number(url.searchParams.get("limit"))).toBeGreaterThanOrEqual(100000);
+    expect(url.searchParams.get("offset")).toBe("0");
 
     const baseTime = Date.parse("2026-05-25T02:00:00.000Z");
-    const offset = Number(url.searchParams.get("offset") ?? "0");
-    const events = Array.from({ length: timelineRequestCount === 1 ? 300 : 40 }, (_, index) => ({
+    const offset = 0;
+    const events = Array.from({ length: 340 }, (_, index) => ({
       id: `event-${offset + index}`,
       projectId: "project-fixture",
       sessionId: "fixture-tool-session",
@@ -249,17 +404,15 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
       events[0].toolName = null;
       events[0].callId = null;
     }
-    if (offset === 0) {
-      [75, 150, 225].forEach((index) => {
-        events[index].kind = "user_prompt";
-        events[index].lane = "Product";
-        events[index].title = `User task ${index}`;
-        events[index].detail = `Build task journey from input ${index}`;
-        events[index].toolName = null;
-        events[index].callId = null;
-      });
-    }
-    const taskStarts = offset === 0 ? [0, 75, 150, 225] : [0];
+    [75, 150, 225, 300].forEach((index) => {
+      events[index].kind = "user_prompt";
+      events[index].lane = "Product";
+      events[index].title = `User task ${index}`;
+      events[index].detail = `Build task journey from input ${index}`;
+      events[index].toolName = null;
+      events[index].callId = null;
+    });
+    const taskStarts = [0, 75, 150, 225, 300];
     const taskJourneySummaries = taskStarts.map((startIndex, taskIndex) => {
       const taskEvents = events.slice(startIndex, taskStarts[taskIndex + 1] ?? events.length);
       const prompt = taskEvents[0];
@@ -331,31 +484,28 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
         ]
       };
     });
-    const causalEdges =
-      offset === 300
-        ? [
-            {
-              id: "edge-300-301",
-              projectId: "project-fixture",
-              fromEventId: "event-300",
-              toEventId: "event-301",
-              type: "verified_by",
-              confidence: "inferred",
-              reason: "Nearest successful verification after this change in the same session.",
-              evidence: null
-            },
-            {
-              id: "edge-299-300",
-              projectId: "project-fixture",
-              fromEventId: "event-299",
-              toEventId: "event-300",
-              type: "implements_prompt",
-              confidence: "inferred",
-              reason: "First code change after this prompt in the same session.",
-              evidence: "Timeline event 299"
-            }
-          ]
-        : [];
+    const causalEdges = [
+      {
+        id: "edge-300-301",
+        projectId: "project-fixture",
+        fromEventId: "event-300",
+        toEventId: "event-301",
+        type: "verified_by",
+        confidence: "inferred",
+        reason: "Nearest successful verification after this change in the same session.",
+        evidence: null
+      },
+      {
+        id: "edge-299-300",
+        projectId: "project-fixture",
+        fromEventId: "event-299",
+        toEventId: "event-300",
+        type: "implements_prompt",
+        confidence: "inferred",
+        reason: "First code change after this prompt in the same session.",
+        evidence: "Timeline event 299"
+      }
+    ];
 
     await route.fulfill({
       contentType: "application/json",
@@ -390,7 +540,7 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
           cachedInput: 910,
           total: 6414
         },
-        totalEvents: 340,
+        totalEvents: events.length,
         limit: 300,
         offset
       })
@@ -443,10 +593,19 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
     });
   });
 
-  await page.route("**/api/task-journeys/*", async (route) => {
+  await page.route("**/api/task-journeys/**", async (route) => {
     const requestUrl = new URL(route.request().url());
     expect(requestUrl.searchParams.get("projectId")).toBe("project-fixture");
     const journeyId = requestUrl.pathname.match(/\/api\/task-journeys\/([^/?]+)/)?.[1] ?? "task-unknown";
+    if (requestUrl.pathname.endsWith("/context-replay")) {
+      contextReplayRequests.push(journeyId);
+      const offset = Number(journeyId.replace("task-", "")) || 0;
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(contextReplayFixture(journeyId, offset))
+      });
+      return;
+    }
     journeyDetailRequests.push(journeyId);
     const offset = Number(journeyId.replace("task-", "")) || 0;
     const baseTime = Date.parse("2026-05-25T02:00:00.000Z");
@@ -560,8 +719,10 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
 
   await page.goto("/");
 
-  await page.getByRole("textbox", { name: "Agent log root path", exact: true }).fill("tests/fixtures/fake-codex-home");
   await page.getByRole("button", { name: "Scan Agent Logs" }).first().click();
+  const scanPanel = page.getByRole("region", { name: "Scan Agent Logs" });
+  await scanPanel.getByRole("textbox", { name: "Agent log root path", exact: true }).fill("tests/fixtures/fake-codex-home");
+  await scanPanel.getByRole("button", { name: "Scan Agent Logs" }).click();
 
   await expect(page.getByRole("status", { name: /Ingest completed, completed, 1 of 1 files processed, 100 percent/ })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Castle clear")).toBeVisible();
@@ -591,57 +752,89 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
   await expect(page.getByLabel("Project", { exact: true })).toContainText("0.006M tokens / KV 21.1%");
   await expect(page.getByText("User", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Codex CLI", { exact: true }).first()).toBeVisible();
-  await expect(page.locator(".conversation-turn").first().getByText("Build task journey from input 0")).toBeVisible();
-  await expect(page.locator(".conversation-turn").first().getByText("1m 14s")).toBeVisible();
-  await expect(page.locator(".conversation-turn").first().getByText("0.001M tokens")).toBeVisible();
-  await expect(page.locator(".conversation-turn").first().getByText("KV hit 25.0%")).toBeVisible();
-  await expect(page.locator(".conversation-turn").first().locator(".message-row.user").getByText("Build task journey from input 0")).toHaveCount(1);
-  await expect(page.locator(".conversation-turn").first().locator(".message-row.user .skill-chip", { hasText: "abtest" })).toBeVisible();
-  await expect(page.locator(".conversation-turn").first().locator(".message-row.codex .skill-chip", { hasText: "design-review" }).first()).toBeVisible();
-  await expect(page.locator(".conversation-turn")).toHaveCount(4);
-  await expect(page.locator(".conversation-turn").filter({ hasText: "Build task journey from input 75" })).toBeVisible();
-  await expect(page.locator(".conversation-turn").filter({ hasText: "Build task journey from input 150" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Agent work.*查看过程\.\.\./ })).toHaveCount(4);
-  await expect(page.locator(".conversation-turn").first().locator(":scope > .message-row.user .conversation-message.user")).toBeVisible();
-  await expect(page.locator(".conversation-turn").first().locator(":scope > .detail-message-row .conversation-message.codex.detail-toggle")).toBeVisible();
-  await expect(page.locator(".conversation-turn").first().locator(":scope > .message-row.codex .conversation-message.codex:not(.detail-toggle)")).toBeVisible();
+  const masterList = page.getByLabel("User input index");
+  const detailsPane = page.getByLabel("Conversation details");
+  await expect(masterList).toBeVisible();
+  await expect(detailsPane).toBeVisible();
+  await expect(page.locator(".conversation-master-item")).toHaveCount(5);
+  await expect(page.locator(".conversation-master-item").first()).toContainText("Build task journey from input 300");
+  await expect(page.locator(".conversation-master-item").nth(1)).toContainText("Build task journey from input 225");
+  await expect(page.locator(".conversation-master-item").nth(2)).toContainText("Build task journey from input 150");
+  await expect(page.locator(".conversation-master-item").nth(3)).toContainText("Build task journey from input 75");
+  await expect(page.locator(".conversation-master-item").nth(4)).toContainText("Build task journey from input 0");
+  await expect(detailsPane.getByText("Build task journey from input 300")).toBeVisible();
+  await expect(detailsPane.locator(".conversation-turn")).toHaveCount(1);
+  await expect(detailsPane.getByText("Build task journey from input 0")).toHaveCount(0);
+  await page.locator(".conversation-master-item").filter({ hasText: "Build task journey from input 0" }).click();
+  await expect(detailsPane.getByText("Build task journey from input 0")).toBeVisible();
+  await expect(detailsPane.getByText("Build task journey from input 300")).toHaveCount(0);
+  await expect(detailsPane.getByText("1m 14s")).toBeVisible();
+  await expect(detailsPane.getByText("0.001M tokens")).toBeVisible();
+  await expect(detailsPane.getByText("KV hit 25.0%")).toBeVisible();
+  await expect(detailsPane.locator(".message-row.user").getByText("Build task journey from input 0")).toHaveCount(1);
+  await expect(detailsPane.locator(".message-row.user .skill-chip", { hasText: "abtest" })).toBeVisible();
+  await expect(detailsPane.locator(".message-row.codex .skill-chip", { hasText: "design-review" }).first()).toBeVisible();
+  await expect(contextReplayRequests).toEqual([]);
+  await detailsPane.getByRole("tab", { name: "Context Replay" }).click();
+  await expect.poll(() => contextReplayRequests.filter((id) => id === "task-0").length).toBe(1);
+  const contextReplayLedger = detailsPane.getByRole("region", { name: "Context Replay ledger" });
+  await expect(contextReplayLedger).toContainText("Build task journey from input 0");
+  await expect(contextReplayLedger).toContainText("ui/src/App.tsx");
+  await expect(contextReplayLedger.locator(".context-snapshot-index")).toHaveText(["1", "2"]);
+  await expect(contextReplayLedger.getByText("from step 1")).toBeVisible();
+  await expect(contextReplayLedger.getByText("from step 2")).toBeVisible();
+  await page.locator(".context-block-card").first().click();
+  await page.keyboard.press("ArrowLeft");
+  await expect(contextReplayLedger.getByRole("button", { name: /Step 1: Prompt/ })).toHaveClass(/active/);
+  await page.keyboard.press("ArrowRight");
+  await expect(contextReplayLedger.getByRole("button", { name: /Step 2: Response/ })).toHaveClass(/active/);
+  await expect(detailsPane.getByText("Unverified final response")).toBeVisible();
+  await detailsPane.getByRole("tab", { name: "Conversation" }).click();
+  await page.locator(".conversation-master-item").filter({ hasText: "Build task journey from input 75" }).click();
+  await expect(detailsPane.getByText("Build task journey from input 75")).toBeVisible();
+  await expect(detailsPane.getByText("Build task journey from input 0")).toHaveCount(0);
+  await page.locator(".conversation-master-item").filter({ hasText: "Build task journey from input 0" }).click();
+  await expect(detailsPane.getByRole("button", { name: /Agent work.*View process\.\.\./ })).toHaveCount(1);
+  await expect(detailsPane.locator(":scope .conversation-turn > .message-row.user .conversation-message.user")).toBeVisible();
+  await expect(detailsPane.locator(":scope .conversation-turn > .detail-message-row .conversation-message.codex.detail-toggle")).toBeVisible();
+  await expect(detailsPane.locator(":scope .conversation-turn > .message-row.codex .conversation-message.codex:not(.detail-toggle)")).toBeVisible();
   await expect(page.getByText("Loaded task detail 2")).toHaveCount(0);
   await expect(page.getByText("Agent Trace", { exact: true })).toHaveCount(0);
   await expect(page.locator(".lane-label")).toHaveCount(0);
-  await expect(page.getByText("1-300 of 340")).toBeVisible();
-  await expect(page.getByText("4 task journeys loaded from 300 events")).toBeVisible();
+  await expect(page.getByText("1-340 of 340")).toBeVisible();
+  await expect(page.getByText("5 task journeys loaded from 340 events")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Prev page" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Next page" })).toHaveCount(0);
   await expect(journeyDetailRequests).toEqual([]);
-  await page.locator(".conversation-turn").first().getByRole("button", { name: /Agent work.*查看过程\.\.\./ }).click();
+  await detailsPane.getByRole("button", { name: /Agent work.*View process\.\.\./ }).click();
   await expect.poll(() => journeyDetailRequests.filter((id) => id === "task-0").length).toBe(1);
   await expect(journeyDetailRequests).not.toContain("task-225");
   await expect(journeyDetailRequests).not.toContain("task-225");
-  await page.locator(".conversation-turn").filter({ hasText: "Build task journey from input 225" }).getByRole("button", { name: /Agent work.*查看过程\.\.\./ }).click();
+  await page.locator(".conversation-master-item").filter({ hasText: "Build task journey from input 225" }).click();
+  await detailsPane.getByRole("button", { name: /Agent work.*View process\.\.\./ }).click();
   await expect.poll(() => journeyDetailRequests.filter((id) => id === "task-225").length).toBe(1);
-  await expect(page.locator(".conversation-turn").filter({ hasText: "Codex completed task 225 in CLI output." })).toBeVisible();
+  await expect(detailsPane.getByText("Codex completed task 225 in CLI output.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Show causal paths" })).toHaveCount(0);
   await expect(page.getByText("Causal path", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Causal Links" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Next page" }).click();
-  await expect(page.getByText("301-340 of 340")).toBeVisible();
-  await expect(page.locator(".conversation-turn")).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Prev page" })).toBeEnabled();
   await expect(journeyDetailRequests).not.toContain("task-300");
-  await page.locator(".conversation-turn").filter({ hasText: "Build task journey from input 300" }).getByRole("button", { name: /Agent work.*查看过程\.\.\./ }).click();
+  await page.locator(".conversation-master-item").filter({ hasText: "Build task journey from input 300" }).click();
+  await detailsPane.getByRole("button", { name: /Agent work.*View process\.\.\./ }).click();
   await expect.poll(() => journeyDetailRequests.filter((id) => id === "task-300").length).toBe(1);
   await expect(page.getByText("Codex completed task 300 in CLI output.")).toBeVisible();
-  await expect(page.locator(".conversation-turn").filter({ hasText: "Build task journey from input 300" }).locator(".skill-chip", { hasText: "ui-ux-pro-max" }).first()).toBeVisible();
-  const task300CodexBody = page.locator(".conversation-turn").filter({ hasText: "Build task journey from input 300" }).locator(".message-row.codex .message-body");
+  await expect(detailsPane.locator(".skill-chip", { hasText: "ui-ux-pro-max" }).first()).toBeVisible();
+  const task300CodexBody = detailsPane.locator(".message-row.codex .message-body");
   await expect(task300CodexBody).toHaveAttribute("data-expanded", "false");
   await expect.poll(async () => Math.round((await task300CodexBody.boundingBox())?.height ?? 0)).toBeLessThanOrEqual(250);
-  await page.locator(".conversation-turn").filter({ hasText: "Build task journey from input 300" }).locator(".message-expand-toggle").filter({ hasText: "展开" }).click();
+  await detailsPane.locator(".message-expand-toggle").filter({ hasText: "Expand" }).click();
   await expect(task300CodexBody).toHaveAttribute("data-expanded", "true");
   await expect.poll(async () => Math.round((await task300CodexBody.boundingBox())?.height ?? 0)).toBeGreaterThan(250);
-  await page.locator(".conversation-turn").filter({ hasText: "Build task journey from input 300" }).locator(".message-expand-toggle").filter({ hasText: "收起" }).click();
+  await detailsPane.locator(".message-expand-toggle").filter({ hasText: "Collapse" }).click();
   await expect(task300CodexBody).toHaveAttribute("data-expanded", "false");
   await expect(page.getByText("Background Work", { exact: true })).toBeVisible();
   await expect(page.getByText("Log", { exact: true })).toBeVisible();
   await expect(page.getByText("Loaded task detail 302")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Agent work.*收起过程\.\.\./ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Agent work.*Hide process\.\.\./ })).toBeVisible();
   await page.getByRole("button", { name: /Codex CLI.*Codex completed task 300/ }).click({ force: true });
   await expect(page.getByText(/causal links on this page/)).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Causal Links" })).toHaveCount(0);
@@ -713,11 +906,12 @@ test("blocks conflicting controls while ingest is running", async ({ page }) => 
 
   await page.goto("/");
   await page.getByRole("button", { name: "Scan Agent Logs" }).first().click();
+  const scanPanel = page.getByRole("region", { name: "Scan Agent Logs" });
+  await scanPanel.getByRole("button", { name: "Scan Agent Logs" }).click();
 
   const blockingLoader = page.getByRole("status", { name: "Blocking operation" });
   await expect(blockingLoader).toContainText("Scanning agent logs");
   await expect(page.getByRole("button", { name: "Scan Agent Logs" }).first()).toBeDisabled();
-  await expect(page.getByRole("textbox", { name: "Agent log root path", exact: true })).toBeDisabled();
   await expect(page.getByLabel("Toggle theme")).toBeEnabled();
   await expect(blockingLoader.getByRole("status", { name: /Ingest running, parsing, 7 of 20 files processed, 35 percent/ })).toBeVisible();
   await expect(page.locator(".workspace > .ingest-level-progress")).toHaveCount(0);

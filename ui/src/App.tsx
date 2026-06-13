@@ -1,4 +1,4 @@
-import { AlertTriangle, ChartColumn, ChevronDown, FileText, Languages, Moon, RotateCw, Search, Sun } from "lucide-react";
+import { AlertTriangle, ArchiveX, Ban, ChartColumn, ChevronDown, Clock, FileText, Languages, Leaf, Moon, RotateCw, Search, Sparkles, Sun } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type {
@@ -30,15 +30,31 @@ import { AppCopy, COPY, IngestCopy, Language, normalizeLanguage } from "./i18n";
 import { IngestLevelProgress } from "./IngestLevelProgress";
 import { formatMillionTokens } from "./tokenFormat";
 
-type Theme = "light" | "dark";
+type Theme = "light" | "dark" | "forest" | "plasma";
 type ProjectProviderFilter = AgentProvider | "all";
 type MetricKey = "projects" | "events" | "tasks" | "tokens";
 type ThreadDetailTab = "conversation" | "context";
 
 const PROJECT_TIMELINE_LIMIT = 100000;
 
+const THEME_OPTIONS: Theme[] = ["light", "dark", "forest", "plasma"];
+
+function loadInitialTheme(): Theme {
+  const stored = localStorage.getItem("superview-theme");
+  return stored && (THEME_OPTIONS as string[]).includes(stored) ? (stored as Theme) : "light";
+}
+
+function ThemeIcon({ theme, size = 17 }: { theme: Theme; size?: number }) {
+  if (theme === "light") return <Sun size={size} />;
+  if (theme === "dark") return <Moon size={size} />;
+  if (theme === "forest") return <Leaf size={size} />;
+  return <Sparkles size={size} />;
+}
+
 export function App() {
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("superview-theme") as Theme | null) ?? "light");
+  const [theme, setTheme] = useState<Theme>(loadInitialTheme);
+  const [themePanelOpen, setThemePanelOpen] = useState(false);
+  const themeDropdownRef = useRef<HTMLDivElement | null>(null);
   const [language, setLanguage] = useState<Language>(() => normalizeLanguage(localStorage.getItem("superview-language")));
   const [projects, setProjects] = useState<ProjectWithSessions[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -54,7 +70,7 @@ export function App() {
   const [contextReplays, setContextReplays] = useState<Record<string, ContextReplayResponse>>({});
   const [contextReplayLoadingIds, setContextReplayLoadingIds] = useState<Record<string, boolean>>({});
   const contextReplayLoadingRef = useRef(new Set<string>());
-  const [expandedJourneyIds, setExpandedJourneyIds] = useState<Record<string, boolean>>({});
+  const [collapsedJourneyIds, setCollapsedJourneyIds] = useState<Record<string, boolean>>({});
   const [job, setJob] = useState<IngestJob | null>(null);
   const [agentProvider, setAgentProvider] = useState<AgentProvider>("codex");
   const [projectProviderFilter, setProjectProviderFilter] = useState<ProjectProviderFilter>("all");
@@ -69,6 +85,24 @@ export function App() {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("superview-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (!themePanelOpen) return;
+    function handlePointerDown(event: MouseEvent) {
+      if (!themeDropdownRef.current) return;
+      if (themeDropdownRef.current.contains(event.target as Node)) return;
+      setThemePanelOpen(false);
+    }
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setThemePanelOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [themePanelOpen]);
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -138,7 +172,7 @@ export function App() {
       const next = await fetchTimeline(projectId, { limit: PROJECT_TIMELINE_LIMIT, offset: 0 });
       setTimeline(next);
       setSelectedEvent(next.events[0] ?? null);
-      setExpandedJourneyIds({});
+      setCollapsedJourneyIds({});
       setError(null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : String(loadError));
@@ -207,10 +241,10 @@ export function App() {
   }
 
   function toggleJourneyDetails(journeyId: string) {
-    setExpandedJourneyIds((current) => {
-      const nextExpanded = !current[journeyId];
-      if (nextExpanded) void loadJourneyDetail(journeyId);
-      return { ...current, [journeyId]: nextExpanded };
+    setCollapsedJourneyIds((current) => {
+      const nextCollapsed = !current[journeyId];
+      if (!nextCollapsed) void loadJourneyDetail(journeyId);
+      return { ...current, [journeyId]: nextCollapsed };
     });
   }
 
@@ -274,9 +308,39 @@ export function App() {
             <Languages size={16} />
             {copy.language.short}
           </button>
-          <button className="icon-button" aria-label={copy.theme.aria} onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
-            {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
-          </button>
+          <div className="theme-dropdown" ref={themeDropdownRef}>
+            <button
+              className="icon-button"
+              aria-label={copy.theme.aria}
+              title={copy.theme.names[theme]}
+              aria-haspopup="menu"
+              aria-expanded={themePanelOpen}
+              onClick={() => setThemePanelOpen((open) => !open)}
+            >
+              <ThemeIcon theme={theme} />
+            </button>
+            {themePanelOpen ? (
+              <div className="theme-dropdown-panel" role="menu" aria-label={copy.theme.aria}>
+                {THEME_OPTIONS.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={theme === option}
+                    className={`theme-dropdown-option${theme === option ? " active" : ""}`}
+                    onClick={() => {
+                      setTheme(option);
+                      setThemePanelOpen(false);
+                    }}
+                  >
+                    <ThemeIcon theme={option} size={15} />
+                    <span>{copy.theme.names[option]}</span>
+                    {theme === option ? <i className="theme-dropdown-check" aria-hidden="true">✓</i> : <span aria-hidden="true" />}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -411,11 +475,12 @@ export function App() {
                 detailsByJourneyId={journeyDetails}
                 contextReplaysByJourneyId={contextReplays}
                 timelineEventsById={timelineEventsById}
-                expandedJourneyIds={expandedJourneyIds}
+                collapsedJourneyIds={collapsedJourneyIds}
                 loadingJourneyIds={journeyLoadingIds}
                 loadingContextReplayIds={contextReplayLoadingIds}
                 selectedEventId={selectedEvent?.id ?? null}
                 onToggleDetails={toggleJourneyDetails}
+                onLoadJourneyDetail={(journeyId) => loadJourneyDetail(journeyId)}
                 onLoadContextReplay={(journeyId) => loadContextReplay(journeyId)}
                 onSelectEvent={(event) => setSelectedEvent(event)}
               />
@@ -458,11 +523,12 @@ function ConversationThread({
   detailsByJourneyId,
   contextReplaysByJourneyId,
   timelineEventsById,
-  expandedJourneyIds,
+  collapsedJourneyIds,
   loadingJourneyIds,
   loadingContextReplayIds,
   selectedEventId,
   onToggleDetails,
+  onLoadJourneyDetail,
   onLoadContextReplay,
   onSelectEvent
 }: {
@@ -471,11 +537,12 @@ function ConversationThread({
   detailsByJourneyId: Record<string, TaskJourneyDetail>;
   contextReplaysByJourneyId: Record<string, ContextReplayResponse>;
   timelineEventsById: Map<string, TimelineEvent>;
-  expandedJourneyIds: Record<string, boolean>;
+  collapsedJourneyIds: Record<string, boolean>;
   loadingJourneyIds: Record<string, boolean>;
   loadingContextReplayIds: Record<string, boolean>;
   selectedEventId: string | null;
   onToggleDetails: (journeyId: string) => void;
+  onLoadJourneyDetail: (journeyId: string) => void;
   onLoadContextReplay: (journeyId: string) => void;
   onSelectEvent: (event: TimelineEvent) => void;
 }) {
@@ -497,6 +564,12 @@ function ConversationThread({
       onLoadContextReplay(selectedJourney.id);
     }
   }, [detailTab, onLoadContextReplay, selectedJourney]);
+
+  useEffect(() => {
+    if (detailTab !== "context" && selectedJourney && !collapsedJourneyIds[selectedJourney.id]) {
+      onLoadJourneyDetail(selectedJourney.id);
+    }
+  }, [detailTab, onLoadJourneyDetail, selectedJourney, collapsedJourneyIds]);
 
   useEffect(() => {
     function shouldIgnoreShortcut(event: KeyboardEvent) {
@@ -542,6 +615,11 @@ function ConversationThread({
       <aside className="conversation-master" aria-label={copy.masterAria}>
         <div className="conversation-master-heading">
           <span>{copy.masterTitle}</span>
+          <ul className="conversation-status-legend" aria-label={copy.statusLegendAria}>
+            <li className="running"><i aria-hidden="true" />{copy.statusLegendRunning}</li>
+            <li className="success"><i aria-hidden="true" />{copy.statusLegendSuccess}</li>
+            <li className="failed"><i aria-hidden="true" />{copy.statusLegendFailed}</li>
+          </ul>
           <strong>{orderedJourneys.length}</strong>
         </div>
         <div className="conversation-master-list">
@@ -586,7 +664,7 @@ function ConversationThread({
               journey={selectedJourney}
               detail={detailsByJourneyId[selectedJourney.id] ?? null}
               fallbackPrompt={timelineEventsById.get(selectedJourney.promptEventId) ?? null}
-              expanded={Boolean(expandedJourneyIds[selectedJourney.id])}
+              expanded={!collapsedJourneyIds[selectedJourney.id]}
               loading={Boolean(loadingJourneyIds[selectedJourney.id])}
               selectedEventId={selectedEventId}
               onToggleDetails={() => onToggleDetails(selectedJourney.id)}
@@ -901,6 +979,7 @@ function ContextBlockGroup({
           >
             <div className="context-block-card-heading">
               <b>{blockOriginSteps.get(block.id) ?? 1}</b>
+              <RetiredStateIcon state={block.state} />
               <span>{block.state}</span>
               <em>{block.type}</em>
               <em>{copy.contextReplayFromStep(blockOriginSteps.get(block.id) ?? 1)}</em>
@@ -921,6 +1000,13 @@ function ContextBlockGroup({
 
 function isRetiredContextState(state: ContextBlock["state"]) {
   return state === "dropped" || state === "stale" || state === "contradicted";
+}
+
+function RetiredStateIcon({ state }: { state: ContextBlock["state"] }) {
+  if (state === "dropped") return <ArchiveX size={12} aria-hidden="true" />;
+  if (state === "stale") return <Clock size={12} aria-hidden="true" />;
+  if (state === "contradicted") return <Ban size={12} aria-hidden="true" />;
+  return null;
 }
 
 function MiniScene({
@@ -1517,7 +1603,10 @@ function formatDuration(durationMs: number) {
 
 function formatKvHitRate(usage: TokenUsage) {
   if (usage.input <= 0) return "0.0%";
-  return `${((usage.cachedInput / usage.input) * 100).toFixed(1)}%`;
+  const ratio = (usage.cachedInput / usage.input) * 100;
+  // Clamp to [0, 100] — cache hit rate is bounded by definition; any value above
+  // 100% indicates an upstream adapter bug and should never reach the UI.
+  return `${Math.max(0, Math.min(100, ratio)).toFixed(1)}%`;
 }
 
 function formatMetricValue(metricKey: MetricKey, value: number) {

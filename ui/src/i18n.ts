@@ -45,7 +45,15 @@ export type IngestCopy = {
 export type AppCopy = {
   brandSubtitle: string;
   language: { short: string; aria: string; title: string };
-  theme: { aria: string };
+  theme: {
+    aria: string;
+    names: {
+      light: string;
+      dark: string;
+      forest: string;
+      plasma: string;
+    };
+  };
   topbar: { agentLogRoot: string; agentLogRootAria: string; agentLogRootPlaceholder: string; source: string; sourceAria: string; scan: string };
   title: { eyebrow: string; emptyProject: string; lead: string };
   projectControls: { provider: string; providerAria: string; project: string; projectAria: string; all: string; noProvider: string };
@@ -75,6 +83,10 @@ export type AppCopy = {
     detailsAria: string;
     masterTitle: string;
     detailsTitle: string;
+    statusLegendAria: string;
+    statusLegendRunning: string;
+    statusLegendSuccess: string;
+    statusLegendFailed: string;
     detailTabsAria: string;
     conversationTab: string;
     contextReplayTab: string;
@@ -154,14 +166,20 @@ export function normalizeLanguage(value: string | null): Language {
 
 export const COPY: Record<Language, AppCopy> = {
   en: {
-    brandSubtitle: "Agent timeline command center",
+    brandSubtitle: "The black box of your coding agents",
     language: {
       short: "中",
       aria: "Switch language to Simplified Chinese",
       title: "Switch language to Simplified Chinese"
     },
     theme: {
-      aria: "Toggle theme"
+      aria: "Toggle theme",
+      names: {
+        light: "Bright Command Center",
+        dark: "Dark Command Center",
+        forest: "Forest Lab",
+        plasma: "Plasma Violet"
+      }
     },
     topbar: {
       agentLogRoot: "Agent log root",
@@ -226,6 +244,10 @@ export const COPY: Record<Language, AppCopy> = {
       detailsAria: "Conversation details",
       masterTitle: "User inputs",
       detailsTitle: "Conversation details",
+      statusLegendAria: "Run status legend",
+      statusLegendRunning: "Running",
+      statusLegendSuccess: "Success",
+      statusLegendFailed: "Failed",
       detailTabsAria: "Thread detail tabs",
       conversationTab: "Conversation",
       contextReplayTab: "Context Replay",
@@ -338,14 +360,20 @@ export const COPY: Record<Language, AppCopy> = {
     }
   },
   "zh-CN": {
-    brandSubtitle: "Agent 时间线指挥中心",
+    brandSubtitle: "Coding Agent 黑匣子",
     language: {
       short: "EN",
       aria: "切换语言到英文",
       title: "切换语言到英文"
     },
     theme: {
-      aria: "切换主题"
+      aria: "切换主题",
+      names: {
+        light: "明亮指挥中心",
+        dark: "暗色指挥中心",
+        forest: "森林实验室",
+        plasma: "等离子紫"
+      }
     },
     topbar: {
       agentLogRoot: "Agent 日志根目录",
@@ -410,6 +438,10 @@ export const COPY: Record<Language, AppCopy> = {
       detailsAria: "对话详情",
       masterTitle: "用户输入",
       detailsTitle: "对话详情",
+      statusLegendAria: "运行状态图例",
+      statusLegendRunning: "进行中",
+      statusLegendSuccess: "成功",
+      statusLegendFailed: "失败",
       detailTabsAria: "Thread 详情标签",
       conversationTab: "Conversation",
       contextReplayTab: "Context Replay",

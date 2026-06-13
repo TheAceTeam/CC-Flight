@@ -41,6 +41,54 @@
   --shadow: 0 12px 28px rgba(0, 0, 0, .35);
 }
 
+[data-theme="forest"] {
+  color-scheme: light;
+  --paper: #f1f5ec;
+  --surface: #e6ede0;
+  --surface-2: #fafdf5;
+  --surface-soft: #d7e0cd;
+  --line: #c4d2b6;
+  --line-strong: #8aa472;
+  --ink: #1f2e1a;
+  --muted: #5a6b4e;
+  --orange: #2d8659;
+  --orange-strong: #1f6e44;
+  --orange-soft: #d5ecdd;
+  --blue: #3d7a8c;
+  --blue-soft: #d3e3e8;
+  --success: #3aa055;
+  --warning: #b58a14;
+  --danger: #b8341f;
+  --shell: rgba(15, 30, 18, .78);
+  --shell-border: rgba(180, 220, 180, .14);
+  --on-shell: #f0f7e8;
+  --shadow: 0 8px 22px rgba(30, 60, 25, .14);
+}
+
+[data-theme="plasma"] {
+  color-scheme: dark;
+  --paper: #1a0e2e;
+  --surface: #251841;
+  --surface-2: #2a1a45;
+  --surface-soft: #150a25;
+  --line: #3d2860;
+  --line-strong: #5a3d8a;
+  --ink: #f5e8ff;
+  --muted: #c4a8e0;
+  --orange: #c47bff;
+  --orange-strong: #d68fff;
+  --orange-soft: #3a1f5a;
+  --blue: #5fc8ff;
+  --blue-soft: #1a3340;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --shell: rgba(8, 4, 18, .82);
+  --shell-border: rgba(180, 120, 255, .18);
+  --on-shell: #ffffff;
+  --shadow: 0 12px 28px rgba(40, 10, 80, .45);
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -193,6 +241,82 @@ select:disabled {
 
 .agent-root-control input::placeholder {
   color: rgba(255, 255, 255, .58);
+}
+
+.theme-dropdown {
+  position: relative;
+}
+
+.theme-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 60;
+  display: grid;
+  width: 232px;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--shell) 92%, transparent);
+  color: var(--on-shell);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .30);
+  backdrop-filter: blur(12px);
+}
+
+.theme-dropdown-panel::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 14px;
+  width: 10px;
+  height: 10px;
+  border-top: 1px solid rgba(255, 255, 255, .16);
+  border-left: 1px solid rgba(255, 255, 255, .16);
+  background: color-mix(in srgb, var(--shell) 92%, transparent);
+  transform: rotate(45deg);
+}
+
+.theme-dropdown-option {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--on-shell);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.theme-dropdown-option:hover {
+  background: rgba(255, 255, 255, .08);
+}
+
+.theme-dropdown-option.active {
+  border-color: color-mix(in srgb, var(--orange) 60%, rgba(255, 255, 255, .18));
+  background: color-mix(in srgb, var(--orange) 20%, rgba(255, 255, 255, .06));
+  color: #fff;
+}
+
+.theme-dropdown-option svg:first-child {
+  color: var(--orange);
+}
+
+.theme-dropdown-check {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--orange);
+  color: #fff;
+  font: 900 9px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .shell-button, .icon-button {
@@ -616,8 +740,6 @@ select {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--ink) 7%, transparent);
 }
 
 .conversation-master {
@@ -625,6 +747,15 @@ select {
   top: 88px;
   max-height: calc(100vh - 112px);
   overflow: hidden;
+  background: var(--surface-soft);
+  box-shadow: none;
+}
+
+.conversation-detail-pane {
+  background: var(--paper);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--orange) 10%, transparent),
+    0 12px 28px -14px color-mix(in srgb, var(--ink) 22%, transparent);
 }
 
 .conversation-master-heading,
@@ -653,6 +784,49 @@ select {
   font-size: 13px;
   line-height: 1.25;
   overflow-wrap: anywhere;
+}
+
+.conversation-status-legend {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  justify-content: flex-end;
+}
+
+.conversation-status-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.conversation-status-legend li i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--orange);
+}
+
+.conversation-status-legend li.success i {
+  background: var(--success);
+}
+
+.conversation-status-legend li.failed i {
+  background: var(--danger);
 }
 
 .conversation-master-list {
@@ -1054,6 +1228,45 @@ button.context-warning:disabled {
 .context-block-card.dropped,
 .context-block-card.stale,
 .context-block-card.contradicted { border-top-color: var(--danger); }
+
+.context-block-card.dropped,
+.context-block-card.stale {
+  opacity: 0.65;
+  filter: grayscale(0.4);
+  background: color-mix(in srgb, var(--muted) 6%, var(--surface-2));
+}
+
+.context-block-card.dropped strong,
+.context-block-card.stale strong {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent);
+  text-decoration-thickness: 1px;
+}
+
+.context-block-card.contradicted {
+  background: color-mix(in srgb, var(--danger) 6%, var(--surface-2));
+}
+
+.context-block-card.contradicted strong {
+  color: var(--danger);
+}
+
+.context-block-card.dropped .context-block-card-heading svg,
+.context-block-card.stale .context-block-card-heading svg {
+  color: var(--muted);
+}
+
+.context-block-card.contradicted .context-block-card-heading svg {
+  color: var(--danger);
+}
+
+.context-block-card.active.dropped,
+.context-block-card.active.stale,
+.context-block-card.active.contradicted {
+  opacity: 1;
+  filter: none;
+}
 
 .context-block-card.active {
   border-color: var(--orange);

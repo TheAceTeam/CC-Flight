@@ -1,5 +1,6 @@
-import { AlertTriangle, ArchiveX, Ban, ChartColumn, ChevronDown, Clock, FileText, Languages, Leaf, Moon, Pause, Play, RotateCw, Search, Sparkles, Sun } from "lucide-react";
+import { AlertTriangle, ArchiveX, Ban, ChartColumn, ChevronDown, Clock, FileText, Languages, Leaf, Moon, Pause, Play, RotateCw, Search, Share2, Sparkles, Sun } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import type {
   AgentProvider,
@@ -28,7 +29,6 @@ import {
 } from "./api";
 import { DailyTokenUsagePanel } from "./DailyTokenUsagePanel";
 import { AppCopy, COPY, IngestCopy, Language, normalizeLanguage } from "./i18n";
-import { IngestLevelProgress } from "./IngestLevelProgress";
 import { formatMillionTokens } from "./tokenFormat";
 
 type Theme = "light" | "dark" | "forest" | "plasma";
@@ -65,6 +65,7 @@ export function App() {
   const [dailyTokenUsage, setDailyTokenUsage] = useState<DailyTokenUsageResponse | null>(null);
   const [dailyTokenUsageLoading, setDailyTokenUsageLoading] = useState(false);
   const [tokenChartExpanded, setTokenChartExpanded] = useState(false);
+  const [tokenTimelineOpen, setTokenTimelineOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [journeyDetails, setJourneyDetails] = useState<Record<string, TaskJourneyDetail>>({});
   const [journeyLoadingIds, setJourneyLoadingIds] = useState<Record<string, boolean>>({});
@@ -594,10 +595,13 @@ export function App() {
                 loadingJourneyIds={journeyLoadingIds}
                 loadingContextReplayIds={contextReplayLoadingIds}
                 selectedEventId={selectedEvent?.id ?? null}
+                selectedProjectName={selectedProject?.name ?? ''}
                 onToggleDetails={toggleJourneyDetails}
                 onLoadJourneyDetail={(journeyId) => loadJourneyDetail(journeyId)}
                 onLoadContextReplay={(journeyId) => loadContextReplay(journeyId)}
                 onSelectEvent={(event) => setSelectedEvent(event)}
+                tokenTimelineOpen={tokenTimelineOpen}
+                setTokenTimelineOpen={setTokenTimelineOpen}
               />
             </section>
           </div>
@@ -642,10 +646,13 @@ function ConversationThread({
   loadingJourneyIds,
   loadingContextReplayIds,
   selectedEventId,
+  selectedProjectName,
   onToggleDetails,
   onLoadJourneyDetail,
   onLoadContextReplay,
-  onSelectEvent
+  onSelectEvent,
+  tokenTimelineOpen,
+  setTokenTimelineOpen
 }: {
   copy: AppCopy["timeline"];
   journeys: TaskJourney[];
@@ -656,13 +663,17 @@ function ConversationThread({
   loadingJourneyIds: Record<string, boolean>;
   loadingContextReplayIds: Record<string, boolean>;
   selectedEventId: string | null;
+  selectedProjectName: string;
   onToggleDetails: (journeyId: string) => void;
   onLoadJourneyDetail: (journeyId: string) => void;
   onLoadContextReplay: (journeyId: string) => void;
   onSelectEvent: (event: TimelineEvent) => void;
+  tokenTimelineOpen: boolean;
+  setTokenTimelineOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
 }) {
   const orderedJourneys = useMemo(() => [...journeys].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt)), [journeys]);
   const [selectedJourneyId, setSelectedJourneyId] = useState<string | null>(null);
+  const masterListRef = useRef<HTMLDivElement>(null);
   const [detailTab, setDetailTab] = useState<ThreadDetailTab>("context");
   const selectedJourney = orderedJourneys.find((journey) => journey.id === selectedJourneyId) ?? orderedJourneys[0] ?? null;
 
@@ -673,6 +684,13 @@ function ConversationThread({
     }
     setSelectedJourneyId((current) => (current && orderedJourneys.some((journey) => journey.id === current) ? current : orderedJourneys[0].id));
   }, [orderedJourneys]);
+
+  // Scroll selected journey into view in the master list
+  useEffect(() => {
+    if (!selectedJourneyId || !masterListRef.current) return;
+    const item = masterListRef.current.querySelector<HTMLElement>(`[data-journey-id="${selectedJourneyId}"]`);
+    item?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selectedJourneyId]);
 
   useEffect(() => {
     if (detailTab === "context" && selectedJourney) {
@@ -736,8 +754,17 @@ function ConversationThread({
             <li className="failed"><i aria-hidden="true" />{copy.statusLegendFailed}</li>
           </ul>
           <strong>{orderedJourneys.length}</strong>
+          <button
+            type="button"
+            className="timeline-chart-btn"
+            aria-label="Token Timeline"
+            title="Token Timeline"
+            onClick={() => setTokenTimelineOpen((o) => !o)}
+          >
+            <ChartColumn size={13} />
+          </button>
         </div>
-        <div className="conversation-master-list">
+        <div className="conversation-master-list" ref={masterListRef}>
           {orderedJourneys.map((journey) => (
             <ConversationMasterItem
               key={journey.id}
@@ -771,6 +798,7 @@ function ConversationThread({
               copy={copy}
               replay={contextReplaysByJourneyId[selectedJourney.id] ?? null}
               loading={Boolean(loadingContextReplayIds[selectedJourney.id])}
+              selectedProjectName={selectedProjectName}
             />
           ) : (
             <ConversationTurn
@@ -790,6 +818,24 @@ function ConversationThread({
           <p className="muted">{copy.emptySelection}</p>
         )}
       </section>
+      {tokenTimelineOpen ? (
+        <div className="factory-overlay" onClick={() => setTokenTimelineOpen(false)}>
+          <div className="factory-overlay-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="factory-overlay-header">
+              <span>Token Timeline</span>
+              <button type="button" className="factory-overlay-close" onClick={() => setTokenTimelineOpen(false)}>✕</button>
+            </div>
+            <TokenTimeline
+              copy={copy}
+              journeys={orderedJourneys}
+              selectedProjectName={selectedProjectName}
+              selectedJourneyId={selectedJourneyId}
+              onSelectJourney={setSelectedJourneyId}
+              onClose={() => setTokenTimelineOpen(false)}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -811,7 +857,13 @@ function ConversationMasterItem({
 }) {
   const promptText = fallbackPrompt?.detail ?? journey.title;
   return (
-    <button type="button" className={`conversation-master-item ${journey.status} ${active ? "active" : ""}`} aria-current={active ? "true" : undefined} onClick={onSelect}>
+    <button
+      type="button"
+      data-journey-id={journey.id}
+      className={`conversation-master-item ${journey.status} ${active ? "active" : ""}`}
+      aria-current={active ? "true" : undefined}
+      onClick={onSelect}
+    >
       <span>{formatDate(journey.startedAt, copy)}</span>
       <strong>{promptText}</strong>
       <em>
@@ -822,13 +874,33 @@ function ConversationMasterItem({
   );
 }
 
-function ContextReplayPanel({ copy, replay, loading }: { copy: AppCopy["timeline"]; replay: ContextReplayResponse | null; loading: boolean }) {
+function ContextReplayPanel({ copy, replay, loading, selectedProjectName }: {
+  copy: AppCopy["timeline"];
+  replay: ContextReplayResponse | null;
+  loading: boolean;
+  selectedProjectName: string;
+}) {
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const snapshotButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const ledgerContainerRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showToast(msg: string) {
+    clearTimeout(toastTimer.current ?? undefined);
+    setToastMessage(msg);
+    toastTimer.current = setTimeout(() => setToastMessage(null), 2500);
+  }
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(toastTimer.current ?? undefined);
+    };
+  }, []);
 
   useEffect(() => {
     const header = headerRef.current;
@@ -862,6 +934,7 @@ function ContextReplayPanel({ copy, replay, loading }: { copy: AppCopy["timeline
   const selectedBlock = activeSnapshot?.blocks.find((block) => block.id === selectedBlockId) ?? activeSnapshot?.blocks[0] ?? null;
 
   const [replayPlaying, setReplayPlaying] = useState(false);
+  const [factoryOpen, setFactoryOpen] = useState(false);
 
   function activateSnapshot(index: number, shouldFocus = false) {
     if (!replay?.snapshots.length) return;
@@ -910,6 +983,7 @@ function ContextReplayPanel({ copy, replay, loading }: { copy: AppCopy["timeline
   }
 
   function handleSnapshotKeyDown(event: React.KeyboardEvent) {
+    if (factoryOpen) return;
     const nextIndex = nextSnapshotIndexForKey(event.key);
     if (nextIndex === null) return;
     event.preventDefault();
@@ -946,6 +1020,17 @@ function ContextReplayPanel({ copy, replay, loading }: { copy: AppCopy["timeline
 
     function handleGlobalKeyDown(event: KeyboardEvent) {
       if (shouldIgnoreShortcut(event)) return;
+      // When factory overlay is open, only allow arrow navigation (switch snapshots),
+      // pause WASD block navigation.
+      if (factoryOpen) {
+        const idx = nextSnapshotIndexForKey(event.key);
+        if (idx !== null && idx !== activeSnapshotIndex) {
+          event.preventDefault();
+          handleUserActivateSnapshot(idx, true);
+        }
+        return;
+      }
+
       const nextIndex = nextSnapshotIndexForKey(event.key);
       if (nextIndex !== null) {
         if (nextIndex === activeSnapshotIndex) return;
@@ -973,7 +1058,7 @@ function ContextReplayPanel({ copy, replay, loading }: { copy: AppCopy["timeline
 
     document.addEventListener("keydown", handleGlobalKeyDown);
     return () => document.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [activeSnapshotIndex, replay, activeSnapshot, selectedBlockId]);
+  }, [activeSnapshotIndex, replay, activeSnapshot, selectedBlockId, factoryOpen]);
 
   if (loading && !replay) {
     return (
@@ -1011,6 +1096,17 @@ function ContextReplayPanel({ copy, replay, loading }: { copy: AppCopy["timeline
                 {replayPlaying ? <Pause size={12} /> : <Play size={12} />}
               </button>
             ) : null}
+            {replay ? (
+              <button
+                type="button"
+                className="share-btn"
+                aria-label={copy.share}
+                title={copy.share}
+                onClick={() => setShareOpen(true)}
+              >
+                <Share2 size={12} />
+              </button>
+            ) : null}
             <strong>{replay.journey.title}</strong>
             <p>{copy.contextReplayObserved}</p>
           </div>
@@ -1036,32 +1132,34 @@ function ContextReplayPanel({ copy, replay, loading }: { copy: AppCopy["timeline
 
         <div className="context-snapshot-rail" aria-label={copy.contextReplaySnapshotRail}>
           {replay.snapshots.map((snapshot, index) => (
-            <button
-              key={snapshot.id}
-              ref={(button) => {
-                snapshotButtonRefs.current[snapshot.id] = button;
-              }}
-              type="button"
-              className={snapshot.id === activeSnapshot.id ? "active" : ""}
-              aria-current={snapshot.id === activeSnapshot.id ? "step" : undefined}
-              aria-label={`${copy.contextReplayStep} ${index + 1}: ${snapshot.title}`}
-              tabIndex={snapshot.id === activeSnapshot.id ? 0 : -1}
-              onClick={() => handleUserActivateSnapshot(index)}
-              onKeyDown={handleSnapshotKeyDown}
-            >
-              <b className="context-snapshot-index">{index + 1}</b>
-              <span>{snapshot.phase}</span>
-              <strong>{snapshot.title}</strong>
-              <em>+{snapshot.addedBlockIds.length} / -{snapshot.droppedBlockIds.length}</em>
-            </button>
+            <Tooltip key={snapshot.id} text={`${copy.contextReplayStep} ${index + 1}: ${snapshot.title}`}>
+              <button
+                ref={(button) => {
+                  snapshotButtonRefs.current[snapshot.id] = button;
+                }}
+                type="button"
+                className={snapshot.id === activeSnapshot.id ? "active" : ""}
+                aria-current={snapshot.id === activeSnapshot.id ? "step" : undefined}
+                aria-label={`${copy.contextReplayStep} ${index + 1}: ${snapshot.title}`}
+                tabIndex={snapshot.id === activeSnapshot.id ? 0 : -1}
+                onClick={() => handleUserActivateSnapshot(index)}
+                onKeyDown={handleSnapshotKeyDown}
+              >
+                <b className="context-snapshot-index">{index + 1}</b>
+                <span>{snapshot.phase}</span>
+                <strong>{snapshot.title}</strong>
+                <em>+{snapshot.addedBlockIds.length} / -{snapshot.droppedBlockIds.length}</em>
+              </button>
+            </Tooltip>
           ))}
         </div>
 
         <span className="hotkey-hint" aria-hidden="true">{copy.hotkeyHint}</span>
       </div>
 
-      <div className="context-replay-workspace">
-        <div className="context-ledger-groups" ref={ledgerContainerRef}>
+      <div className="context-replay-body">
+        <div className="context-replay-workspace">
+          <div className="context-ledger-groups" ref={ledgerContainerRef}>
           {activeSnapshot.warnings.length > 0 || replay.warnings.length > 0 ? (
             <div className="context-warning-strip" aria-label={copy.contextReplayWarnings}>
               {(activeSnapshot.warnings.length > 0 ? activeSnapshot.warnings : replay.warnings).map((warning) => (
@@ -1085,6 +1183,46 @@ function ContextReplayPanel({ copy, replay, loading }: { copy: AppCopy["timeline
           <ContextBlockGroup copy={copy} title={copy.contextReplayChanged} blocks={groups.changed} blockOriginSteps={blockOriginSteps} selectedBlockId={selectedBlock?.id ?? null} onSelectBlock={handleDotOrBlockSelect} />
           <ContextBlockGroup copy={copy} title={copy.contextReplayDropped} blocks={groups.dropped} blockOriginSteps={blockOriginSteps} selectedBlockId={selectedBlock?.id ?? null} onSelectBlock={handleDotOrBlockSelect} />
         </div>
+        {factoryOpen ? (
+          <div className="factory-overlay" onClick={() => setFactoryOpen(false)}>
+            <div className="factory-overlay-panel" onClick={(e) => e.stopPropagation()}>
+              <div className="factory-overlay-header">
+                <span>Context Timeline</span>
+                <button type="button" className="factory-overlay-close" onClick={() => setFactoryOpen(false)}>✕</button>
+              </div>
+              <FactoryStrip
+                copy={copy}
+                snapshots={replay.snapshots}
+                activeSnapshotId={activeSnapshot.id}
+                activeSnapshotIndex={activeSnapshotIndex}
+                blockOriginSteps={blockOriginSteps}
+                selectedBlockId={selectedBlock?.id ?? null}
+                onSelectBlock={handleDotOrBlockSelect}
+                onActivateSnapshot={(index) => { handleUserActivateSnapshot(index); }}
+              />
+            </div>
+          </div>
+        ) : null}
+        {shareOpen ? (
+          <ShareCard
+            copy={copy}
+            replay={replay}
+            activeSnapshot={activeSnapshot}
+            activeSnapshotIndex={activeSnapshotIndex}
+            projectName={selectedProjectName}
+            onClose={() => setShareOpen(false)}
+            onCopy={showToast}
+          />
+        ) : null}
+
+        {toastMessage ? (
+          <div className="share-toast" role="status" aria-live="polite">
+            {toastMessage}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="context-mini-scene" aria-label={copy.contextReplayMiniSceneAria}>
         <MiniScene
           copy={copy}
           blocks={activeSnapshot.blocks}
@@ -1093,8 +1231,338 @@ function ContextReplayPanel({ copy, replay, loading }: { copy: AppCopy["timeline
           selectedBlockId={selectedBlock?.id ?? null}
           onSelectBlock={handleDotOrBlockSelect}
         />
+        <button
+          type="button"
+          className="factory-expand-btn"
+          aria-label="Context Timeline"
+          onClick={() => setFactoryOpen((o) => !o)}
+        >
+          <Clock size={13} />
+        </button>
+      </div>
       </div>
     </section>
+  );
+}
+
+type HeroKind = "cache" | "tokens" | "duration" | "risk" | "failed" | "default";
+
+interface HeroPick {
+  kind: HeroKind;
+  stat: string;
+  caption: string;
+  tone: "orange" | "danger" | "success";
+}
+
+/** Clean a snapshot title for display in the share card — strip raw commands and truncate. */
+function sanitizeShareTitle(title: string | null | undefined): string | null {
+  if (!title) return null;
+  const cleaned = title
+    .replace(/['"`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  // If the result looks like a shell command or JSON payload (>50% non-alpha chars), skip it
+  const alpha = cleaned.replace(/[^a-zA-Z0-9一-鿿\s]/g, "").length;
+  if (cleaned.length > 0 && alpha / cleaned.length < 0.4) return null;
+  return cleaned.length > 80 ? `${cleaned.slice(0, 78)}...` : cleaned;
+}
+
+function pickHeroStat(
+  copy: AppCopy["timeline"],
+  replay: ContextReplayResponse,
+  failedStepIndex: number,
+  totalWarnings: number
+): HeroPick {
+  const journey = replay.journey;
+  const usage = journey.tokenUsage;
+  const steps = replay.snapshots.length;
+  const total = usage?.total ?? 0;
+  const input = usage?.input ?? 0;
+  const cached = usage?.cachedInput ?? 0;
+  const cacheRatio = input > 0 ? cached / input : 0;
+  const cachePct = `${Math.max(0, Math.min(100, cacheRatio * 100)).toFixed(0)}%`;
+
+  if (journey.status === "failed" && failedStepIndex >= 0) {
+    return {
+      kind: "failed",
+      stat: copy.shareHeroFailedStep(failedStepIndex + 1),
+      caption: copy.shareCaptionFailed,
+      tone: "danger"
+    };
+  }
+  if (totalWarnings >= 2) {
+    return {
+      kind: "risk",
+      stat: copy.shareHeroRiskSignals(totalWarnings),
+      caption: copy.shareCaptionRiskSignals,
+      tone: "danger"
+    };
+  }
+  if (cacheRatio >= 0.7 && input > 0) {
+    return {
+      kind: "cache",
+      stat: copy.shareHeroCacheHit(cachePct),
+      caption: copy.shareCaptionCacheHit(formatMillionTokens(cached), steps),
+      tone: "success"
+    };
+  }
+  if (total >= 1_000_000) {
+    return {
+      kind: "tokens",
+      stat: copy.shareHeroBigTokens(formatMillionTokens(total)),
+      caption: copy.shareCaptionBigTokens(steps),
+      tone: "orange"
+    };
+  }
+  if (journey.durationMs >= 10 * 60 * 1000) {
+    return {
+      kind: "duration",
+      stat: copy.shareHeroLongRun(formatDuration(journey.durationMs)),
+      caption: copy.shareCaptionLongRun(steps),
+      tone: "orange"
+    };
+  }
+  return {
+    kind: "default",
+    stat: copy.shareHeroStepReplay(steps),
+    caption: copy.shareCaptionStepReplay(formatDuration(journey.durationMs)),
+    tone: "orange"
+  };
+}
+
+const PHASE_TONES: Record<string, string> = {
+  prompt: "var(--blue, var(--orange))",
+  history: "var(--muted)",
+  planning: "var(--orange)",
+  tool_call: "var(--orange)",
+  tool_result: "var(--success)",
+  file_change: "var(--orange)",
+  verification: "var(--success)",
+  response: "var(--success)"
+};
+
+function ShareCard({
+  copy,
+  replay,
+  activeSnapshot,
+  activeSnapshotIndex,
+  projectName,
+  onClose,
+  onCopy
+}: {
+  copy: AppCopy["timeline"];
+  replay: ContextReplayResponse;
+  activeSnapshot: ContextSnapshot;
+  activeSnapshotIndex: number;
+  projectName: string;
+  onClose: () => void;
+  onCopy: (msg: string) => void;
+}) {
+  const snapshots = replay.snapshots;
+  const snapshotCount = snapshots.length;
+  const journey = replay.journey;
+  const journeyUsage = journey.tokenUsage;
+  const provider = providerFromSessionId(journey.sessionId);
+  const providerLabel = labelForProvider(provider) || copy.shareProviderUnknown;
+
+  // Aggregate warnings across all snapshots + replay-level warnings (dedupe by id)
+  const warningSet = new Map<string, true>();
+  for (const w of replay.warnings) warningSet.set(w.id, true);
+  for (const snap of snapshots) for (const w of snap.warnings) warningSet.set(w.id, true);
+  const totalWarnings = warningSet.size;
+
+  // Find the failed snapshot index, if any (based on phase tone heuristic from journey.status)
+  const failedSnapshotIndex = journey.status === "failed" ? Math.max(0, snapshots.length - 1) : -1;
+
+  const hero = pickHeroStat(copy, replay, failedSnapshotIndex, totalWarnings);
+
+  // Story summary: use the full journey title (CSS wraps long text)
+  const rawTitle = (journey.title ?? "").trim().replace(/\s+/g, " ");
+  const fullTitle = rawTitle || activeSnapshot.title;
+  const storyLine = copy.shareStoryTemplate(providerLabel, snapshotCount, fullTitle);
+
+  // Skills: top 3 unique by name
+  const seenSkillNames = new Set<string>();
+  const topSkills: string[] = [];
+  for (const s of journey.skills) {
+    if (!s.name || seenSkillNames.has(s.name)) continue;
+    seenSkillNames.add(s.name);
+    topSkills.push(s.name);
+    if (topSkills.length >= 3) break;
+  }
+  const skillsLine = topSkills.length > 0 ? copy.shareSkillsUsed(topSkills.join(", ")) : null;
+
+  // Verdict
+  let verdictLabel: string;
+  let verdictNote: string;
+  let verdictTone: "success" | "danger" | "orange";
+  if (journey.status === "success") {
+    verdictLabel = copy.shareVerdictCleared;
+    verdictTone = "success";
+    const verificationSnap = [...snapshots].reverse().find((s) => s.phase === "verification");
+    const cleanTitle = sanitizeShareTitle(verificationSnap?.title);
+    verdictNote = cleanTitle
+      ? `${copy.shareVerdictNoteCleared} (${cleanTitle})`
+      : copy.shareVerdictNoteCleared;
+  } else if (journey.status === "failed") {
+    verdictLabel = copy.shareVerdictFailed;
+    verdictTone = "danger";
+    const lastSnap = snapshots[snapshots.length - 1];
+    const cleanTitle = sanitizeShareTitle(lastSnap?.title);
+    verdictNote = cleanTitle ? copy.shareVerdictNoteFailed(cleanTitle) : copy.shareCaptionFailed;
+  } else {
+    verdictLabel = copy.shareVerdictRunning;
+    verdictTone = "orange";
+    verdictNote = copy.shareVerdictNoteRunning;
+  }
+
+  // Stats compact footer
+  const kvPct = formatKvHitRate(journeyUsage);
+  const compactStats = copy.shareStatsCompact(
+    `${formatMillionTokens(journeyUsage?.total ?? 0)} ${copy.tokens}`,
+    formatDuration(journey.durationMs),
+    kvPct
+  );
+
+  // Token sparkline data from per-snapshot totals
+  const snapshotTotals = snapshots.map((s) => s.tokenUsage?.total ?? 0);
+  const maxSnapshotTotal = Math.max(1, ...snapshotTotals);
+
+  const now = new Date();
+  const verdictSign = verdictTone === "success" ? "+" : verdictTone === "danger" ? "x" : "~";
+
+  function buildPlainText() {
+    const lines: string[] = [];
+    lines.push(`${hero.stat}`);
+    lines.push(hero.caption);
+    lines.push("");
+    lines.push(storyLine);
+    if (skillsLine) lines.push(skillsLine);
+    lines.push("");
+    lines.push(`${verdictSign} ${verdictLabel} — ${verdictNote}`);
+    if (totalWarnings > 0 && hero.kind !== "risk" && hero.kind !== "failed") {
+      lines.push(copy.shareVerdictRisks(totalWarnings));
+    }
+    lines.push("");
+    lines.push(`${snapshotCount} ${copy.contextReplayStep.toLowerCase()}s · ${compactStats}`);
+    lines.push(`${projectName || journey.projectId} · ${now.toLocaleDateString()}`);
+    return lines.join("\n");
+  }
+
+  function buildMarkdown() {
+    const lines: string[] = [];
+    lines.push(`## ${hero.stat}`);
+    lines.push("");
+    lines.push(hero.caption);
+    lines.push("");
+    lines.push(`> ${storyLine}`);
+    if (skillsLine) {
+      lines.push("");
+      lines.push(`_${skillsLine}_`);
+    }
+    lines.push("");
+    lines.push(`**${verdictLabel}** — ${verdictNote}`);
+    if (totalWarnings > 0 && hero.kind !== "risk" && hero.kind !== "failed") {
+      lines.push("");
+      lines.push(`> ${copy.shareVerdictRisks(totalWarnings)}`);
+    }
+    lines.push("");
+    lines.push(`\`${snapshotCount} ${copy.contextReplayStep.toLowerCase()}s · ${compactStats}\``);
+    lines.push("");
+    lines.push(`_${projectName || journey.projectId} · ${now.toLocaleDateString()} · SuperView_`);
+    return lines.join("\n");
+  }
+
+  async function handleCopyPlain() {
+    try {
+      await navigator.clipboard.writeText(buildPlainText());
+      onCopy(copy.shareCopied);
+    } catch {
+      onCopy("Failed to copy");
+    }
+  }
+
+  async function handleCopyMarkdown() {
+    try {
+      await navigator.clipboard.writeText(buildMarkdown());
+      onCopy(copy.shareCopied);
+    } catch {
+      onCopy("Failed to copy");
+    }
+  }
+
+  return (
+    <div className="share-overlay" onClick={onClose}>
+      <div className="share-card" onClick={(e) => e.stopPropagation()}>
+        <div className="share-card-header">
+          <div className="share-card-header-brand">
+            <strong>SuperView</strong>
+            <span>{copy.shareCardTitle}</span>
+          </div>
+          <button type="button" className="share-card-close" onClick={onClose} aria-label={copy.shareClose}>
+            ✕
+          </button>
+        </div>
+
+        <div className="share-card-body">
+          <div className={`share-card-hero share-card-hero--${hero.tone}`}>
+            <div className="share-card-hero-stat">{hero.stat}</div>
+            <div className="share-card-hero-caption">{hero.caption}</div>
+          </div>
+
+          <div className="share-card-story">
+            <p className="share-card-story-line">{storyLine}</p>
+            {skillsLine ? <p className="share-card-story-skills">{skillsLine}</p> : null}
+          </div>
+
+          <div className={`share-card-verdict share-card-verdict--${verdictTone}`}>
+            <span className="share-card-verdict-mark" aria-hidden="true">{verdictSign}</span>
+            <span className="share-card-verdict-label">{verdictLabel}</span>
+            <span className="share-card-verdict-note">{verdictNote}</span>
+          </div>
+
+          {totalWarnings > 0 && hero.kind !== "risk" && hero.kind !== "failed" ? (
+            <div className="share-card-risks">
+              <AlertTriangle size={12} aria-hidden="true" />
+              <span>{copy.shareVerdictRisks(totalWarnings)}</span>
+            </div>
+          ) : null}
+
+          <div className="share-card-visual" role="img" aria-label={copy.shareTimelineAria}>
+            <div className="share-card-spark">
+              {snapshots.map((snap, idx) => {
+                const total = snapshotTotals[idx];
+                const height = Math.max(8, Math.round((total / maxSnapshotTotal) * 100));
+                const color = PHASE_TONES[snap.phase] ?? "var(--orange)";
+                const isActive = idx === activeSnapshotIndex;
+                return (
+                  <span
+                    key={snap.id}
+                    className={`share-card-spark-bar${isActive ? " active" : ""}`}
+                    style={{ height: `${height}%`, background: color }}
+                    title={`${snap.phase} · step ${idx + 1}`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="share-card-stats-footer">
+            <span className="share-card-stats-compact">{snapshotCount} {copy.contextReplayStep.toLowerCase()}s · {compactStats}</span>
+            <span className="share-card-stats-project">{projectName || journey.projectId} · {now.toLocaleDateString()}</span>
+          </div>
+        </div>
+
+        <div className="share-card-actions">
+          <button type="button" className="share-card-btn" onClick={handleCopyPlain}>
+            {copy.shareCopy}
+          </button>
+          <button type="button" className="share-card-btn" onClick={handleCopyMarkdown}>
+            {copy.shareCopyMarkdown}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1129,6 +1597,7 @@ function ContextBlockGroup({
             className={`context-block-card ${block.state} ${block.id === selectedBlockId ? "active" : ""}`}
             aria-pressed={block.id === selectedBlockId}
             onClick={() => onSelectBlock(block.id)}
+            title={`${block.title}${block.excerpt ? ` — ${block.excerpt}` : ""}`}
           >
             <div className="context-block-card-heading">
               <b>{blockOriginSteps.get(block.id) ?? 1}</b>
@@ -1192,8 +1661,6 @@ function MiniScene({
   }, [blocks]);
 
   // Capture positions DURING RENDER, before React commits the new DOM.
-  // At this point, the DOM still reflects the previous render — exactly what we need
-  // for FLIP. This runs synchronously every render but only reads DOM when blocks change.
   if (lastBlocksRef.current !== blocks) {
     const container = containerRef.current;
     if (container) {
@@ -1245,16 +1712,11 @@ function MiniScene({
     if (movingDots.length > 0) container.offsetHeight;
 
     requestAnimationFrame(() => {
-      for (const dot of movingDots) {
-        dot.style.transition = "";
-      }
+      for (const dot of movingDots) { dot.style.transition = ""; }
       if (movingDots.length > 0) container.offsetHeight;
-      for (const dot of movingDots) {
-        dot.style.transform = "";
-      }
+      for (const dot of movingDots) { dot.style.transform = ""; }
     });
 
-    // Animate exiting dots (present in prev but not in next)
     for (const id of prevIds) {
       if (nextIds.has(id)) continue;
       const prev = prevPositions.current.get(id);
@@ -1276,7 +1738,7 @@ function MiniScene({
   }, [blocks]);
 
   return (
-    <div ref={containerRef} className="context-mini-scene" aria-label={copy.contextReplayMiniSceneAria}>
+    <div ref={containerRef} className="context-mini-scene-inner" aria-label={copy.contextReplayMiniSceneAria}>
       <MiniSceneLane
         kind="active"
         label={copy.contextReplayLaneActive}
@@ -1392,6 +1854,282 @@ function FlowDot({
     >
       <span>{originStep}</span>
     </button>
+  );
+}
+
+function TokenTimeline({
+  copy,
+  journeys,
+  selectedProjectName,
+  selectedJourneyId,
+  onSelectJourney,
+  onClose
+}: {
+  copy: AppCopy["timeline"];
+  journeys: TaskJourney[];
+  selectedProjectName: string;
+  selectedJourneyId: string | null;
+  onSelectJourney: (id: string) => void;
+  onClose: () => void;
+}) {
+  const stats = useMemo(() => {
+    let totalTokens = 0;
+    let totalInput = 0;
+    let totalOutput = 0;
+    let totalCached = 0;
+    let peakJourney: TaskJourney | null = null;
+    let peakTotal = 0;
+    for (const j of journeys) {
+      const t = j.tokenUsage?.total ?? 0;
+      totalTokens += t;
+      totalInput += j.tokenUsage?.input ?? 0;
+      totalOutput += j.tokenUsage?.output ?? 0;
+      totalCached += j.tokenUsage?.cachedInput ?? 0;
+      if (t > peakTotal) {
+        peakTotal = t;
+        peakJourney = j;
+      }
+    }
+    return { totalTokens, totalInput, totalOutput, totalCached, peakJourney, peakTotal, count: journeys.length };
+  }, [journeys]);
+
+  const maxTotal = Math.max(stats.peakTotal, 1);
+  const ordered = useMemo(() => [...journeys].sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt)), [journeys]);
+
+  return (
+    <div className="token-timeline">
+      <div className="token-timeline-summary">
+        <div className="token-timeline-summary-project">{selectedProjectName}</div>
+        <div className="token-timeline-summary-stats">
+          <div className="token-timeline-stat">
+            <span>{copy.statusLegendSuccess && "Conversations" || "Conversations"}</span>
+            <strong>{stats.count}</strong>
+          </div>
+          <div className="token-timeline-stat">
+            <span>Total</span>
+            <strong>{formatMillionTokens(stats.totalTokens)}</strong>
+          </div>
+          <div className="token-timeline-stat">
+            <span>Input</span>
+            <strong style={{ color: "var(--blue)" }}>{formatMillionTokens(stats.totalInput)}</strong>
+          </div>
+          <div className="token-timeline-stat">
+            <span>Output</span>
+            <strong style={{ color: "var(--orange)" }}>{formatMillionTokens(stats.totalOutput)}</strong>
+          </div>
+          <div className="token-timeline-stat">
+            <span>Cached</span>
+            <strong style={{ color: "var(--success)" }}>{formatMillionTokens(stats.totalCached)}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="token-timeline-legend">
+        <span className="token-timeline-legend-item"><i className="seg input" />Input</span>
+        <span className="token-timeline-legend-item"><i className="seg output" />Output</span>
+        <span className="token-timeline-legend-item"><i className="seg cached" />Cached</span>
+        <span className="token-timeline-legend-item"><i className="seg reasoning" />Reasoning</span>
+      </div>
+
+      <div className="token-timeline-bars">
+        {ordered.map((journey, index) => {
+          const usage = journey.tokenUsage ?? { input: 0, output: 0, reasoning: 0, cachedInput: 0, total: 0 };
+          const total = usage.total;
+          const heightPx = Math.max(8, (total / maxTotal) * 160);
+          const isSelected = journey.id === selectedJourneyId;
+          const inputPct = total > 0 ? (usage.input / total) * 100 : 0;
+          const outputPct = total > 0 ? (usage.output / total) * 100 : 0;
+          const cachedPct = total > 0 ? (usage.cachedInput / total) * 100 : 0;
+          const reasoningPct = total > 0 ? (usage.reasoning / total) * 100 : 0;
+
+          const tooltipText = `${journey.title}\n\n${formatMillionTokens(total)} tokens · ${formatDuration(journey.durationMs)} · ${journey.status}\nInput: ${formatMillionTokens(usage.input)} · Output: ${formatMillionTokens(usage.output)}\nCached: ${formatMillionTokens(usage.cachedInput)} · Reasoning: ${formatMillionTokens(usage.reasoning)}`;
+
+          return (
+            <Tooltip key={journey.id} text={tooltipText}>
+              <button
+                type="button"
+                className={`token-timeline-bar ${journey.status}${isSelected ? " selected" : ""}`}
+                onClick={() => {
+                  onSelectJourney(journey.id);
+                  onClose();
+                }}
+              >
+                <div className="token-timeline-step">
+                  <b>{index + 1}</b>
+                </div>
+                <div className="token-timeline-stack" style={{ height: `${heightPx}px` }}>
+                  {reasoningPct > 0 ? <div className="token-timeline-segment reasoning" style={{ height: `${reasoningPct}%` }} /> : null}
+                  {outputPct > 0 ? <div className="token-timeline-segment output" style={{ height: `${outputPct}%` }} /> : null}
+                  {cachedPct > 0 ? <div className="token-timeline-segment cached" style={{ height: `${cachedPct}%` }} /> : null}
+                  {inputPct > 0 ? <div className="token-timeline-segment input" style={{ height: `${inputPct}%` }} /> : null}
+                </div>
+                <span className="token-timeline-label">{formatMillionTokens(total)}</span>
+                <span className="token-timeline-title">{journey.title}</span>
+              </button>
+            </Tooltip>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FactoryStrip({
+  copy,
+  snapshots,
+  activeSnapshotId,
+  activeSnapshotIndex,
+  blockOriginSteps,
+  selectedBlockId,
+  onSelectBlock,
+  onActivateSnapshot
+}: {
+  copy: AppCopy["timeline"];
+  snapshots: ContextSnapshot[];
+  activeSnapshotId: string;
+  activeSnapshotIndex: number;
+  blockOriginSteps: Map<string, number>;
+  selectedBlockId: string | null;
+  onSelectBlock: (blockId: string) => void;
+  onActivateSnapshot: (index: number) => void;
+}) {
+  const stripRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    const activeEl = strip.querySelector(`[data-station-index="${activeSnapshotIndex}"]`) as HTMLElement | null;
+    activeEl?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [activeSnapshotIndex]);
+
+  return (
+    <div ref={stripRef} className="context-factory-strip" aria-label={copy.contextReplayMiniSceneAria}>
+      {snapshots.map((snapshot, index) => {
+        const activeBlocks = snapshot.blocks.filter(
+          (block) => block.state !== "dropped" && block.state !== "stale"
+        );
+        const droppedBlocks = snapshot.blocks.filter(
+          (block) => block.state === "dropped" || block.state === "stale"
+        );
+        const isActive = snapshot.id === activeSnapshotId;
+        const isFirst = index === 0;
+        const added = snapshot.addedBlockIds.length;
+        const removed = snapshot.droppedBlockIds.length;
+
+        return (
+          <FactoryStation
+            key={snapshot.id}
+            snapshot={snapshot}
+            index={index}
+            active={isActive}
+            added={added}
+            removed={removed}
+            activeBlocks={activeBlocks}
+            droppedBlocks={droppedBlocks}
+            blockOriginSteps={blockOriginSteps}
+            selectedBlockId={selectedBlockId}
+            onSelectBlock={onSelectBlock}
+            onActivate={onActivateSnapshot}
+            copy={copy}
+            isFirst={isFirst}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function FactoryStation({
+  snapshot,
+  index,
+  active,
+  added,
+  removed,
+  activeBlocks,
+  droppedBlocks,
+  blockOriginSteps,
+  selectedBlockId,
+  onSelectBlock,
+  onActivate,
+  copy,
+  isFirst
+}: {
+  snapshot: ContextSnapshot;
+  index: number;
+  active: boolean;
+  added: number;
+  removed: number;
+  activeBlocks: ContextBlock[];
+  droppedBlocks: ContextBlock[];
+  blockOriginSteps: Map<string, number>;
+  selectedBlockId: string | null;
+  onSelectBlock: (blockId: string) => void;
+  onActivate: (index: number) => void;
+  copy: AppCopy["timeline"];
+  isFirst: boolean;
+}) {
+  const Wrapper = active ? "div" : "button";
+
+  return (
+    <>
+      {!isFirst ? <div className="factory-station-connector"><span>→</span></div> : null}
+      <Wrapper
+        type={active ? undefined : "button"}
+        data-station-index={index}
+        className={`factory-station${active ? " active" : ""}`}
+        onClick={active ? undefined : () => onActivate(index)}
+        aria-current={active ? "step" : undefined}
+        aria-label={`${copy.contextReplayStep} ${index + 1}: ${snapshot.title}`}
+        title={`${copy.contextReplayStep} ${index + 1}: ${snapshot.title}`}
+      >
+        <div className="factory-station-prompt" title={snapshot.title}>{snapshot.title}</div>
+        <div className="factory-station-header">
+          <span className="factory-station-phase">{snapshot.phase}</span>
+          <b className="factory-station-index">{index + 1}</b>
+          {added > 0 || removed > 0 ? (
+            <span className="factory-station-delta">
+              {added > 0 ? <em className="added">+{added}</em> : null}
+              {removed > 0 ? <em className="removed">-{removed}</em> : null}
+            </span>
+          ) : null}
+        </div>
+        <div className="factory-station-blocks">
+          {activeBlocks.length > 0 ? (
+            activeBlocks.map((block) => (
+              <button
+                key={block.id}
+                type="button"
+                data-block-id={block.id}
+                className={`factory-block-pill state-${block.state}${block.id === selectedBlockId ? " active" : ""}`}
+                title={`${block.title} · ${block.state} · ${copy.contextReplayFromStep(blockOriginSteps.get(block.id) ?? 1)}`}
+                aria-pressed={block.id === selectedBlockId}
+                onClick={(e) => { e.stopPropagation(); onSelectBlock(block.id); }}
+              >
+                {blockOriginSteps.get(block.id) ?? 1}
+              </button>
+            ))
+          ) : (
+            <span className="factory-station-empty">—</span>
+          )}
+        </div>
+        {droppedBlocks.length > 0 ? (
+          <div className="factory-station-drops">
+            {droppedBlocks.map((block) => (
+              <button
+                key={block.id}
+                type="button"
+                data-block-id={block.id}
+                className={`factory-block-pill dropped state-${block.state}`}
+                title={`${block.title} · ${block.state}`}
+                onClick={(e) => { e.stopPropagation(); onSelectBlock(block.id); }}
+              >
+                {blockOriginSteps.get(block.id) ?? 1}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </Wrapper>
+    </>
   );
 }
 
@@ -1604,6 +2342,42 @@ function SkillChips({ copy, skills }: { copy: AppCopy["timeline"]; skills: Skill
   );
 }
 
+function Tooltip({ text, children }: { text: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const wrapperRef = useRef<HTMLSpanElement>(null);
+
+  function show() {
+    const rect = wrapperRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const top = rect.bottom + 8;
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - 500));
+    setPosition({ top, left });
+    setOpen(true);
+  }
+
+  return (
+    <span
+      ref={wrapperRef}
+      onMouseEnter={show}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={show}
+      onBlur={() => setOpen(false)}
+      style={{ display: "contents" }}
+    >
+      {children}
+      {open && text
+        ? createPortal(
+            <div className="app-tooltip" style={{ top: position.top, left: position.left }} role="tooltip">
+              {text}
+            </div>,
+            document.body
+          )
+        : null}
+    </span>
+  );
+}
+
 function Metric({ metricKey, label, value, action, overlay }: { metricKey: MetricKey; label: string; value: number; action?: ReactNode; overlay?: ReactNode }) {
   return (
     <div className="metric">
@@ -1625,6 +2399,7 @@ function RatioMetric({ label, value }: { label: string; value: string }) {
 }
 
 function BlockingLoader({ copy, ingestCopy, message, job }: { copy: AppCopy["loading"]; ingestCopy: IngestCopy; message: string; job?: IngestJob | null }) {
+  const percent = job && job.totalFiles > 0 ? Math.round((job.processedFiles / job.totalFiles) * 100) : 0;
   return (
     <div className="blocking-loader" role="status" aria-live="polite" aria-label={copy.aria}>
       <div className="blocking-loader-card">
@@ -1635,7 +2410,18 @@ function BlockingLoader({ copy, ingestCopy, message, job }: { copy: AppCopy["loa
             <span>{copy.steady}</span>
           </div>
         </div>
-        {job ? <IngestLevelProgress job={job} copy={ingestCopy} /> : null}
+        {job ? (
+          <div className="blocking-loader-progress">
+            <div className="blocking-loader-progress-bar">
+              <i style={{ width: `${percent}%` }} />
+            </div>
+            <div className="blocking-loader-progress-meta">
+              <span>{ingestCopy.phase}: {job.phase}</span>
+              <span>{job.processedFiles}/{job.totalFiles} {ingestCopy.files}</span>
+              <span>{ingestCopy.events}: {job.totalEvents}</span>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

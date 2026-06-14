@@ -2,6 +2,12 @@
 
 [English](README.md) | [Simplified Chinese](README.zh-CN.md)
 
+## Quick start
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/SeanXDO/SuperView/main/scripts/quickstart.sh)
+```
+
 SuperView is a local-first dashboard for understanding how coding agents work from prompt to result. It ingests agent logs, reconstructs task journeys, and turns raw CLI sessions into a conversation-first view with hidden agent work, evidence, token usage, and project-level telemetry.
 
 The product goal is simple: make a coding agent run feel inspectable, replayable, and surprisingly visual.

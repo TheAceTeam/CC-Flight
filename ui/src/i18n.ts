@@ -144,6 +144,48 @@ export type AppCopy = {
     hotkeyHint: string;
     resetDatabase: string;
     resetDatabaseConfirm: string;
+    share: string;
+    shareCopied: string;
+    shareCardTitle: string;
+    shareClose: string;
+    shareCopy: string;
+    shareCopyMarkdown: string;
+    shareProject: string;
+    shareProvider: string;
+    shareSteps: string;
+    shareTokenUsage: string;
+    shareInput: string;
+    shareOutput: string;
+    shareTotal: string;
+    shareContextBlocks: string;
+    shareActive: string;
+    shareRetired: string;
+    shareSnapshotOf: (n: number, total: number) => string;
+    shareTimestamp: string;
+    shareHeroCacheHit: (pct: string) => string;
+    shareHeroBigTokens: (tokens: string) => string;
+    shareHeroLongRun: (duration: string) => string;
+    shareHeroRiskSignals: (n: number) => string;
+    shareHeroFailedStep: (step: number) => string;
+    shareHeroStepReplay: (steps: number) => string;
+    shareCaptionCacheHit: (cached: string, steps: number) => string;
+    shareCaptionBigTokens: (steps: number) => string;
+    shareCaptionLongRun: (steps: number) => string;
+    shareCaptionRiskSignals: string;
+    shareCaptionFailed: string;
+    shareCaptionStepReplay: (duration: string) => string;
+    shareStoryTemplate: (provider: string, steps: number, title: string) => string;
+    shareSkillsUsed: (names: string) => string;
+    shareVerdictCleared: string;
+    shareVerdictFailed: string;
+    shareVerdictRunning: string;
+    shareVerdictNoteCleared: string;
+    shareVerdictNoteFailed: (title: string) => string;
+    shareVerdictNoteRunning: string;
+    shareVerdictRisks: (n: number) => string;
+    shareTimelineAria: string;
+    shareStatsCompact: (tokens: string, duration: string, kv: string) => string;
+    shareProviderUnknown: string;
   };
   evidence: {
     heading: string;
@@ -308,7 +350,49 @@ export const COPY: Record<Language, AppCopy> = {
       skills: "Skills",
       hotkeyHint: "↑↓ switch journey · ←→ switch step · W S A D switch block",
       resetDatabase: "Reset database",
-      resetDatabaseConfirm: "This will permanently delete all indexed data. Scan again to rebuild. Continue?"
+      resetDatabaseConfirm: "This will permanently delete all indexed data. Scan again to rebuild. Continue?",
+      share: "Share",
+      shareCopied: "Copied to clipboard!",
+      shareCardTitle: "Context Replay Summary",
+      shareClose: "Close",
+      shareCopy: "Copy summary",
+      shareCopyMarkdown: "Copy as Markdown",
+      shareProject: "Project",
+      shareProvider: "Provider",
+      shareSteps: "Steps",
+      shareTokenUsage: "Token usage",
+      shareInput: "Input",
+      shareOutput: "Output",
+      shareTotal: "Total",
+      shareContextBlocks: "Context blocks",
+      shareActive: "Active",
+      shareRetired: "Retired",
+      shareSnapshotOf: (n: number, total: number) => `Snapshot ${n} / ${total}`,
+      shareTimestamp: "Shared at",
+      shareHeroCacheHit: (pct: string) => `${pct} cache hit`,
+      shareHeroBigTokens: (tokens: string) => `${tokens} tokens`,
+      shareHeroLongRun: (duration: string) => `${duration} on one task`,
+      shareHeroRiskSignals: (n: number) => `${n} risk signal${n === 1 ? "" : "s"}`,
+      shareHeroFailedStep: (step: number) => `Failed at step ${step}`,
+      shareHeroStepReplay: (steps: number) => `${steps} step replay`,
+      shareCaptionCacheHit: (cached: string, steps: number) => `Agent reused ${cached} cached tokens across ${steps} steps.`,
+      shareCaptionBigTokens: (steps: number) => `Spent across ${steps} reasoning steps.`,
+      shareCaptionLongRun: (steps: number) => `${steps} steps of agent work in one task journey.`,
+      shareCaptionRiskSignals: "Anomalies detected in the agent's reasoning chain.",
+      shareCaptionFailed: "Agent could not reach a verified finish.",
+      shareCaptionStepReplay: (duration: string) => `A traceable agent journey, ${duration} end to end.`,
+      shareStoryTemplate: (provider: string, steps: number, title: string) => `${provider} ran ${steps} steps to ${title}`,
+      shareSkillsUsed: (names: string) => `Skills used: ${names}`,
+      shareVerdictCleared: "Cleared",
+      shareVerdictFailed: "Failed",
+      shareVerdictRunning: "In progress",
+      shareVerdictNoteCleared: "Reached final response with proof.",
+      shareVerdictNoteFailed: (title: string) => `Stopped at ${title}`,
+      shareVerdictNoteRunning: "Agent still running this task.",
+      shareVerdictRisks: (n: number) => `${n} risk signal${n === 1 ? "" : "s"} along the way`,
+      shareTimelineAria: "Snapshot timeline by phase",
+      shareStatsCompact: (tokens: string, duration: string, kv: string) => `${tokens} · ${duration} · KV ${kv}`,
+      shareProviderUnknown: "Coding agent"
     },
     evidence: {
       heading: "Evidence",
@@ -506,7 +590,49 @@ export const COPY: Record<Language, AppCopy> = {
       skills: "Skills",
       hotkeyHint: "↑↓ 切换对话 · ←→ 切换步骤 · W S A D 切换上下文块",
       resetDatabase: "重置数据库",
-      resetDatabaseConfirm: "此操作将永久删除所有已索引数据。重新扫描后可重建。继续？"
+      resetDatabaseConfirm: "此操作将永久删除所有已索引数据。重新扫描后可重建。继续？",
+      share: "分享",
+      shareCopied: "已复制到剪贴板！",
+      shareCardTitle: "Context Replay 摘要",
+      shareClose: "关闭",
+      shareCopy: "复制摘要",
+      shareCopyMarkdown: "复制为 Markdown",
+      shareProject: "项目",
+      shareProvider: "来源",
+      shareSteps: "步骤",
+      shareTokenUsage: "Token 用量",
+      shareInput: "输入",
+      shareOutput: "输出",
+      shareTotal: "总计",
+      shareContextBlocks: "Context Block",
+      shareActive: "活跃",
+      shareRetired: "已退出",
+      shareSnapshotOf: (n: number, total: number) => `快照 ${n} / ${total}`,
+      shareTimestamp: "分享时间",
+      shareHeroCacheHit: (pct: string) => `缓存命中 ${pct}`,
+      shareHeroBigTokens: (tokens: string) => `${tokens} tokens`,
+      shareHeroLongRun: (duration: string) => `单任务用了 ${duration}`,
+      shareHeroRiskSignals: (n: number) => `${n} 条风险信号`,
+      shareHeroFailedStep: (step: number) => `在第 ${step} 步失败`,
+      shareHeroStepReplay: (steps: number) => `${steps} 步可回放`,
+      shareCaptionCacheHit: (cached: string, steps: number) => `Agent 在 ${steps} 步中复用了 ${cached} 缓存 tokens。`,
+      shareCaptionBigTokens: (steps: number) => `在 ${steps} 个推理步骤里全部消耗。`,
+      shareCaptionLongRun: (steps: number) => `一次任务旅程，包含 ${steps} 个 Agent 步骤。`,
+      shareCaptionRiskSignals: "Agent 推理链路中出现可观测异常。",
+      shareCaptionFailed: "Agent 未能到达一个可验证的终点。",
+      shareCaptionStepReplay: (duration: string) => `一段可追溯的 Agent 旅程，总时长 ${duration}。`,
+      shareStoryTemplate: (provider: string, steps: number, title: string) => `${provider} 用 ${steps} 步处理：${title}`,
+      shareSkillsUsed: (names: string) => `用到的能力：${names}`,
+      shareVerdictCleared: "通关",
+      shareVerdictFailed: "失败",
+      shareVerdictRunning: "进行中",
+      shareVerdictNoteCleared: "已抵达最终回复并附带证据。",
+      shareVerdictNoteFailed: (title: string) => `停在：${title}`,
+      shareVerdictNoteRunning: "Agent 仍在处理这个任务。",
+      shareVerdictRisks: (n: number) => `沿途出现 ${n} 条风险信号`,
+      shareTimelineAria: "按阶段排列的快照时间线",
+      shareStatsCompact: (tokens: string, duration: string, kv: string) => `${tokens} · ${duration} · KV ${kv}`,
+      shareProviderUnknown: "编码 Agent"
     },
     evidence: {
       heading: "证据",

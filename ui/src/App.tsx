@@ -1196,12 +1196,6 @@ function ConversationThread({
           tools={aggregateToolUsage(selectedJourney, timelineEventsById)}
           copy={copy}
         />
-        <ModelSpendTable
-          journeys={orderedJourneys}
-          sessionMap={sessionMap}
-          pricing={pricing}
-          copy={copy}
-        />
         <div
           className="thread-detail-tabs"
           role="tablist"
@@ -3698,89 +3692,6 @@ function ToolUsageBars({
             : `▼ ${tools.length - 5} more`}
         </button>
       ) : null}
-    </section>
-  );
-}
-
-// ── ModelSpendTable ──
-
-function ModelSpendTable({
-  journeys,
-  sessionMap,
-  pricing,
-  copy,
-}: {
-  journeys: TaskJourney[];
-  sessionMap: Map<string, SessionRecord>;
-  pricing: ModelPricing[];
-  copy: AppCopy["timeline"];
-}) {
-  const rows = useMemo(
-    () => aggregateCostByModel(journeys, sessionMap, pricing),
-    [journeys, sessionMap, pricing],
-  );
-
-  if (rows.length === 0) {
-    return (
-      <section className="model-spend-table">
-        <div className="detail-section-heading">
-          <span>{copy.modelSpendHeading}</span>
-        </div>
-        <p className="muted">{copy.modelSpendEmpty}</p>
-      </section>
-    );
-  }
-
-  const totalCost = rows.reduce((sum, r) => sum + r.cost, 0);
-  const totalInput = rows.reduce((sum, r) => sum + r.input, 0);
-  const totalOutput = rows.reduce((sum, r) => sum + r.output, 0);
-  const totalCached = rows.reduce((sum, r) => sum + r.cachedInput, 0);
-  const totalMsgs = rows.reduce((sum, r) => sum + r.messages, 0);
-
-  return (
-    <section className="model-spend-table" aria-label={copy.modelSpendHeading}>
-      <div className="detail-section-heading">
-        <span>{copy.modelSpendHeading}</span>
-        <span style={{ color: "var(--muted)", fontSize: 10, fontWeight: 800 }}>
-          {rows.length}
-        </span>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>{copy.modelSpendModel}</th>
-            <th>{copy.modelSpendMsgs}</th>
-            <th>{copy.modelSpendInput}</th>
-            <th>{copy.modelSpendOutput}</th>
-            <th>{copy.modelSpendCached}</th>
-            <th>{copy.modelSpendCost}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.model}>
-              <td>{row.label}</td>
-              <td>{row.messages}</td>
-              <td>{formatMillionTokens(row.input)}</td>
-              <td>{formatMillionTokens(row.output)}</td>
-              <td>{formatMillionTokens(row.cachedInput)}</td>
-              <td className="cost">{formatCost(row.cost)}</td>
-            </tr>
-          ))}
-        </tbody>
-        {rows.length > 1 ? (
-          <tfoot>
-            <tr>
-              <td>{copy.modelSpendTotal}</td>
-              <td>{totalMsgs}</td>
-              <td>{formatMillionTokens(totalInput)}</td>
-              <td>{formatMillionTokens(totalOutput)}</td>
-              <td>{formatMillionTokens(totalCached)}</td>
-              <td className="cost">{formatCost(totalCost)}</td>
-            </tr>
-          </tfoot>
-        ) : null}
-      </table>
     </section>
   );
 }

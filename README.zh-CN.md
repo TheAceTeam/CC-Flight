@@ -2,70 +2,114 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-SuperView 是一个本地优先的 coding agent 日志可视化仪表盘，用来理解 agent 从用户 prompt 到最终结果之间到底发生了什么。它会读取 agent 日志，重建每一轮任务旅程，并把原始 CLI session 转换成更容易阅读的对话视图：用户输入、隐藏的 agent 工作过程、最终输出、证据、token 用量和项目级遥测数据。
-
-SuperView 的目标很直接：让一次 coding agent run 变得可检查、可回放，并且足够有视觉记忆点。
-
-## 界面预览
-
-![SuperView 展示日志最多项目的中文界面截图](docs/assets/superview-most-logs-project-zh-CN.png)
-
-## 能看到什么
-
-- 接近 agent CLI 流程的对话 thread：`User -> agent work -> Codex/Claude/OpenCode result`。
-- 类 IM 的用户与 agent 对话 bubble，长内容默认限制高度并支持展开。
-- agent 的后台过程默认隐藏在 `查看过程...` 后面，主对话保持清爽，需要时再展开细节。
-- evidence drawer 展示原始事件上下文、source path、line number 和 redacted payload。
-- 支持按 Codex、Claude Code、OpenCode 或 all 过滤项目。
-- 展示项目级 token 指标、KV cache hit rate、每轮任务运行时长和每轮 token 用量。
-- Tokens 指标卡内置可展开/收起的按天 token 使用图表。
-- 前景 Mario 风格 ingest loader，让扫描历史日志时页面不会像卡死。
-- 在每个 agent bubble 中展示本轮用到的 skill/tool 能力标签。
-
-## 当前范围
-
-SuperView 当前是一个 MVP web app/dashboard，面向本地开发者使用，数据存储在本地 SQLite 数据库中。它还没有打包成 desktop app，但当前架构保留了这个方向。
-
-已支持的日志来源：
-
-- Codex CLI sessions
-- Claude Code project JSONL logs
-- OpenCode exported sessions
-
-默认情况下，普通 ingest 只扫描 Codex 日志。Claude Code 和 OpenCode 已经支持，但需要在 UI 中选择对应来源，或者通过 ingest API 显式传入 `sources`。
-
 ## 快速开始
 
 ```bash
+npx @seanxdo/superview
+```
+
+或全局安装：
+
+```bash
+npm install -g @seanxdo/superview
+superview
+```
+
+然后打开 **http://0.0.0.0:5174**，扫描你的 agent 日志即可。
+
+SuperView 是一个本地优先的 coding agent 飞行记录器。它会读取 Codex、Claude Code 和 OpenCode 的 session 日志，重建每一轮任务旅程，并将隐藏的 agent 工作——上下文快照、工具调用、成本、错误和项目遥测——呈现在一个统一的仪表盘中。
+
+## 界面预览
+
+<table>
+  <tr>
+    <td><img src="docs/assets/02.png" width="100%" alt="SuperView 截图" /></td>
+    <td><img src="docs/assets/03.png" width="100%" alt="SuperView 截图" /></td>
+    <td><img src="docs/assets/04.png" width="100%" alt="SuperView 截图" /></td>
+  </tr>
+  <tr>
+    <td><img src="docs/assets/05.png" width="100%" alt="SuperView 截图" /></td>
+    <td><img src="docs/assets/06.png" width="100%" alt="SuperView 截图" /></td>
+    <td><img src="docs/assets/07.png" width="100%" alt="SuperView 截图" /></td>
+  </tr>
+</table>
+
+## 功能
+
+### 会话概览
+
+可折叠的黑匣子面板，包含五个模块：
+
+- **01 总览** — 会话数、预估成本、Token 总量、工具调用次数、错误数、最常用模型、最忙一天和最贵项目。
+- **02 节奏** — 每日活动日历热力图、小时×星期时钟热力图、每日 Token 用量图表。
+- **03 效率** — 缓存命中率、错误率、每次会话 Token 数、每次会话成本，带动画仪表条。
+- **04 模型成本** — 按模型分组的成本明细表，支持自定义 Token 定价。
+- **05 工具用量** — 工具调用频率的横向柱状图，标注错误次数。
+
+### 上下文回放
+
+按快照逐步回溯 agent 的上下文窗口：
+
+- 编号步骤栏，显示每步的阶段、标题和 +新增/-丢弃 内容。
+- 自动播放模式（每 2.8 秒切换快照）。
+- 上下文块按状态分组：延续、新增、变更、丢弃。
+- 警告条：过期上下文、矛盾信息、缺失文件。
+- **工厂流水线** — 全宽皮带视图，展示所有快照节点及其活跃上下文块的流转。
+
+### Token 时间线
+
+每次旅程的 Token 用量纵向柱状图，按输入/输出/缓存/推理分段。点击任意柱子跳转到对应旅程。顶部汇总条显示会话总数、Token 总量和分类明细。
+
+### 分享卡片
+
+一键生成任务旅程摘要——关键统计、使用技能、判定结果（完成/失败/进行中）、Token 火花图和 Markdown 格式复制。
+
+### 事件条
+
+每条旅程行上的水平迷你时间线，以颜色区分事件类型（用户、agent、工具、思考、错误），悬停显示详情。
+
+### 成本估算
+
+内置 Claude 和 GPT 模型定价表（2026 年 6 月费率）。所有费率可实时编辑。根据原始 Token 用量计算成本，含缓存读写系数。支持按模型聚合成本。
+
+### 多提供商支持
+
+| 提供商 | 数据来源 | 默认路径 |
+|--------|---------|---------|
+| Codex CLI | Session JSONL 文件 | `~/.codex/sessions/**/*.jsonl` |
+| Claude Code | Project JSONL 文件 | `~/.claude/projects/**/*.jsonl` |
+| OpenCode | 导出 session 文件 | 手动导出 |
+
+### 主题与语言
+
+四种主题：明亮指挥中心（默认）、暗色指挥中心、森林实验室、等离子紫。完整双语支持：英文和简体中文。偏好设置跨会话持久保存。
+
+## 本地开发
+
+```bash
 pnpm install
-pnpm dev
+pnpm dev          # 启动 API + Vite 开发服务器
 ```
 
 打开应用：
 
-```text
+```
 http://127.0.0.1:5173/
 ```
 
 API 服务地址：
 
-```text
+```
 http://127.0.0.1:5174/
 ```
 
-## 导入 Agent 日志
+### CLI 导入
 
-### 通过 UI
+```bash
+pnpm ingest /path/to/.codex
+```
 
-1. 使用 `pnpm dev` 启动应用。
-2. 选择日志来源：Codex、Claude Code、OpenCode 或 all。
-3. 如有需要，填写自定义 agent log root。
-4. 点击 `Scan Agent Logs`。
-5. 等待 ingest loader 完成，然后在右上角选择项目查看。
-
-### 通过 API
-
-扫描默认 Codex 日志：
+### API 导入
 
 ```bash
 curl -X POST http://127.0.0.1:5174/api/ingest \
@@ -73,7 +117,7 @@ curl -X POST http://127.0.0.1:5174/api/ingest \
   -d '{"sources":[{"provider":"codex"}]}'
 ```
 
-从自定义 root 扫描 Claude Code 日志：
+Claude Code：
 
 ```bash
 curl -X POST http://127.0.0.1:5174/api/ingest \
@@ -81,7 +125,7 @@ curl -X POST http://127.0.0.1:5174/api/ingest \
   -d '{"sources":[{"provider":"claude-code","root":"/path/to/.claude"}]}'
 ```
 
-扫描 OpenCode export 文件：
+OpenCode：
 
 ```bash
 curl -X POST http://127.0.0.1:5174/api/ingest \
@@ -89,100 +133,61 @@ curl -X POST http://127.0.0.1:5174/api/ingest \
   -d '{"sources":[{"provider":"opencode","path":"/path/to/opencode-export.json"}]}'
 ```
 
-查询 ingest 状态：
+查询任务状态：
 
 ```bash
 curl http://127.0.0.1:5174/api/ingest/jobs/<jobId>
 ```
 
-## 默认日志位置
-
-- Codex: `$HOME/.codex/sessions/**/*.jsonl`
-- Claude Code: `$HOME/.claude/projects/**/*.jsonl`
-- OpenCode: `opencode session list --format json` 加 sanitized `opencode export`
-
-## 常用脚本
+### 常用脚本
 
 ```bash
-pnpm dev        # 同时启动 API 和 Vite client
-pnpm dev:server # 只启动 Express API
-pnpm dev:client # 只启动 Vite client
-pnpm build      # Typecheck 并构建 UI
-pnpm preview    # 预览 production UI build
-pnpm typecheck  # 运行 TypeScript 检查
-pnpm test       # 运行 Vitest 测试
-pnpm test:e2e   # 运行 Playwright 测试
-pnpm ingest     # 运行 ingest CLI helper
+pnpm dev          # 同时启动 API 和 Vite 客户端
+pnpm dev:server   # 只启动 Express API
+pnpm dev:client   # 只启动 Vite 客户端
+pnpm start        # 启动生产服务器（单端口，同时提供 API + UI）
+pnpm build        # 类型检查并构建 UI
+pnpm typecheck    # 运行 TypeScript 检查
+pnpm test         # 运行 Vitest 测试
+pnpm test:e2e     # 运行 Playwright 测试
 ```
+
+## API Reference
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/health` | GET | 健康检查 |
+| `/api/ingest` | POST | 启动导入任务 |
+| `/api/ingest/jobs/:id` | GET | 查询导入进度 |
+| `/api/projects` | GET | 列出所有项目 |
+| `/api/projects/:id/timeline` | GET | 获取项目时间线 |
+| `/api/projects/:id/token-usage/daily` | GET | 每日 Token 用量 |
+| `/api/task-journeys/:id` | GET | 任务旅程详情 |
+| `/api/task-journeys/:id/context-replay` | GET | 上下文回放数据 |
+| `/api/events/:id/evidence` | GET | 事件证据 |
+| `/api/runs/:id` | GET | 运行回放 |
+| `/api/reset` | POST | 重置数据库 |
 
 ## 架构
 
 ```text
-ui/            React + Vite dashboard
-runtime-node/  Express API、ingest service、worker process、log adapters
-core/          Parser、normalizer、redactor、timeline、replay、shared types
-storage/       SQLite database layer 和本地数据路径
-tests/         Unit、integration 和 browser-facing 测试
-docs/          Feature notes 和 TODO tracking
-plan/          Planning artifacts 和 implementation notes
-design/        HTML design previews
+ui/            React + Vite 仪表盘
+runtime-node/  Express API、导入服务、工作进程、日志适配器
+core/          解析器、规范化器、脱敏器、成本引擎、时间线、上下文回放
+storage/       SQLite 数据库层和本地数据路径
 ```
 
-ingest 路径和 API 路径是拆开的。API 只负责创建 ingest job 并立即返回，worker process 负责扫描、解析日志文件，并把标准化后的 project/session/event 数据写入 SQLite。这样在扫描 300+ 历史 sessions 时，dashboard 仍然可以保持响应。
-
-ingest service 还实现了 single-flight：如果已经有一个 ingest job 在运行，再次点击扫描会返回已有 job，而不是启动第二个全量扫描。
-
-## API Reference
-
-- `GET /api/health`
-- `POST /api/ingest`
-- `GET /api/ingest/jobs/:id`
-- `GET /api/projects`
-- `GET /api/projects/:id/timeline`
-- `GET /api/projects/:id/token-usage/daily`
-- `GET /api/task-journeys/:id`
-- `GET /api/events/:id/evidence`
-- `GET /api/runs/:id`
+导入路径与 API 路径分离。API 创建导入任务后立即返回，工作进程独立扫描和解析日志文件，将标准化数据写入 SQLite。即使扫描大量历史会话，仪表盘也能保持响应。导入服务采用单飞模式——若已有任务在运行，后续请求返回现有任务而非启动新的全量扫描。
 
 ## 环境变量
 
 ```bash
-SUPERVIEW_DATA_DIR=/path/to/data
-SUPERVIEW_CODEX_HOME=/path/to/.codex
-SUPERVIEW_CLAUDE_HOME=/path/to/.claude
-SUPERVIEW_API_PORT=5174
+SUPERVIEW_DATA_DIR     # 数据目录（默认：./.superview）
+SUPERVIEW_CODEX_HOME   # Codex 日志根目录（默认：~/.codex）
+SUPERVIEW_CLAUDE_HOME  # Claude Code 日志根目录（默认：~/.claude）
+SUPERVIEW_PORT         # 生产服务器端口（默认：5174）
 ```
 
-默认值：
+## 隐私
 
-- `SUPERVIEW_DATA_DIR` 默认为当前工作目录下的 `.superview`。
-- `SUPERVIEW_CODEX_HOME` 默认为 `$HOME/.codex`。
-- `SUPERVIEW_CLAUDE_HOME` 默认为 `$HOME/.claude`。
-- `SUPERVIEW_API_PORT` 默认为 `5174`。
-
-## 隐私模型
-
-SuperView 是 local-first 的，不需要账号、云同步或远程后端。
-
-原始 agent 日志可能包含敏感 prompt、文件路径、tool output 和项目上下文。SuperView 会在本地存储标准化记录，并通过 UI 暴露 redacted evidence payload。Evidence 视图保留了足够用于调试的来源信息，包括 source path、line number、timestamp 和 hash metadata。
-
-有些 reasoning content 可能显示为不可用或隐藏。这通常意味着源日志没有暴露这些内容、内容被加密，或者 agent provider 只记录了占位文本而不是明文 reasoning。
-
-## Desktop App 方向
-
-当前 MVP 是 web app，但整体形态已经比较适合 desktop 化：
-
-- storage layer 已经使用本地 SQLite。
-- ingest 需要访问本地文件系统，适合映射到 Electron 或 Tauri。
-- UI 和 API 已拆分，后续可以把 API process 内嵌进 desktop app，也可以替换成 desktop-native bridge。
-- 隐私敏感数据可以继续留在用户机器上。
-
-desktop packaging 仍然需要单独处理文件权限、数据库位置、后台 ingest 生命周期、应用更新和 log-source discovery。
-
-## Roadmap
-
-- 展示每一轮 task journey 中实际传递给 agent 的 context，从用户 prompt 到最终结果完整串起来。
-- 增强 context provenance，让用户看到 agent 为什么拥有或缺失某些信息。
-- 改进 desktop packaging 和首次启动时的 log-source setup。
-- 随着 Claude Code 和 OpenCode 日志/export 格式演化，继续增强兼容性。
-- 增加跨项目、跨日期、跨 agent provider 的更深入对比。
+SuperView 完全本地运行。无需账号、云同步或远程后端。原始 agent 日志始终留在你的机器上。标准化记录存储在本地 SQLite 数据库中。证据视图仅暴露脱敏 payload 及来源信息（路径、行号、时间戳、哈希），足以用于调试，但不会泄露原始内容。

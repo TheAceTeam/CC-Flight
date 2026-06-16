@@ -583,6 +583,10 @@ export const COPY: Record<Language, AppCopy> = {
           detail: "A full-width factory belt view of every snapshot and its active context blocks. See the entire context flow at a glance."
         },
         {
+          title: "Token Timeline",
+          detail: "Click the chart button in the conversation header to open the token timeline panel. See how token usage evolved across all steps."
+        },
+        {
           title: "Theme & Language",
           detail: "Switch between 4 themes (light, dark, forest, plasma), toggle English / 中文, or click the Map button in the topbar to restart this tour anytime."
         }
@@ -908,6 +912,10 @@ export const COPY: Record<Language, AppCopy> = {
         {
           title: "上下文时间线",
           detail: "全宽工厂流水线视图，展示每个快照及其活跃上下文块随时间流动。一目了然。"
+        },
+        {
+          title: "Token 时间线",
+          detail: "点击对话头部图表按钮，打开 Token 时间线面板，查看各步骤的 Token 用量变化。"
         },
         {
           title: "主题与语言",

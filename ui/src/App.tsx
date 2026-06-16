@@ -3344,10 +3344,11 @@ function OnboardingTour({
     ".conversation-master-item",
     ".context-replay-panel",
     ".context-replay-summary",
-    ".context-factory-strip",
+    ".factory-expand-btn",
+    ".timeline-chart-btn",
     ".theme-dropdown",
   ];
-  const targetPaddings = [10, 10, 12, 12, 10, 12, 8, 8, 12];
+  const targetPaddings = [10, 10, 12, 12, 10, 12, 8, 6, 6, 12];
   const targetPlacements: Array<"bottom" | "top" | "right" | "left"> = [
     "bottom",
     "bottom",
@@ -3355,6 +3356,7 @@ function OnboardingTour({
     "top",
     "left",
     "top",
+    "bottom",
     "bottom",
     "bottom",
     "bottom",
@@ -3370,7 +3372,8 @@ function OnboardingTour({
   const journeyTargetSelectors = [
     ".context-replay-panel",
     ".context-replay-summary",
-    ".context-factory-strip",
+    ".factory-expand-btn",
+    ".timeline-chart-btn",
   ];
   useLayoutEffect(() => {
     if (window.innerWidth < 760) return;
@@ -3399,11 +3402,6 @@ function OnboardingTour({
       }, 300);
       setTargetRect(null);
       return;
-    }
-    // Auto-open the factory popover when tour targets the Context Timeline strip
-    if (currentSelector === ".context-factory-strip" && !document.querySelector(".factory-overlay")) {
-      const btn: HTMLElement | null = document.querySelector(".factory-expand-btn");
-      if (btn) btn.click();
     }
     if (!el) {
       setTargetRect(null);

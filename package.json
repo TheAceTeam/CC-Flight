@@ -1,6 +1,6 @@
 {
   "name": "@seanxdo/superview",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Coding-agent flight recorder — timeline dashboard with replayable agent-run drill-downs.",
   "type": "module",
   "license": "MIT",
@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.1",
-    "better-sqlite3": "^12.5.0",
+    "better-sqlite3": "^12.11.1",
     "chokidar": "^4.0.3",
     "concurrently": "^9.2.1",
     "date-fns": "^4.1.0",

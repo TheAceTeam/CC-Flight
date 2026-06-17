@@ -263,7 +263,7 @@ export function normalizeLanguage(value: string | null): Language {
 
 export const COPY: Record<Language, AppCopy> = {
   en: {
-    brandSubtitle: "The black box of your coding agents",
+    brandSubtitle: "The flight recorder of your coding agents",
     language: {
       short: "中",
       aria: "Switch language to Simplified Chinese",
@@ -287,7 +287,7 @@ export const COPY: Record<Language, AppCopy> = {
       scan: "Scan Agent Logs"
     },
     title: {
-      eyebrow: "Project Black Box",
+      eyebrow: "Project Flight Recorder",
       emptyProject: "No project indexed yet",
       lead: ""
     },
@@ -594,7 +594,7 @@ export const COPY: Record<Language, AppCopy> = {
     }
   },
   "zh-CN": {
-    brandSubtitle: "Coding Agent 黑匣子",
+    brandSubtitle: "Coding Agent 飞行记录仪",
     language: {
       short: "EN",
       aria: "切换语言到英文",
@@ -618,7 +618,7 @@ export const COPY: Record<Language, AppCopy> = {
       scan: "扫描 Agent 日志"
     },
     title: {
-      eyebrow: "Project Black Box",
+      eyebrow: "Project Flight Recorder",
       emptyProject: "还没有索引项目",
       lead: ""
     },

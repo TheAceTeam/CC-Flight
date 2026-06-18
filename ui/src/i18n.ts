@@ -151,6 +151,23 @@ export type AppCopy = {
     expand: string;
     collapse: string;
     skills: string;
+    spineThought: string;
+    spineAction: string;
+    spineObserved: string;
+    spineResponse: string;
+    spineRedacted: string;
+    spineCourseCorrected: string;
+    spineMoves: string;
+    spineToolCalls: string;
+    spineCorrections: string;
+    spinePlay: string;
+    spinePause: string;
+    spineReplay: string;
+    spineStepPrev: string;
+    spineStepNext: string;
+    spineScrubAria: string;
+    spineAria: string;
+    spineRedirectedRun: string;
     hotkeyHint: string;
     resetDatabase: string;
     resetDatabaseConfirm: string;
@@ -409,6 +426,23 @@ export const COPY: Record<Language, AppCopy> = {
       expand: "Expand",
       collapse: "Collapse",
       skills: "Skills",
+      spineThought: "Thought",
+      spineAction: "Action",
+      spineObserved: "Observed",
+      spineResponse: "Response",
+      spineRedacted: "private reasoning · redacted",
+      spineCourseCorrected: "course-corrected the next thought",
+      spineMoves: "moves",
+      spineToolCalls: "tool calls",
+      spineCorrections: "course-corrections",
+      spinePlay: "Play",
+      spinePause: "Pause",
+      spineReplay: "Replay",
+      spineStepPrev: "Previous move",
+      spineStepNext: "Next move",
+      spineScrubAria: "Scrub run",
+      spineAria: "Reasoning causal spine",
+      spineRedirectedRun: "redirected mid-run",
       hotkeyHint: "↑↓ switch journey · ←→ switch step · W S A D switch block",
       resetDatabase: "Reset database",
       resetDatabaseConfirm: "This will permanently delete all indexed data. Scan again to rebuild. Continue?",
@@ -749,6 +783,23 @@ export const COPY: Record<Language, AppCopy> = {
       expand: "展开",
       collapse: "收起",
       skills: "Skills",
+      spineThought: "想法",
+      spineAction: "动作",
+      spineObserved: "观察",
+      spineResponse: "回复",
+      spineRedacted: "私有推理 · 已隐去",
+      spineCourseCorrected: "修正了下一步想法",
+      spineMoves: "回合",
+      spineToolCalls: "工具调用",
+      spineCorrections: "中途修正",
+      spinePlay: "播放",
+      spinePause: "暂停",
+      spineReplay: "重播",
+      spineStepPrev: "上一回合",
+      spineStepNext: "下一回合",
+      spineScrubAria: "拖动进度",
+      spineAria: "推理因果链",
+      spineRedirectedRun: "中途修正",
       hotkeyHint: "↑↓ 切换对话 · ←→ 切换步骤 · W S A D 切换上下文块",
       resetDatabase: "重置数据库",
       resetDatabaseConfirm: "此操作将永久删除所有已索引数据。重新扫描后可重建。继续？",

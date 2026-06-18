@@ -2,9 +2,14 @@ import {
   AlertTriangle,
   ArchiveX,
   Ban,
+  Brain,
   ChartColumn,
+  Check,
   ChevronDown,
+  ChevronUp,
   Clock,
+  CornerUpLeft,
+  Eye,
   FileText,
   Github,
   Languages,
@@ -18,6 +23,8 @@ import {
   Share2,
   Sparkles,
   Sun,
+  X,
+  Zap,
 } from "lucide-react";
 import {
   Fragment,
@@ -570,14 +577,6 @@ export function App() {
     }
   }
 
-  function toggleJourneyDetails(journeyId: string) {
-    setCollapsedJourneyIds((current) => {
-      const nextCollapsed = !current[journeyId];
-      if (!nextCollapsed) void loadJourneyDetail(journeyId);
-      return { ...current, [journeyId]: nextCollapsed };
-    });
-  }
-
   const filteredProjects = useMemo(
     () => filterProjectsByProvider(projects, projectProviderFilter),
     [projects, projectProviderFilter],
@@ -1031,7 +1030,6 @@ export function App() {
                 loadingContextReplayIds={contextReplayLoadingIds}
                 selectedEventId={selectedEvent?.id ?? null}
                 selectedProjectName={selectedProject?.name ?? ""}
-                onToggleDetails={toggleJourneyDetails}
                 onLoadJourneyDetail={(journeyId) =>
                   loadJourneyDetail(journeyId)
                 }
@@ -1355,12 +1353,6 @@ function ProjectShareCard({
   );
 }
 
-function eventItemClass(event: TimelineEvent, selectedId: string | null) {
-  const classes = ["log-entry", event.status];
-  if (event.id === selectedId) classes.push("selected");
-  return classes.join(" ");
-}
-
 function groupContextBlocks(blocks: ContextBlock[]) {
   return {
     added: blocks.filter((block) => block.state === "new"),
@@ -1398,7 +1390,6 @@ function ConversationThread({
   loadingContextReplayIds,
   selectedEventId,
   selectedProjectName,
-  onToggleDetails,
   onLoadJourneyDetail,
   onLoadContextReplay,
   onSelectEvent,
@@ -1417,7 +1408,6 @@ function ConversationThread({
   loadingContextReplayIds: Record<string, boolean>;
   selectedEventId: string | null;
   selectedProjectName: string;
-  onToggleDetails: (journeyId: string) => void;
   onLoadJourneyDetail: (journeyId: string) => void;
   onLoadContextReplay: (journeyId: string) => void;
   onSelectEvent: (event: TimelineEvent) => void;
@@ -1643,7 +1633,7 @@ function ConversationThread({
               selectedProjectName={selectedProjectName}
             />
           ) : (
-            <ConversationTurn
+            <CausalSpine
               key={selectedJourney.id}
               copy={copy}
               journey={selectedJourney}
@@ -1651,10 +1641,8 @@ function ConversationThread({
               fallbackPrompt={
                 timelineEventsById.get(selectedJourney.promptEventId) ?? null
               }
-              expanded={!collapsedJourneyIds[selectedJourney.id]}
               loading={Boolean(loadingJourneyIds[selectedJourney.id])}
               selectedEventId={selectedEventId}
-              onToggleDetails={() => onToggleDetails(selectedJourney.id)}
               onSelectEvent={onSelectEvent}
             />
           )
@@ -3325,302 +3313,480 @@ function FactoryStation({
   );
 }
 
-function ConversationTurn({
+type SpineActionItem = {
+  event: TimelineEvent;
+  label: string;
+  command: string | null;
+  files: string[];
+};
+
+type SpineMove = {
+  id: string;
+  index: number;
+  thoughtEvent: TimelineEvent | null;
+  thoughtText: string | null;
+  redacted: boolean;
+  actions: SpineActionItem[];
+  observeEvent: TimelineEvent | null;
+  observeText: string | null;
+  observeOk: boolean;
+  outcomeLabel: string | null;
+  hasObserve: boolean;
+  isRedirect: boolean;
+  eventIds: string[];
+};
+
+// Group the ordered event stream into think -> act -> observe "moves". A new
+// move opens on each stated thought (assistant_message, or a redacted
+// reasoning_marker when no message covers the span); tool calls and their
+// results fold into the open move until the next thought boundary.
+function buildSpineMoves(events: TimelineEvent[]): SpineMove[] {
+  const moves: SpineMove[] = [];
+  let current: SpineMove | null = null;
+
+  const open = (
+    event: TimelineEvent,
+    redacted: boolean,
+    withThought: boolean,
+  ): SpineMove => {
+    const move: SpineMove = {
+      id: event.id,
+      index: moves.length,
+      thoughtEvent: withThought ? event : null,
+      thoughtText:
+        withThought && !redacted ? event.detail ?? event.title ?? null : null,
+      redacted,
+      actions: [],
+      observeEvent: null,
+      observeText: null,
+      observeOk: true,
+      outcomeLabel: null,
+      hasObserve: false,
+      isRedirect: false,
+      eventIds: [event.id],
+    };
+    moves.push(move);
+    return move;
+  };
+
+  for (const event of events) {
+    switch (event.kind) {
+      case "assistant_message":
+        current = open(event, false, true);
+        break;
+      case "reasoning_marker":
+        if (!current || current.actions.length > 0 || current.hasObserve) {
+          current = open(event, true, true);
+        }
+        break;
+      case "tool_call":
+      case "file_change": {
+        const move = current ?? (current = open(event, false, false));
+        move.actions.push({
+          event,
+          label: event.toolName ?? event.kind,
+          command: event.detail,
+          files: event.files,
+        });
+        move.eventIds.push(event.id);
+        break;
+      }
+      case "tool_result":
+      case "verification":
+      case "error": {
+        const move = current ?? (current = open(event, false, false));
+        move.observeEvent = event;
+        move.observeText = event.detail ?? event.title ?? null;
+        move.outcomeLabel = event.title ?? null;
+        move.hasObserve = true;
+        move.eventIds.push(event.id);
+        if (event.status === "failed" || event.kind === "error") {
+          move.observeOk = false;
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  // A move is a redirect only when it contains a genuinely failed observation
+  // and the agent kept going afterwards (a later move exists). The causal-edge
+  // `failed_by`/`retried_by` signal is too noisy to corroborate here — those
+  // edges fire from any step that precedes a later failure anywhere in the
+  // session, so they light up on fully successful runs.
+  return moves.map((move, index) => ({
+    ...move,
+    index,
+    isRedirect: !move.observeOk && index < moves.length - 1,
+  }));
+}
+
+function CausalSpine({
   copy,
   journey,
   detail,
   fallbackPrompt,
-  expanded,
   loading,
   selectedEventId,
-  onToggleDetails,
   onSelectEvent,
 }: {
   copy: AppCopy["timeline"];
   journey: TaskJourney;
   detail: TaskJourneyDetail | null;
   fallbackPrompt: TimelineEvent | null;
-  expanded: boolean;
   loading: boolean;
   selectedEventId: string | null;
-  onToggleDetails: () => void;
   onSelectEvent: (event: TimelineEvent) => void;
 }) {
   const events = detail?.events ?? [];
-  const prompt =
-    fallbackPrompt ??
-    events.find(
-      (event) =>
-        event.id === journey.promptEventId || event.kind === "user_prompt",
+  const moves = useMemo(
+    () => buildSpineMoves(events),
+    [detail],
+  );
+  const [cur, setCur] = useState(-1);
+  const [playing, setPlaying] = useState(false);
+  const moveRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const lastIndex = moves.length - 1;
+
+  // Autoplay: advance one move at a time, then stop at the end.
+  useEffect(() => {
+    if (!playing) return;
+    if (cur >= lastIndex) {
+      setPlaying(false);
+      return;
+    }
+    const id = window.setTimeout(
+      () => setCur((c) => Math.min(lastIndex, c + 1)),
+      1400,
     );
-  const assistantMessage = events.find(
-    (event) => event.kind === "assistant_message",
-  );
-  const backgroundEvents = events.filter(
-    (event) =>
-      event.kind !== "user_prompt" && event.id !== assistantMessage?.id,
-  );
-  const logEvents = events.filter(
-    (event) =>
-      event.kind === "tool_call" ||
-      event.kind === "tool_result" ||
-      event.kind === "file_change" ||
-      event.kind === "verification" ||
-      event.kind === "error",
-  );
-  const skills = aggregateSkills(journey.skills, events);
-  const agentOutput =
-    assistantMessage?.detail ?? assistantMessage?.title ?? journey.summary;
-  const provider = prompt
-    ? providerFromSessionId(prompt.sessionId)
-    : providerFromSessionId(journey.sessionId);
-  const agentLabel = labelForProvider(provider);
+    return () => window.clearTimeout(id);
+  }, [playing, cur, lastIndex]);
+
+  // Keep the current move in view as the playhead advances.
+  useEffect(() => {
+    if (cur < 0) return;
+    const el = moveRefs.current[cur];
+    if (!el) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+  }, [cur]);
+
+  const togglePlay = () => {
+    if (playing) {
+      setPlaying(false);
+      return;
+    }
+    if (cur >= lastIndex) setCur(-1);
+    setPlaying(true);
+  };
+
+  const step = (delta: number) => {
+    setPlaying(false);
+    setCur((c) => Math.max(-1, Math.min(lastIndex, c + delta)));
+  };
+
+  const selectNode = (event: TimelineEvent, index: number) => {
+    setPlaying(false);
+    setCur(index);
+    onSelectEvent(event);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      e.stopPropagation();
+      step(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      e.stopPropagation();
+      step(-1);
+    } else if (e.key === " ") {
+      e.preventDefault();
+      e.stopPropagation();
+      togglePlay();
+    }
+  };
+
+  const onScrub = (e: React.MouseEvent<HTMLDivElement>) => {
+    setPlaying(false);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const p = (e.clientX - rect.left) / rect.width;
+    setCur(Math.max(-1, Math.min(lastIndex, Math.round(p * moves.length) - 1)));
+  };
+
+  if (loading && moves.length === 0) {
+    return <p className="muted">{copy.loadingDetails}</p>;
+  }
+  if (moves.length === 0) {
+    return <p className="muted">{copy.noBackground}</p>;
+  }
+
+  const provider = providerFromSessionId(journey.sessionId);
+  const prompt =
+    fallbackPrompt ?? events.find((event) => event.kind === "user_prompt");
   const promptText = prompt?.detail ?? journey.title;
+  const toolCalls = moves.reduce((n, m) => n + m.actions.length, 0);
+  const corrections = moves.filter((m) => m.isRedirect).length;
+  const pct = moves.length ? ((cur + 1) / moves.length) * 100 : 0;
 
   return (
-    <article className={`conversation-turn ${journey.status}`}>
-      <div className="conversation-summary">
-        <div>
-          <span>{copy.eventCount(journey.eventIds.length)}</span>
-          <span>{formatExitType(journey.exitType, copy)}</span>
-          <span>{formatDuration(journey.durationMs)}</span>
-          <span>
-            {formatMillionTokens(journey.tokenUsage.total)} {copy.tokens}
-          </span>
-          <span>
-            {copy.kvHit} {formatKvHitRate(journey.tokenUsage)}
-          </span>
-          {loading ? <span>{copy.loadingDetails}</span> : null}
-        </div>
-      </div>
-
-      <ChatBubble
-        copy={copy}
-        variant="user"
-        label={copy.user}
-        text={promptText}
-        skills={skills}
-        selected={prompt?.id === selectedEventId}
-        disabled={!prompt}
-        onSelect={() => (prompt ? onSelectEvent(prompt) : undefined)}
-      />
-
-      <div className="message-row codex detail-message-row">
-        <span className="message-avatar" aria-hidden="true">
-          {avatarForProvider(provider)}
-        </span>
-        <div className="message-stack">
-          <button
-            className="conversation-message codex detail-toggle"
-            onClick={onToggleDetails}
-          >
-            <span className="message-meta">{copy.agentWork}</span>
-            <span>{expanded ? copy.hideProcess : copy.viewProcess}</span>
-          </button>
-        </div>
-      </div>
-
-      {expanded ? (
-        <div className="background-details">
-          <section>
-            <div className="detail-section-heading">
-              <span>{copy.backgroundWork}</span>
-              <em>
-                {backgroundEvents.length} {copy.entries}
-              </em>
-            </div>
-            <div className="log-list">
-              {backgroundEvents.length > 0 ? (
-                backgroundEvents.map((event) => (
-                  <button
-                    key={event.id}
-                    className={eventItemClass(event, selectedEventId)}
-                    data-event-id={event.id}
-                    onClick={() => onSelectEvent(event)}
-                  >
-                    <span>{event.kind}</span>
-                    <strong>{event.title}</strong>
-                    {event.skills && event.skills.length > 0 ? (
-                      <small>
-                        {copy.skills}: {formatSkillNames(event.skills)}
-                      </small>
-                    ) : null}
-                    <small>
-                      {event.detail ?? formatDate(event.timestamp, copy)}
-                    </small>
-                  </button>
-                ))
-              ) : (
-                <p className="muted">{copy.noBackground}</p>
-              )}
-            </div>
-          </section>
-
-          <section>
-            <div className="detail-section-heading">
-              <span>{copy.log}</span>
-              <em>
-                {logEvents.length} {copy.entries}
-              </em>
-            </div>
-            <div className="log-list compact">
-              {logEvents.length > 0 ? (
-                logEvents.map((event) => (
-                  <button
-                    key={event.id}
-                    className={eventItemClass(event, selectedEventId)}
-                    data-event-id={event.id}
-                    onClick={() => onSelectEvent(event)}
-                  >
-                    <span>{event.toolName ?? event.kind}</span>
-                    <strong>{event.title}</strong>
-                    {event.skills && event.skills.length > 0 ? (
-                      <small>
-                        {copy.skills}: {formatSkillNames(event.skills)}
-                      </small>
-                    ) : null}
-                    <small>
-                      {event.detail ??
-                        event.callId ??
-                        formatDate(event.timestamp, copy)}
-                    </small>
-                  </button>
-                ))
-              ) : (
-                <p className="muted">{copy.noLog}</p>
-              )}
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      <ChatBubble
-        copy={copy}
-        variant="codex"
-        label={agentLabel}
-        text={agentOutput}
-        skills={skills}
-        selected={assistantMessage?.id === selectedEventId}
-        disabled={!assistantMessage}
-        onSelect={() =>
-          assistantMessage ? onSelectEvent(assistantMessage) : undefined
-        }
-      />
-    </article>
-  );
-}
-
-function ChatBubble({
-  copy,
-  variant,
-  label,
-  title,
-  text,
-  skills = [],
-  selected,
-  disabled,
-  onSelect,
-}: {
-  copy: AppCopy["timeline"];
-  variant: "user" | "codex";
-  label: string;
-  title?: string;
-  text: string;
-  skills?: SkillUsage[];
-  selected: boolean;
-  disabled: boolean;
-  onSelect: () => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [canExpand, setCanExpand] = useState(false);
-  const bodyRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const body = bodyRef.current;
-    if (!body) return;
-
-    const measure = () => {
-      setCanExpand(body.scrollHeight > 250);
-    };
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(body);
-    return () => observer.disconnect();
-  }, [text, title]);
-
-  useEffect(() => {
-    if (!canExpand) setExpanded(false);
-  }, [canExpand]);
-
-  return (
-    <div className={`message-row ${variant}`}>
-      <span className="message-avatar" aria-hidden="true">
-        {variant === "user" ? "U" : "C"}
-      </span>
-      <div className="message-stack">
-        <button
-          className={`conversation-message ${variant} ${selected ? "selected" : ""}`}
-          disabled={disabled}
-          onClick={onSelect}
-        >
-          <span className="message-meta">{label}</span>
-          <div
-            ref={bodyRef}
-            className="message-body"
-            data-expanded={expanded ? "true" : "false"}
-          >
-            {title ? <strong>{title}</strong> : null}
-            <p>{text}</p>
+    <div className="causal-spine" aria-label={copy.spineAria}>
+      <header className="spine-header">
+        <p className="spine-eyebrow">
+          {copy.spineThought} → {copy.spineAction}
+        </p>
+        <h2 className="spine-title">{promptText}</h2>
+        <div className="spine-runmeta">
+          <div className="spine-m">
+            <b>{moves.length}</b>
+            <span>{copy.spineMoves}</span>
           </div>
-          {skills.length > 0 ? (
-            <SkillChips copy={copy} skills={skills} />
+          <div className="spine-m">
+            <b>{toolCalls}</b>
+            <span>{copy.spineToolCalls}</span>
+          </div>
+          <div className="spine-m">
+            <b>{corrections}</b>
+            <span>{copy.spineCorrections}</span>
+          </div>
+          <div className="spine-m">
+            <b>{labelForProvider(provider)}</b>
+            <span>{copy.shareProvider}</span>
+          </div>
+          {corrections > 0 ? (
+            <span className="spine-pill redirect">
+              <span className="spine-pill-dot" />
+              {copy.spineRedirectedRun}
+            </span>
           ) : null}
-          {canExpand && !expanded ? (
-            <span className="message-fade" aria-hidden="true" />
-          ) : null}
-        </button>
-        {canExpand ? (
-          <button
-            className="message-expand-toggle"
-            onClick={() => setExpanded((current) => !current)}
-          >
-            {expanded ? copy.collapse : copy.expand}
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
+        </div>
+      </header>
 
-function SkillChips({
-  copy,
-  skills,
-}: {
-  copy: AppCopy["timeline"];
-  skills: SkillUsage[];
-}) {
-  const uniqueSkills = dedupeSkills(skills);
-  const visibleSkills = uniqueSkills.slice(0, 4);
-  const remaining = Math.max(0, uniqueSkills.length - visibleSkills.length);
-  return (
-    <div
-      className="skill-chip-row"
-      aria-label={`${copy.skills}: ${formatSkillNames(skills)}`}
-    >
-      <span className="skill-chip-label">{copy.skills}</span>
-      {visibleSkills.map((skill) => (
-        <span
-          className="skill-chip"
-          title={skill.excerpt || skill.path || skill.source}
-          key={`${skill.name}-${skill.source}-${skill.path ?? ""}`}
+      <div className="spine-stage">
+        <div
+          className="spine-track"
+          tabIndex={0}
+          onKeyDown={onKeyDown}
+          aria-label={copy.spineAria}
         >
-          {skill.name}
+          {moves.map((move) => {
+            const played = move.index <= cur;
+            const isCurrent = move.index === cur;
+            return (
+              <div
+                key={move.id}
+                ref={(el) => {
+                  moveRefs.current[move.index] = el;
+                }}
+                className={`spine-move${move.isRedirect ? " is-redirect" : ""}${
+                  played ? " played" : ""
+                }${isCurrent ? " current" : ""}`}
+              >
+                <div className="spine-rail">
+                  <span className="spine-station" />
+                  <span className="spine-connector" />
+                </div>
+                <div className="spine-nodes">
+                  {move.thoughtText || move.redacted ? (
+                    <button
+                      type="button"
+                      className={`spine-node think${
+                        move.thoughtEvent?.id === selectedEventId
+                          ? " selected"
+                          : ""
+                      }`}
+                      onClick={() =>
+                        move.thoughtEvent
+                          ? selectNode(move.thoughtEvent, move.index)
+                          : setCur(move.index)
+                      }
+                    >
+                      <span className="spine-role">
+                        <Brain size={13} /> {copy.spineThought}
+                      </span>
+                      {move.redacted ? (
+                        <div className="spine-effort">
+                          <span className="spine-beats">
+                            <i className="spine-beat hot" />
+                            <i className="spine-beat hot" />
+                            <i className="spine-beat hot" />
+                          </span>
+                          <span className="spine-effort-lbl">
+                            {copy.spineRedacted}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="spine-body">{move.thoughtText}</div>
+                      )}
+                    </button>
+                  ) : null}
+
+                  {move.actions.length > 0 ? (
+                    <button
+                      type="button"
+                      className={`spine-node act${
+                        move.actions.some((a) => a.event.id === selectedEventId)
+                          ? " selected"
+                          : ""
+                      }`}
+                      onClick={() =>
+                        selectNode(move.actions[0].event, move.index)
+                      }
+                    >
+                      <span className="spine-role">
+                        <Zap size={13} /> {copy.spineAction}
+                      </span>
+                      <div className="spine-act-list">
+                        {move.actions.map((a) => (
+                          <div className="spine-act-item" key={a.event.id}>
+                            <span className="spine-verb">{a.label}</span>
+                            {a.command ? (
+                              <pre className="spine-pre">{a.command}</pre>
+                            ) : null}
+                            {a.files.length > 0 ? (
+                              <div className="spine-files">
+                                {a.files.map((f) => (
+                                  <span className="spine-filechip" key={f}>
+                                    {f}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    </button>
+                  ) : null}
+
+                  {move.hasObserve ? (
+                    <button
+                      type="button"
+                      className={`spine-node observe ${
+                        move.observeOk ? "ok" : "err"
+                      }${
+                        move.observeEvent?.id === selectedEventId
+                          ? " selected"
+                          : ""
+                      }`}
+                      onClick={() =>
+                        move.observeEvent
+                          ? selectNode(move.observeEvent, move.index)
+                          : setCur(move.index)
+                      }
+                    >
+                      <span className="spine-role">
+                        {move.observeOk ? <Check size={13} /> : <X size={13} />}{" "}
+                        {copy.spineObserved}
+                        {move.outcomeLabel ? (
+                          <>
+                            {" · "}
+                            <span
+                              className={`spine-outcome ${
+                                move.observeOk ? "ok" : "err"
+                              }`}
+                            >
+                              {move.outcomeLabel}
+                            </span>
+                          </>
+                        ) : null}
+                      </span>
+                      {move.observeText ? (
+                        <pre className="spine-pre">{move.observeText}</pre>
+                      ) : null}
+                      {move.isRedirect ? (
+                        <div className="spine-redirect-tag">
+                          <CornerUpLeft size={12} /> {copy.spineCourseCorrected}
+                        </div>
+                      ) : null}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <nav className="spine-minimap" aria-label={copy.spineAria}>
+          <div className="spine-mtrack">
+            {moves.map((move) => (
+              <button
+                key={move.id}
+                type="button"
+                className={`spine-mbtn${move.observeOk ? "" : " err"}${
+                  move.isRedirect ? " redirect" : ""
+                }${move.index === cur ? " current" : ""}`}
+                title={`${copy.spineMoves} ${move.index + 1}`}
+                onClick={() => {
+                  setPlaying(false);
+                  setCur(move.index);
+                }}
+              >
+                <span className="spine-seg" />
+              </button>
+            ))}
+          </div>
+        </nav>
+      </div>
+
+      <div className="spine-transport" role="group" aria-label={copy.spineAria}>
+        <button
+          type="button"
+          className="spine-tbtn primary"
+          onClick={togglePlay}
+        >
+          {playing ? (
+            <>
+              <Pause size={13} /> {copy.spinePause}
+            </>
+          ) : cur >= lastIndex ? (
+            <>
+              <RotateCw size={13} /> {copy.spineReplay}
+            </>
+          ) : (
+            <>
+              <Play size={13} /> {copy.spinePlay}
+            </>
+          )}
+        </button>
+        <button
+          type="button"
+          className="spine-tbtn"
+          title={copy.spineStepPrev}
+          aria-label={copy.spineStepPrev}
+          onClick={() => step(-1)}
+        >
+          <ChevronUp size={14} />
+        </button>
+        <span className="spine-pos">
+          {Math.max(0, cur + 1)} / {moves.length}
         </span>
-      ))}
-      {remaining > 0 ? (
-        <span className="skill-chip more">+{remaining}</span>
-      ) : null}
+        <button
+          type="button"
+          className="spine-tbtn"
+          title={copy.spineStepNext}
+          aria-label={copy.spineStepNext}
+          onClick={() => step(1)}
+        >
+          <ChevronDown size={14} />
+        </button>
+        <div
+          className="spine-scrub"
+          role="slider"
+          aria-label={copy.spineScrubAria}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(pct)}
+          tabIndex={0}
+          onClick={onScrub}
+        >
+          <div
+            className="spine-scrub-fill"
+            style={{ transform: `scaleX(${pct / 100})` }}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -4136,16 +4302,6 @@ function EmptyState({
   );
 }
 
-function aggregateSkills(
-  journeySkills: SkillUsage[] | undefined,
-  events: TimelineEvent[],
-) {
-  return dedupeSkills([
-    ...(journeySkills ?? []),
-    ...events.flatMap((event) => event.skills ?? []),
-  ]);
-}
-
 function filterProjectsByProvider(
   projects: ProjectWithSessions[],
   provider: ProjectProviderFilter,
@@ -4169,20 +4325,6 @@ function providerSummary(project: ProjectWithSessions, copy: AppCopy) {
   return [...providers].map(labelForProvider).join("+");
 }
 
-function dedupeSkills(skills: SkillUsage[]) {
-  const byName = new Map<string, SkillUsage>();
-  for (const skill of skills) {
-    if (!byName.has(skill.name)) byName.set(skill.name, skill);
-  }
-  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function formatSkillNames(skills: SkillUsage[]) {
-  return dedupeSkills(skills)
-    .map((skill) => skill.name)
-    .join(", ");
-}
-
 function formatExitType(
   exitType: TaskJourney["exitType"],
   copy: AppCopy["timeline"],
@@ -4200,12 +4342,6 @@ function labelForProvider(provider: string) {
   if (provider === "claude-code") return "Claude Code";
   if (provider === "opencode") return "OpenCode";
   return "Codex CLI";
-}
-
-function avatarForProvider(provider: string) {
-  if (provider === "claude-code") return "CC";
-  if (provider === "opencode") return "OC";
-  return "C";
 }
 
 function formatDate(value: string, _copy?: unknown) {

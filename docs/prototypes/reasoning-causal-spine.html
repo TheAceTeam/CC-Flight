@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SuperView · Reasoning Causal Spine (prototype)</title>
+<style>
+  :root {
+    --paper: #fcfaf7;
+    --surface: #f3f4f6;
+    --surface-2: #ffffff;
+    --surface-soft: #edebe9;
+    --line: #e3e0dd;
+    --line-strong: #d1d5dc;
+    --ink: #423d38;
+    --muted: #797067;
+    --orange: #fe6e00;
+    --orange-soft: #fff1e5;
+    --success: #00c758;
+    --danger: #fb2c36;
+    --blue: #3080ff;
+    --shell: rgba(0,0,0,.70);
+    --shell-border: rgba(255,255,255,.10);
+    --shadow: 0 12px 28px rgba(0,0,0,.10);
+
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+    --enter: cubic-bezier(.16,1,.3,1);
+    --exit: cubic-bezier(.7,0,.84,0);
+
+    --z-rail: 5;
+    --z-playhead: 20;
+    --z-toolbar: 40;
+  }
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #413830;
+    --surface: #4a423a;
+    --surface-2: #554d45;
+    --surface-soft: #3a332d;
+    --line: #63594f;
+    --line-strong: #7b7065;
+    --ink: #fafaf9;
+    --muted: #c9c2ba;
+    --orange-soft: #5a3218;
+    --shell: rgba(0,0,0,.76);
+    --shell-border: rgba(255,255,255,.14);
+    --shadow: 0 12px 28px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .frame { max-width: 920px; margin: 0 auto; padding: 28px 24px 120px; }
+
+  /* shell header */
+  .shell {
+    position: sticky; top: 0; z-index: var(--z-toolbar);
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 24px;
+    background: var(--shell);
+    border-bottom: 1px solid var(--shell-border);
+    backdrop-filter: blur(12px);
+    color: #fff;
+  }
+  .shell .brand { font-weight: 700; letter-spacing: .2px; }
+  .shell .brand span { color: rgba(255,255,255,.55); font-weight: 500; margin-left: 8px; font-size: 13px; }
+  .shell .spacer { flex: 1; }
+  .shell button {
+    font: inherit; font-size: 13px; color: #fff;
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: background .15s var(--enter), border-color .15s var(--enter);
+  }
+  .shell button:hover { background: rgba(255,255,255,.18); }
+  .shell button[aria-pressed="true"] { border-color: var(--orange); color: var(--orange); }
+
+  /* title */
+  .eyebrow {
+    margin: 0 0 6px; color: var(--orange);
+    font: 700 11px/1 var(--mono); letter-spacing: 1px; text-transform: uppercase;
+  }
+  h1 { margin: 0 0 6px; font-size: 30px; line-height: 1.05; letter-spacing: -.01em; }
+  .lead { margin: 0 0 4px; color: var(--muted); font-size: 15px; max-width: 64ch; }
+
+  /* run meta strip */
+  .runmeta {
+    display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: baseline;
+    margin: 18px 0 8px; padding-bottom: 14px; border-bottom: 1px solid var(--line);
+  }
+  .runmeta .m { display: flex; flex-direction: column; gap: 2px; }
+  .runmeta .m b { font-size: 17px; font-variant-numeric: tabular-nums; }
+  .runmeta .m span { font: 600 10px/1 var(--mono); letter-spacing: .5px; text-transform: uppercase; color: var(--muted); }
+  .runmeta .verdict { margin-left: auto; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font: 600 12px/1 var(--mono); padding: 6px 11px; border-radius: 999px;
+    border: 1px solid var(--line);
+  }
+  .pill.redirect { color: var(--orange); border-color: color-mix(in srgb, var(--orange) 45%, var(--line)); background: var(--orange-soft); }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  /* layout: spine + minimap */
+  .stage { display: grid; grid-template-columns: 1fr 60px; gap: 18px; margin-top: 22px; }
+  @media (max-width: 720px) { .stage { grid-template-columns: 1fr; } .minimap { display: none; } }
+
+  /* ---- the spine ---- */
+  .spine { position: relative; }
+  /* the vertical line runs under the rail markers */
+  .move {
+    position: relative;
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    column-gap: 16px;
+  }
+  /* rail column */
+  .rail { position: relative; }
+  .rail::before {
+    content: ""; position: absolute; left: 27px; top: 0; bottom: -2px; width: 2px;
+    background: var(--line); z-index: var(--z-rail);
+  }
+  .move:first-child .rail::before { top: 22px; }
+  .move:last-child .rail::before { bottom: auto; height: 26px; }
+
+  /* node group (the body) */
+  .nodes { padding: 0 0 26px; }
+
+  /* a node = think / act / observe */
+  .node {
+    position: relative;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 12px 14px;
+    transition: border-color .18s var(--enter), box-shadow .18s var(--enter), transform .18s var(--enter), opacity .18s var(--enter);
+  }
+  .node + .node { margin-top: 8px; }
+  .node .role {
+    display: inline-flex; align-items: center; gap: 7px;
+    font: 600 10px/1 var(--mono); letter-spacing: .6px; text-transform: uppercase; color: var(--muted);
+    margin-bottom: 7px;
+  }
+  .node .role .ic { width: 13px; height: 13px; display: inline-grid; place-items: center; }
+  .node .body { font-size: 14px; }
+  .node .body code, .node pre {
+    font-family: var(--mono); font-size: 12.5px;
+  }
+  .node pre {
+    margin: 8px 0 0; padding: 9px 11px; border-radius: 7px;
+    background: var(--surface-soft); border: 1px solid var(--line);
+    overflow-x: auto; white-space: pre-wrap; word-break: break-word; color: var(--ink);
+  }
+
+  /* think node — the agent's stated intent */
+  .node.think { background: var(--surface-2); }
+  .node.think .body { color: var(--ink); }
+  .effort { display: inline-flex; align-items: center; gap: 8px; margin-top: 9px; }
+  .effort .beats { display: inline-flex; gap: 3px; }
+  .effort .beat { width: 5px; height: 5px; border-radius: 50%; background: color-mix(in srgb, var(--orange) 35%, var(--line)); }
+  .effort .beat.hot { background: var(--orange); }
+  .effort .lbl { font: 500 11px/1 var(--mono); color: var(--muted); }
+  .effort.redacted .lbl { font-style: normal; }
+
+  /* act node */
+  .node.act .body { color: var(--ink); }
+  .verb {
+    display: inline-flex; align-items: center; gap: 6px;
+    font: 600 12px/1 var(--mono); color: var(--ink);
+  }
+  .filechip {
+    display: inline-block; font: 500 11.5px/1 var(--mono); color: var(--muted);
+    background: var(--surface-soft); border: 1px solid var(--line);
+    padding: 4px 7px; border-radius: 6px; margin: 6px 6px 0 0;
+  }
+
+  /* observe node */
+  .node.observe { background: var(--surface); }
+  .node.observe.ok  { border-color: color-mix(in srgb, var(--success) 35%, var(--line)); }
+  .node.observe.err { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+  .node.observe .role .ic { color: var(--muted); }
+  .node.observe.ok  .role .ic { color: var(--success); }
+  .node.observe.err .role .ic { color: var(--danger); }
+  .outcome { font: 600 11px/1 var(--mono); }
+  .outcome.ok { color: var(--success); }
+  .outcome.err { color: var(--danger); }
+
+  /* rail marker (station) */
+  .station {
+    position: absolute; left: 20px; top: 14px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--surface-2); border: 2px solid var(--line-strong);
+    z-index: calc(var(--z-rail) + 1);
+    transition: border-color .2s var(--enter), background .2s var(--enter), box-shadow .2s var(--enter);
+  }
+  .move.is-redirect .station { border-color: var(--orange); }
+  .move.played .station { border-color: var(--orange); background: var(--orange); }
+
+  /* the causal connector: a kicked pulse from observation into the next thought */
+  .connector {
+    position: absolute; left: 27px; width: 2px; z-index: calc(var(--z-rail) + 1);
+    background: var(--orange);
+    transform-origin: top; transform: scaleY(0); opacity: 0;
+  }
+  .move.is-redirect.played .connector { animation: kick .5s var(--enter) forwards; }
+  @keyframes kick {
+    0% { transform: scaleY(0); opacity: 0; }
+    60% { transform: scaleY(1); opacity: 1; }
+    100% { transform: scaleY(1); opacity: 1; }
+  }
+  .redirect-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 8px; font: 600 11px/1 var(--mono); color: var(--orange);
+  }
+
+  /* focus / hover model */
+  .spine.has-focus .move:not(.focus) .node { opacity: .42; }
+  .move.focus .node { border-color: var(--line-strong); }
+  .move.focus .node.think { box-shadow: var(--shadow); border-color: color-mix(in srgb, var(--orange) 40%, var(--line)); transform: translateY(-1px); }
+
+  /* playhead highlight */
+  .move.current .station { box-shadow: 0 0 0 5px color-mix(in srgb, var(--orange) 22%, transparent); }
+  .move.current .node.think { border-color: var(--orange); }
+
+  /* minimap */
+  .minimap { position: sticky; top: 88px; align-self: start; height: max-content; }
+  .minimap .mtrack { display: flex; flex-direction: column; gap: 5px; align-items: center; }
+  .minimap button {
+    width: 26px; height: 26px; padding: 0; cursor: pointer;
+    border-radius: 7px; border: 1px solid var(--line); background: var(--surface-2);
+    display: grid; place-items: center;
+    transition: border-color .15s var(--enter), background .15s var(--enter), transform .12s var(--enter);
+  }
+  .minimap button:hover { transform: translateX(-2px); border-color: var(--line-strong); }
+  .minimap button .seg { width: 8px; height: 8px; border-radius: 2px; background: var(--line-strong); }
+  .minimap button.err .seg { background: var(--danger); }
+  .minimap button.redirect { border-color: var(--orange); }
+  .minimap button.current { border-color: var(--orange); background: var(--orange-soft); }
+  .minimap .cap { font: 600 9px/1 var(--mono); color: var(--muted); margin-top: 6px; writing-mode: vertical-rl; }
+
+  /* transport */
+  .transport {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+    z-index: var(--z-toolbar);
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 14px; border-radius: 14px;
+    background: var(--shell); border: 1px solid var(--shell-border);
+    backdrop-filter: blur(12px); box-shadow: var(--shadow); color: #fff;
+  }
+  .transport button {
+    font: inherit; font-size: 13px; color: #fff; cursor: pointer;
+    background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18);
+    border-radius: 9px; padding: 7px 12px;
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: background .15s var(--enter);
+  }
+  .transport button:hover { background: rgba(255,255,255,.22); }
+  .transport button.primary { background: var(--orange); border-color: var(--orange); }
+  .transport .pos { font: 600 12px/1 var(--mono); color: rgba(255,255,255,.85); min-width: 52px; text-align: center; }
+
+  /* progress scrubber */
+  .scrub { width: 200px; height: 5px; border-radius: 999px; background: rgba(255,255,255,.18); position: relative; cursor: pointer; overflow: hidden; }
+  .scrub .fill { position: absolute; inset: 0; transform-origin: left center; border-radius: 999px; background: var(--orange); transform: scaleX(0); transition: transform .25s var(--enter); }
+
+  svg.ic { display: block; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition-duration: .001ms !important; }
+    .connector { transform: scaleY(1); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+  <header class="shell">
+    <div class="brand">SuperView <span>Reasoning · causal spine (prototype)</span></div>
+    <div class="spacer"></div>
+    <button id="themeBtn" type="button" aria-pressed="false" title="Toggle theme">◐ Theme</button>
+  </header>
+
+  <main class="frame">
+    <p class="eyebrow">Reasoning → Action</p>
+    <h1>commit &amp; push</h1>
+    <p class="lead">Every stated thought, the action it caused, and what the agent observed back — read as one connected chain. Private deliberation shows as effort, never invented.</p>
+
+    <div class="runmeta">
+      <div class="m"><b id="mMoves">—</b><span>moves</span></div>
+      <div class="m"><b id="mTools">—</b><span>tool calls</span></div>
+      <div class="m"><b id="mRedirect">—</b><span>course-corrections</span></div>
+      <div class="m"><b>Claude Code</b><span>provider</span></div>
+      <div class="verdict"><span class="pill redirect"><span class="dot"></span> redirected mid-run</span></div>
+    </div>
+
+    <div class="stage">
+      <div class="spine" id="spine" aria-label="Reasoning causal spine"></div>
+      <nav class="minimap" aria-label="Chain minimap"><div class="mtrack" id="mtrack"></div></nav>
+    </div>
+  </main>
+
+  <div class="transport" role="group" aria-label="Replay transport">
+    <button id="playBtn" class="primary" type="button">▶ Play</button>
+    <button id="stepBack" type="button" title="Previous move">↑</button>
+    <span class="pos" id="pos">0 / 0</span>
+    <button id="stepFwd" type="button" title="Next move">↓</button>
+    <div class="scrub" id="scrub" role="slider" aria-label="Scrub run" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><div class="fill" id="scrubFill"></div></div>
+  </div>
+
+<script>
+/* ----- seeded from a real Claude Code journey (commit & push → no origin → correct) ----- */
+const MOVES = [
+  {
+    think: { text: "User asked to commit & push. Before anything, I should check the working tree and recent history so I don't commit blind.", effortTokens: 0, redacted: false },
+    act: { verb: "Ran", tool: "Bash", cmds: ["git status", "git diff --staged && git diff", "git log --oneline -10"], files: [] },
+    observe: { ok: true, text: "On branch main\nnothing to commit, working tree clean", outcome: "clean tree" }
+  },
+  {
+    think: { text: "Working tree is clean — there are no changes to commit. Let me push the current branch.", effortTokens: 0, redacted: true },
+    act: { verb: "Ran", tool: "Bash", cmds: ["git push origin main"], files: [] },
+    observe: { ok: false, text: "fatal: 'origin' does not appear to be a git repository\nfatal: Could not read from remote repository.", outcome: "push failed (exit 128)" },
+    redirect: true
+  },
+  {
+    think: { text: "No remote `origin` is configured for this repo, and there are no local changes. There's nothing to push to yet — I should stop and tell the user instead of guessing a remote URL.", effortTokens: 0, redacted: false },
+    act: { verb: "Reported", tool: null, cmds: [], files: [], note: "No remote configured. Suggested `git remote add origin <url>` and asked how to proceed." },
+    observe: { ok: true, text: "Awaiting user — proposed adding a remote.", outcome: "handed back to user" }
+  },
+  {
+    think: { text: "User supplied a remote (gitcode.com/SeanXDO/SuperView.git). Now I can add it and push with upstream tracking.", effortTokens: 0, redacted: true },
+    act: { verb: "Ran", tool: "Bash", cmds: ["git remote add origin https://gitcode.com/SeanXDO/SuperView.git", "git push -u origin main"], files: [] },
+    observe: { ok: true, text: "Branch 'main' set up to track 'origin/main'.\n  * [new branch]  main -> main", outcome: "pushed · upstream set" }
+  }
+];
+
+const IC = {
+  think: '<svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-4 10.5V17h8v-3.5A6 6 0 0 0 12 3Z"/><path d="M9 21h6"/></svg>',
+  act: '<svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+  observe: '<svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  ok: '<svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  err: '<svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  redirect: '<svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>'
+};
+
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+function effortHTML(think){
+  if (think.redacted){
+    return `<div class="effort redacted"><span class="beats">${'<span class="beat hot"></span>'.repeat(3)}</span><span class="lbl">private reasoning · redacted</span></div>`;
+  }
+  return "";
+}
+
+const spine = document.getElementById('spine');
+const mtrack = document.getElementById('mtrack');
+
+MOVES.forEach((mv, i) => {
+  const move = document.createElement('div');
+  move.className = 'move' + (mv.redirect ? ' is-redirect' : '');
+  move.dataset.i = i;
+
+  const actInner = mv.act.cmds.length
+    ? `<pre>${mv.act.cmds.map(esc).join('\n')}</pre>`
+    : (mv.act.note ? `<div class="body">${esc(mv.act.note)}</div>` : '');
+  const fileChips = (mv.act.files||[]).map(f => `<span class="filechip">${esc(f)}</span>`).join('');
+
+  move.innerHTML = `
+    <div class="rail">
+      <span class="station"></span>
+      <span class="connector" style="top:14px;height:calc(100% - 14px)"></span>
+    </div>
+    <div class="nodes">
+      <div class="node think">
+        <span class="role">${IC.think} Thought</span>
+        <div class="body">${esc(mv.think.text)}</div>
+        ${effortHTML(mv.think)}
+      </div>
+      <div class="node act">
+        <span class="role">${IC.act} Action</span>
+        <div class="body"><span class="verb">${mv.act.tool ? mv.act.tool : 'Response'} · ${esc(mv.act.verb)}</span></div>
+        ${actInner}${fileChips}
+      </div>
+      <div class="node observe ${mv.observe.ok ? 'ok':'err'}">
+        <span class="role">${mv.observe.ok ? IC.ok : IC.err} Observed · <span class="outcome ${mv.observe.ok?'ok':'err'}">${esc(mv.observe.outcome)}</span></span>
+        <pre>${esc(mv.observe.text)}</pre>
+        ${mv.redirect ? `<div class="redirect-tag">${IC.redirect} course-corrected the next thought</div>` : ''}
+      </div>
+    </div>`;
+  spine.appendChild(move);
+
+  // minimap segment
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = (mv.observe.ok ? '' : 'err ') + (mv.redirect ? 'redirect' : '');
+  btn.title = `Move ${i+1}`;
+  btn.innerHTML = '<span class="seg"></span>';
+  btn.addEventListener('click', () => goTo(i, true));
+  mtrack.appendChild(btn);
+
+  // hover focus
+  move.addEventListener('mouseenter', () => { spine.classList.add('has-focus'); move.classList.add('focus'); });
+  move.addEventListener('mouseleave', () => { spine.classList.remove('has-focus'); move.classList.remove('focus'); });
+  move.addEventListener('click', () => goTo(i, true));
+});
+
+const moves = [...spine.querySelectorAll('.move')];
+const mbtns = [...mtrack.querySelectorAll('button')];
+
+document.getElementById('mMoves').textContent = MOVES.length;
+document.getElementById('mTools').textContent = MOVES.filter(m=>m.act.tool).reduce((n,m)=>n+m.act.cmds.length,0);
+document.getElementById('mRedirect').textContent = MOVES.filter(m=>m.redirect).length;
+
+let cur = -1, playing = false, timer = null;
+const pos = document.getElementById('pos');
+const scrubFill = document.getElementById('scrubFill');
+const scrub = document.getElementById('scrub');
+
+function render(){
+  moves.forEach((mv,i)=>{
+    mv.classList.toggle('played', i <= cur);
+    mv.classList.toggle('current', i === cur);
+  });
+  mbtns.forEach((b,i)=> b.classList.toggle('current', i === cur));
+  pos.textContent = `${Math.max(0,cur+1)} / ${MOVES.length}`;
+  const pct = MOVES.length ? ((cur+1)/MOVES.length)*100 : 0;
+  scrubFill.style.transform = 'scaleX(' + (pct/100) + ')';
+  scrub.setAttribute('aria-valuenow', Math.round(pct));
+}
+function goTo(i, scrollTo){
+  cur = Math.max(-1, Math.min(MOVES.length-1, i));
+  render();
+  if (scrollTo && cur>=0) moves[cur].scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto':'smooth', block:'center'});
+}
+function play(){
+  if (cur >= MOVES.length-1) cur = -1;
+  playing = true; pbtn.textContent = '❚❚ Pause';
+  const tick = () => {
+    if (!playing) return;
+    if (cur >= MOVES.length-1){ stop(); return; }
+    goTo(cur+1, true);
+    timer = setTimeout(tick, 1400);
+  };
+  tick();
+}
+function stop(){ playing = false; clearTimeout(timer); pbtn.textContent = (cur>=MOVES.length-1?'↺ Replay':'▶ Play'); }
+
+const pbtn = document.getElementById('playBtn');
+pbtn.addEventListener('click', ()=> playing ? stop() : play());
+document.getElementById('stepFwd').addEventListener('click', ()=>{ stop(); goTo(cur+1, true); });
+document.getElementById('stepBack').addEventListener('click', ()=>{ stop(); goTo(cur-1, true); });
+scrub.addEventListener('click', (e)=>{ stop(); const r=scrub.getBoundingClientRect(); const p=(e.clientX-r.left)/r.width; goTo(Math.round(p*MOVES.length)-1, true); });
+window.addEventListener('keydown', (e)=>{
+  if (e.key==='ArrowDown'){ e.preventDefault(); stop(); goTo(cur+1, true); }
+  if (e.key==='ArrowUp'){ e.preventDefault(); stop(); goTo(cur-1, true); }
+  if (e.key===' '){ e.preventDefault(); playing?stop():play(); }
+});
+
+/* theme toggle */
+const tbtn = document.getElementById('themeBtn');
+tbtn.addEventListener('click', ()=>{
+  const dark = document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme', dark?'light':'dark');
+  tbtn.setAttribute('aria-pressed', String(!dark));
+});
+
+render();
+</script>
+</body>
+</html>

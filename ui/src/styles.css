@@ -5433,3 +5433,59 @@ pre {
     opacity: 1;
   }
 }
+
+/* Spine loading / empty states — centered in the conversation pane */
+.spine-state {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 18px;
+  min-height: 300px;
+  padding: 56px 24px;
+  text-align: center;
+}
+
+.spine-state-title {
+  margin: 0;
+  max-width: 44ch;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+}
+
+.spine-state-sub {
+  margin: -8px 0 0;
+  max-width: 46ch;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.spine-state-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: var(--r-full);
+  border: 1px solid color-mix(in srgb, var(--orange) 24%, var(--line));
+  background: color-mix(in srgb, var(--orange) 9%, var(--surface-2));
+  color: var(--orange);
+  box-shadow: var(--elev-1);
+}
+
+.spine-loader {
+  width: 36px;
+  height: 36px;
+  border: 3px solid color-mix(in srgb, var(--orange) 20%, var(--line));
+  border-top-color: var(--orange);
+  border-radius: var(--r-full);
+  animation: superview-spin 850ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spine-loader {
+    animation-duration: 2000ms;
+  }
+}

@@ -3519,10 +3519,22 @@ function CausalSpine({
   };
 
   if (loading && moves.length === 0) {
-    return <p className="muted">{copy.loadingDetails}</p>;
+    return (
+      <div className="spine-state" role="status" aria-live="polite">
+        <span className="spine-loader" aria-hidden="true" />
+        <p className="spine-state-title">{copy.loadingDetails}</p>
+      </div>
+    );
   }
   if (moves.length === 0) {
-    return <p className="muted">{copy.noBackground}</p>;
+    return (
+      <div className="spine-state spine-state-empty">
+        <span className="spine-state-icon" aria-hidden="true">
+          <ArchiveX size={26} />
+        </span>
+        <p className="spine-state-title">{copy.noBackground}</p>
+      </div>
+    );
   }
 
   const provider = providerFromSessionId(journey.sessionId);

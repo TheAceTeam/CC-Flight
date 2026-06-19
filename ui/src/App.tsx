@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Cloud,
   CornerUpLeft,
   Eye,
   FileText,
@@ -75,14 +76,14 @@ import {
   ModelPricing,
 } from "../../core/cost";
 
-type Theme = "light" | "dark" | "forest" | "plasma";
+type Theme = "light" | "dark" | "forest" | "plasma" | "morandi";
 type ProjectProviderFilter = AgentProvider | "all";
 type MetricKey = "projects" | "events" | "tasks" | "tokens";
 type ThreadDetailTab = "conversation" | "context";
 
 const PROJECT_TIMELINE_LIMIT = 100000;
 
-const THEME_OPTIONS: Theme[] = ["light", "dark", "forest", "plasma"];
+const THEME_OPTIONS: Theme[] = ["light", "dark", "forest", "plasma", "morandi"];
 
 function loadInitialTheme(): Theme {
   const stored = localStorage.getItem("superview-theme");
@@ -95,6 +96,7 @@ function ThemeIcon({ theme, size = 17 }: { theme: Theme; size?: number }) {
   if (theme === "light") return <Sun size={size} />;
   if (theme === "dark") return <Moon size={size} />;
   if (theme === "forest") return <Leaf size={size} />;
+  if (theme === "morandi") return <Cloud size={size} />;
   return <Sparkles size={size} />;
 }
 

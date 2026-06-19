@@ -62,6 +62,7 @@ export type AppCopy = {
       dark: string;
       forest: string;
       plasma: string;
+      morandi: string;
     };
   };
   topbar: { agentLogRoot: string; agentLogRootAria: string; agentLogRootPlaceholder: string; source: string; sourceAria: string; scan: string };
@@ -292,7 +293,8 @@ export const COPY: Record<Language, AppCopy> = {
         light: "Bright Command Center",
         dark: "Dark Command Center",
         forest: "Forest Lab",
-        plasma: "Plasma Violet"
+        plasma: "Plasma Violet",
+        morandi: "Morandi Dusk"
       }
     },
     topbar: {
@@ -631,7 +633,7 @@ export const COPY: Record<Language, AppCopy> = {
         },
         {
           title: "Theme & Language",
-          detail: "Switch between 4 themes (light, dark, forest, plasma), toggle English / 中文, or click the Map button in the topbar to restart this tour anytime."
+          detail: "Switch between 5 themes (light, dark, forest, plasma, Morandi), toggle English / 中文, or click the Map button in the topbar to restart this tour anytime."
         }
       ]
     }
@@ -649,7 +651,8 @@ export const COPY: Record<Language, AppCopy> = {
         light: "明亮指挥中心",
         dark: "暗色指挥中心",
         forest: "森林实验室",
-        plasma: "等离子紫"
+        plasma: "等离子紫",
+        morandi: "莫兰迪黄昏"
       }
     },
     topbar: {
@@ -988,7 +991,7 @@ export const COPY: Record<Language, AppCopy> = {
         },
         {
           title: "主题与语言",
-          detail: "4 种主题（明亮/暗色/森林/等离子紫）切换，中英文切换，或点击顶栏 Map 按钮随时重新开始此引导。"
+          detail: "5 种主题（明亮/暗色/森林/等离子紫/莫兰迪黄昏）切换，中英文切换，或点击顶栏 Map 按钮随时重新开始此引导。"
         }
       ]
     }

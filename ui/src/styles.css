@@ -142,6 +142,30 @@
     0 30px 60px -12px rgba(40, 10, 80, .60);
 }
 
+/* Morandi Dusk — desaturated mid-tone matte; terracotta accent replaces orange */
+[data-theme="morandi"] {
+  color-scheme: light;
+  --paper: #c9c3b7;
+  --surface: #c0b9ac;
+  --surface-2: #d6d1c7;
+  --surface-soft: #bbb3a6;
+  --line: #aea596;
+  --line-strong: #948b7b;
+  --ink: #332f29;
+  --muted: #514941;
+  --orange: #a85d42;
+  --orange-strong: #8d4c34;
+  --orange-soft: #ddccc0;
+  --blue: #5d7488;
+  --blue-soft: #ccd1d4;
+  --success: #5f8159;
+  --warning: #9c7d2e;
+  --danger: #a5544a;
+  --shell: rgba(42, 35, 29, .82);
+  --shell-border: rgba(244, 237, 226, .12);
+  --on-shell: #f2ede4;
+}
+
 * { box-sizing: border-box; }
 
 body {

@@ -37,6 +37,9 @@ SuperView is a local-first flight recorder for coding agents. It ingests session
     <td colspan="4" align="center"><img src="docs/assets/03.png" width="900" alt="SuperView screenshot" /></td>
   </tr>
   <tr>
+    <td colspan="4" align="center"><img src="docs/assets/08.png" width="900" alt="SuperView screenshot" /></td>
+  </tr>
+  <tr>
     <td><img src="docs/assets/04.png" width="100%" alt="SuperView screenshot" /></td>
     <td><img src="docs/assets/05.png" width="100%" alt="SuperView screenshot" /></td>
     <td><img src="docs/assets/06.png" width="100%" alt="SuperView screenshot" /></td>

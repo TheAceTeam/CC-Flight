@@ -37,6 +37,9 @@ SuperView 是一个本地优先的 coding agent 飞行记录器。它会读取 C
     <td colspan="4" align="center"><img src="docs/assets/03.png" width="900" alt="SuperView 截图" /></td>
   </tr>
   <tr>
+    <td colspan="4" align="center"><img src="docs/assets/08.png" width="900" alt="SuperView screenshot" /></td>
+  </tr>
+  <tr>
     <td><img src="docs/assets/04.png" width="100%" alt="SuperView 截图" /></td>
     <td><img src="docs/assets/05.png" width="100%" alt="SuperView 截图" /></td>
     <td><img src="docs/assets/06.png" width="100%" alt="SuperView 截图" /></td>

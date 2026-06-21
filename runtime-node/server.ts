@@ -1,8 +1,10 @@
 import express from "express";
+import type { Request } from "express";
 import { AgentProvider, AgentSourceConfig, TimelineLane, TimelineQuery } from "../core/types";
 import { buildContextReplay } from "../core/contextReplay";
 import { SuperViewDatabase } from "../storage/database";
 import { IngestService } from "./ingest";
+import { buildChromeDevToolsConfig, CHROME_DEVTOOLS_CONFIG_PATH } from "./chrome-devtools";
 
 export function createServer(opts?: { projectDir?: string }) {
   const db = new SuperViewDatabase();
@@ -21,6 +23,15 @@ export function createServer(opts?: { projectDir?: string }) {
   }
 
   app.use(express.json());
+
+  app.get(CHROME_DEVTOOLS_CONFIG_PATH, (_req, res) => {
+    if (!isLoopbackRequest(_req)) {
+      res.sendStatus(404);
+      return;
+    }
+    res.setHeader("Cache-Control", "no-store");
+    res.json(buildChromeDevToolsConfig());
+  });
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
@@ -197,3 +208,7 @@ function safeJsonParse(value: string): unknown {
   }
 }
 
+function isLoopbackRequest(req: Request) {
+  const remoteAddress = req.socket.remoteAddress ?? "";
+  return remoteAddress === "127.0.0.1" || remoteAddress === "::1" || remoteAddress === "::ffff:127.0.0.1";
+}

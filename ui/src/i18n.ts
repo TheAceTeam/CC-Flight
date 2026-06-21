@@ -398,7 +398,7 @@ export const COPY: Record<Language, AppCopy> = {
       insightBoardEmpty: "No high-risk runs detected.",
       insightBoardCompact: "Compact insight board",
       insightBoardExpand: "Expand insight board",
-      insightScore: "score",
+      insightScore: "health",
       insightTools: "tools",
       insightFiles: "files",
       insightSignals: {
@@ -780,7 +780,7 @@ export const COPY: Record<Language, AppCopy> = {
       insightBoardEmpty: "未检测到高风险运行。",
       insightBoardCompact: "精简洞察面板",
       insightBoardExpand: "展开洞察面板",
-      insightScore: "分数",
+      insightScore: "健康分",
       insightTools: "工具",
       insightFiles: "文件",
       insightSignals: {

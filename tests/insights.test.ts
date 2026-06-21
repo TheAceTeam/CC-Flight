@@ -5,7 +5,7 @@ import { buildJourneyInsights, scoreJourney } from "../ui/src/insights";
 const zeroTokens = { input: 0, output: 0, reasoning: 0, cachedInput: 0, total: 0 };
 
 describe("journey insights", () => {
-  it("prioritizes patch work that lacks verification evidence", () => {
+  it("scores risky patch work as a low health score out of 100", () => {
     const journey = makeJourney("j-risk", {
       tokenUsage: { input: 16000, output: 1200, reasoning: 800, cachedInput: 0, total: 18000 },
       eventIds: ["prompt", "edit", "read-1", "read-2", "read-3", "read-4"],
@@ -22,16 +22,23 @@ describe("journey insights", () => {
     const insight = scoreJourney(journey, events);
 
     expect(insight.severity).toBe("high");
+    expect(insight.score).toBeGreaterThanOrEqual(0);
+    expect(insight.score).toBeLessThan(60);
     expect(insight.primaryKind).toBe("missing_verification");
     expect(insight.signals.map((signal) => signal.kind)).toEqual(
       expect.arrayContaining(["missing_verification", "high_cost", "tool_loop", "file_blast"]),
     );
   });
 
-  it("ranks high-signal runs above ordinary verified runs", () => {
+  it("only surfaces low-scoring runs and ranks the lowest health score first", () => {
     const risky = makeJourney("j-risk", {
       tokenUsage: { input: 12000, output: 1000, reasoning: 0, cachedInput: 0, total: 13000 },
       eventIds: ["risk-prompt", "risk-change"],
+    });
+    const veryRisky = makeJourney("j-very-risk", {
+      status: "failed",
+      tokenUsage: { input: 20000, output: 4000, reasoning: 0, cachedInput: 0, total: 24000 },
+      eventIds: ["very-prompt", "very-change", "very-error"],
     });
     const ordinary = makeJourney("j-ok", {
       eventIds: ["ok-prompt", "ok-change", "ok-test"],
@@ -39,15 +46,18 @@ describe("journey insights", () => {
     const events = new Map([
       ["risk-prompt", event("risk-prompt", "user_prompt", "Product", "Risky")],
       ["risk-change", event("risk-change", "file_change", "Code", "Patch")],
+      ["very-prompt", event("very-prompt", "user_prompt", "Product", "Very risky")],
+      ["very-change", event("very-change", "file_change", "Code", "Patch", { files: ["a.ts", "b.ts", "c.ts", "d.ts", "e.ts"] })],
+      ["very-error", event("very-error", "error", "Risks", "Failed", { status: "failed" })],
       ["ok-prompt", event("ok-prompt", "user_prompt", "Product", "OK")],
       ["ok-change", event("ok-change", "file_change", "Code", "Patch")],
       ["ok-test", event("ok-test", "verification", "Verification", "Tests passed")],
     ]);
 
-    const insights = buildJourneyInsights([ordinary, risky], events, 2);
+    const insights = buildJourneyInsights([ordinary, risky, veryRisky], events, 3);
 
-    expect(insights[0].journeyId).toBe("j-risk");
-    expect(insights[0].signals.some((signal) => signal.kind === "missing_verification")).toBe(true);
+    expect(insights.map((insight) => insight.journeyId)).toEqual(["j-very-risk", "j-risk"]);
+    expect(insights[0].score).toBeLessThan(insights[1].score);
     expect(insights.some((insight) => insight.journeyId === "j-ok")).toBe(false);
   });
 });

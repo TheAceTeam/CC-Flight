@@ -12,7 +12,7 @@ export type InsightSignalKind =
 
 export interface JourneyInsightSignal {
   kind: InsightSignalKind;
-  score: number;
+  penalty: number;
   metric: number;
 }
 
@@ -38,11 +38,12 @@ export function buildJourneyInsights(
   journeys: TaskJourney[],
   timelineEventsById: Map<string, TimelineEvent>,
   maxInsights = 3,
+  attentionThreshold = 60,
 ): JourneyInsight[] {
   return journeys
     .map((journey, index) => ({ insight: scoreJourney(journey, timelineEventsById), index }))
-    .filter(({ insight }) => insight.score > 0)
-    .sort((a, b) => b.insight.score - a.insight.score || a.index - b.index)
+    .filter(({ insight }) => insight.score < attentionThreshold)
+    .sort((a, b) => a.insight.score - b.insight.score || a.index - b.index)
     .map(({ insight }) => insight)
     .slice(0, maxInsights);
 }
@@ -71,10 +72,10 @@ export function scoreJourney(
   const repeatedToolPressure = maxRepeatedToolCount(events);
 
   if (changedWithoutVerification) {
-    signals.push({ kind: "missing_verification", score: 42, metric: 1 });
+    signals.push({ kind: "missing_verification", penalty: 42, metric: 1 });
   }
   if (journey.status === "failed") {
-    signals.push({ kind: "failed_run", score: 38, metric: 1 });
+    signals.push({ kind: "failed_run", penalty: 38, metric: 1 });
   }
   if (
     repeatedToolPressure >= 4 &&
@@ -82,46 +83,47 @@ export function scoreJourney(
   ) {
     signals.push({
       kind: "tool_loop",
-      score: Math.min(28, 10 + repeatedToolPressure * 3),
+      penalty: Math.min(28, 10 + repeatedToolPressure * 3),
       metric: repeatedToolPressure,
     });
   }
   if (tokenTotal >= 10_000) {
     signals.push({
       kind: "high_cost",
-      score: Math.min(30, 10 + Math.round(tokenTotal / 5000)),
+      penalty: Math.min(30, 10 + Math.round(tokenTotal / 5000)),
       metric: tokenTotal,
     });
   }
   if (files >= 5) {
     signals.push({
       kind: "file_blast",
-      score: Math.min(24, 8 + files * 2),
+      penalty: Math.min(24, 8 + files * 2),
       metric: files,
     });
   }
   if (errors > 0) {
     signals.push({
       kind: "error_pressure",
-      score: Math.min(24, 8 + errors * 5),
+      penalty: Math.min(24, 8 + errors * 5),
       metric: errors,
     });
   }
   if (contextEvents >= 10) {
     signals.push({
       kind: "context_churn",
-      score: Math.min(20, 6 + Math.round(contextEvents / 2)),
+      penalty: Math.min(20, 6 + Math.round(contextEvents / 2)),
       metric: contextEvents,
     });
   }
 
-  const score = signals.reduce((sum, signal) => sum + signal.score, 0);
-  const primaryKind = [...signals].sort((a, b) => b.score - a.score)[0]?.kind ?? "high_cost";
+  const totalPenalty = signals.reduce((sum, signal) => sum + signal.penalty, 0);
+  const score = Math.max(0, Math.min(100, 100 - totalPenalty));
+  const primaryKind = [...signals].sort((a, b) => b.penalty - a.penalty)[0]?.kind ?? "high_cost";
 
   return {
     id: `insight-${journey.id}`,
     journeyId: journey.id,
-    severity: score >= 48 ? "high" : score >= 24 ? "medium" : "low",
+    severity: score < 40 ? "high" : score < 60 ? "medium" : "low",
     score,
     title: journey.title,
     primaryKind,

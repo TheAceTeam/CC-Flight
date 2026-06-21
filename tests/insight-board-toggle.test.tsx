@@ -76,10 +76,10 @@ const insight: JourneyInsight = {
   id: "insight-risk",
   journeyId: "journey-risk",
   severity: "medium",
-  score: 28,
+  score: 58,
   title: "Risky task",
   primaryKind: "tool_loop",
-  signals: [{ kind: "tool_loop", score: 28, metric: 4 }],
+  signals: [{ kind: "tool_loop", penalty: 42, metric: 4 }],
   metrics: {
     tokens: 12_900,
     toolCalls: 4,

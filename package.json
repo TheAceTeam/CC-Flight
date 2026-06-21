@@ -1,6 +1,6 @@
 {
   "name": "@seanxdo/superview",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "description": "Coding-agent flight recorder — timeline dashboard with replayable agent-run drill-downs.",
   "type": "module",
   "license": "MIT",

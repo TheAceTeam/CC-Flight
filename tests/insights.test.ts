@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TaskJourney, TimelineEvent } from "../core/types";
-import { buildJourneyInsights, scoreJourney } from "../ui/src/insights";
+import { buildJourneyInsights, scoreJourney, scoreJourneys } from "../ui/src/insights";
 
 const zeroTokens = { input: 0, output: 0, reasoning: 0, cachedInput: 0, total: 0 };
 
@@ -30,7 +30,7 @@ describe("journey insights", () => {
     );
   });
 
-  it("only surfaces low-scoring runs and ranks the lowest health score first", () => {
+  it("scores every input session and marks healthy sessions green", () => {
     const risky = makeJourney("j-risk", {
       tokenUsage: { input: 12000, output: 1000, reasoning: 0, cachedInput: 0, total: 13000 },
       eventIds: ["risk-prompt", "risk-change"],
@@ -54,11 +54,65 @@ describe("journey insights", () => {
       ["ok-test", event("ok-test", "verification", "Verification", "Tests passed")],
     ]);
 
-    const insights = buildJourneyInsights([ordinary, risky, veryRisky], events, 3);
+    const scores = scoreJourneys([ordinary, risky, veryRisky], events);
+
+    expect(scores.map((insight) => insight.journeyId)).toEqual(["j-ok", "j-risk", "j-very-risk"]);
+    expect(scores.find((insight) => insight.journeyId === "j-ok")?.severity).toBe("low");
+    expect(scores.find((insight) => insight.journeyId === "j-ok")?.score).toBeGreaterThan(80);
+  });
+
+  it("surfaces red sessions first, then the lowest yellow sessions when no red exists", () => {
+    const red = makeJourney("j-red", {
+      status: "failed",
+      tokenUsage: { input: 20000, output: 4000, reasoning: 0, cachedInput: 0, total: 24000 },
+      eventIds: ["red-prompt", "red-change", "red-error"],
+    });
+    const yellow = makeJourney("j-yellow", {
+      eventIds: ["yellow-prompt", "yellow-tool-1", "yellow-tool-2", "yellow-tool-3", "yellow-tool-4"],
+    });
+    const green = makeJourney("j-green", {
+      eventIds: ["green-prompt", "green-change", "green-test"],
+    });
+    const events = new Map([
+      ["red-prompt", event("red-prompt", "user_prompt", "Product", "Red")],
+      ["red-change", event("red-change", "file_change", "Code", "Patch", { files: ["a.ts", "b.ts", "c.ts", "d.ts", "e.ts"] })],
+      ["red-error", event("red-error", "error", "Risks", "Failed", { status: "failed" })],
+      ["yellow-prompt", event("yellow-prompt", "user_prompt", "Product", "Yellow")],
+      ["yellow-tool-1", event("yellow-tool-1", "tool_call", "Code", "Read", { toolName: "exec_command" })],
+      ["yellow-tool-2", event("yellow-tool-2", "tool_call", "Code", "Read", { toolName: "exec_command" })],
+      ["yellow-tool-3", event("yellow-tool-3", "tool_call", "Code", "Read", { toolName: "exec_command" })],
+      ["yellow-tool-4", event("yellow-tool-4", "tool_call", "Code", "Read", { toolName: "exec_command" })],
+      ["green-prompt", event("green-prompt", "user_prompt", "Product", "Green")],
+      ["green-change", event("green-change", "file_change", "Code", "Patch")],
+      ["green-test", event("green-test", "verification", "Verification", "Tests passed")],
+    ]);
+
+    expect(buildJourneyInsights([green, yellow, red], events, 3).map((insight) => insight.journeyId)).toEqual(["j-red"]);
+    expect(buildJourneyInsights([green, yellow], events, 3).map((insight) => insight.journeyId)).toEqual(["j-yellow"]);
+  });
+
+  it("ranks selected attention sessions by lowest health score first", () => {
+    const risky = makeJourney("j-risk", {
+      tokenUsage: { input: 12000, output: 1000, reasoning: 0, cachedInput: 0, total: 13000 },
+      eventIds: ["risk-prompt", "risk-change"],
+    });
+    const veryRisky = makeJourney("j-very-risk", {
+      status: "failed",
+      tokenUsage: { input: 20000, output: 4000, reasoning: 0, cachedInput: 0, total: 24000 },
+      eventIds: ["very-prompt", "very-change", "very-error"],
+    });
+    const events = new Map([
+      ["risk-prompt", event("risk-prompt", "user_prompt", "Product", "Risky")],
+      ["risk-change", event("risk-change", "file_change", "Code", "Patch")],
+      ["very-prompt", event("very-prompt", "user_prompt", "Product", "Very risky")],
+      ["very-change", event("very-change", "file_change", "Code", "Patch", { files: ["a.ts", "b.ts", "c.ts", "d.ts", "e.ts"] })],
+      ["very-error", event("very-error", "error", "Risks", "Failed", { status: "failed" })],
+    ]);
+
+    const insights = buildJourneyInsights([risky, veryRisky], events, 3);
 
     expect(insights.map((insight) => insight.journeyId)).toEqual(["j-very-risk", "j-risk"]);
     expect(insights[0].score).toBeLessThan(insights[1].score);
-    expect(insights.some((insight) => insight.journeyId === "j-ok")).toBe(false);
   });
 });
 

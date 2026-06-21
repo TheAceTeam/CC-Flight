@@ -69,7 +69,7 @@ import {
 import { DailyTokenUsagePanel } from "./DailyTokenUsagePanel";
 import { resolveAutoSelectId } from "./autoSelect";
 import { AppCopy, COPY, IngestCopy, Language, TourCopy, normalizeLanguage } from "./i18n";
-import { buildJourneyInsights } from "./insights";
+import { buildJourneyInsights, scoreJourneys } from "./insights";
 import type { InsightSignalKind, JourneyInsight } from "./insights";
 import { formatMillionTokens } from "./tokenFormat";
 import {
@@ -1452,6 +1452,16 @@ function ConversationThread({
     () => buildJourneyInsights(orderedJourneys, timelineEventsById),
     [orderedJourneys, timelineEventsById],
   );
+  const journeyHealthById = useMemo(
+    () =>
+      new Map(
+        scoreJourneys(orderedJourneys, timelineEventsById).map((insight) => [
+          insight.journeyId,
+          insight,
+        ]),
+      ),
+    [orderedJourneys, timelineEventsById],
+  );
   const [selectedJourneyId, setSelectedJourneyId] = useState<string | null>(
     null,
   );
@@ -1618,6 +1628,7 @@ function ConversationThread({
               }
               active={journey.id === selectedJourney?.id}
               loading={Boolean(loadingJourneyIds[journey.id])}
+              health={journeyHealthById.get(journey.id) ?? null}
               timelineEventsById={timelineEventsById}
               onSelect={() => setSelectedJourneyId(journey.id)}
             />
@@ -1844,6 +1855,7 @@ function ConversationMasterItem({
   fallbackPrompt,
   active,
   loading,
+  health,
   timelineEventsById,
   onSelect,
 }: {
@@ -1852,10 +1864,12 @@ function ConversationMasterItem({
   fallbackPrompt: TimelineEvent | null;
   active: boolean;
   loading: boolean;
+  health: JourneyInsight | null;
   timelineEventsById: Map<string, TimelineEvent>;
   onSelect: () => void;
 }) {
   const promptText = fallbackPrompt?.detail ?? journey.title;
+  const healthSeverity = health ? healthSeverityClass(health.score) : "green";
   return (
     <button
       type="button"
@@ -1864,7 +1878,17 @@ function ConversationMasterItem({
       aria-current={active ? "true" : undefined}
       onClick={onSelect}
     >
-      <span>{formatDate(journey.startedAt, copy)}</span>
+      <span className="conversation-master-meta">
+        <span>{formatDate(journey.startedAt, copy)}</span>
+        {health ? (
+          <span
+            className={`journey-health-badge ${healthSeverity}`}
+            aria-label={`${copy.insightScore} ${Math.round(health.score)}`}
+          >
+            {Math.round(health.score)}
+          </span>
+        ) : null}
+      </span>
       <strong>{promptText}</strong>
       {active ? (
         <EventTape
@@ -1880,6 +1904,12 @@ function ConversationMasterItem({
       {loading ? <small>{copy.loadingDetails}</small> : null}
     </button>
   );
+}
+
+function healthSeverityClass(score: number) {
+  if (score < 60) return "red";
+  if (score <= 80) return "yellow";
+  return "green";
 }
 
 function ContextReplayPanel({

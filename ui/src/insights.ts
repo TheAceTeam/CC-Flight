@@ -38,14 +38,26 @@ export function buildJourneyInsights(
   journeys: TaskJourney[],
   timelineEventsById: Map<string, TimelineEvent>,
   maxInsights = 3,
-  attentionThreshold = 60,
 ): JourneyInsight[] {
-  return journeys
-    .map((journey, index) => ({ insight: scoreJourney(journey, timelineEventsById), index }))
-    .filter(({ insight }) => insight.score < attentionThreshold)
+  const scored = scoreJourneys(journeys, timelineEventsById).map((insight, index) => ({
+    insight,
+    index,
+  }));
+  const red = scored.filter(({ insight }) => insight.score < 60);
+  const yellow = scored.filter(({ insight }) => insight.score >= 60 && insight.score <= 80);
+  const attention = red.length > 0 ? red : yellow;
+
+  return attention
     .sort((a, b) => a.insight.score - b.insight.score || a.index - b.index)
     .map(({ insight }) => insight)
     .slice(0, maxInsights);
+}
+
+export function scoreJourneys(
+  journeys: TaskJourney[],
+  timelineEventsById: Map<string, TimelineEvent>,
+): JourneyInsight[] {
+  return journeys.map((journey) => scoreJourney(journey, timelineEventsById));
 }
 
 export function scoreJourney(

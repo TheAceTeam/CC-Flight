@@ -756,14 +756,15 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
   const detailsPane = page.getByLabel("Conversation details");
   await expect(masterList).toBeVisible();
   await expect(detailsPane).toBeVisible();
-  const insightBoard = page.getByLabel("High-signal task insights");
+  const insightBoard = page.getByLabel("Sessions needing attention");
   await expect(insightBoard).toBeVisible();
-  await expect(insightBoard.getByText("Insight Board")).toBeVisible();
+  await expect(insightBoard.getByText("Attention Board")).toBeVisible();
   await expect(insightBoard.getByText("Tool loop pressure").first()).toBeVisible();
   await insightBoard.getByRole("button").first().click();
   await expect(detailsPane.getByText("Build task journey from input 300")).toBeVisible();
   await expect(page.locator(".conversation-master-item")).toHaveCount(5);
   await expect(page.locator(".conversation-master-item").first()).toContainText("Build task journey from input 300");
+  await expect(page.locator(".conversation-master-item").first().getByLabel(/health \d+/)).toBeVisible();
   await expect(page.locator(".conversation-master-item").nth(1)).toContainText("Build task journey from input 225");
   await expect(page.locator(".conversation-master-item").nth(2)).toContainText("Build task journey from input 150");
   await expect(page.locator(".conversation-master-item").nth(3)).toContainText("Build task journey from input 75");

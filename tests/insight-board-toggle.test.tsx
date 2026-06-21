@@ -27,7 +27,7 @@ describe("InsightBoard mode toggle", () => {
       />,
     );
 
-    const board = screen.getByLabelText("High-signal task insights");
+    const board = screen.getByLabelText("Sessions needing attention");
     expect(within(board).getByText("Tool loop pressure")).toBeInTheDocument();
     expect(within(board).queryByText("4 repeated tool calls")).not.toBeInTheDocument();
     expect(within(board).queryByText("4 tools")).not.toBeInTheDocument();
@@ -66,7 +66,7 @@ describe("InsightBoard mode toggle", () => {
       />,
     );
 
-    const board = screen.getByLabelText("High-signal task insights");
+    const board = screen.getByLabelText("Sessions needing attention");
     expect(within(board).getByText("4 repeated tool calls")).toBeInTheDocument();
     expect(within(board).getByRole("button", { name: "Compact insight board" })).toBeInTheDocument();
   });

@@ -1,7 +1,7 @@
 {
-  "name": "@seanxdo/superview",
+  "name": "cc-flight",
   "version": "0.3.0",
-  "description": "Coding-agent flight recorder — timeline dashboard with replayable agent-run drill-downs.",
+  "description": "Flight recorder for Claude Code and coding agents — timeline dashboard with replayable agent-run drill-downs.",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -9,6 +9,8 @@
     "url": "git+https://github.com/TheAceTeam/SuperView.git"
   },
   "keywords": [
+    "cc",
+    "claude",
     "codex",
     "claude-code",
     "ai-agent",
@@ -18,7 +20,8 @@
     "developer-tools"
   ],
   "bin": {
-    "superview": "runtime-node/cli-start.js"
+    "cc-flight": "runtime-node/cli-start.js",
+    "ccflight": "runtime-node/cli-start.js"
   },
   "files": [
     "runtime-node/",

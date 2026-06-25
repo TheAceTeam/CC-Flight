@@ -5,22 +5,22 @@
 ## 快速开始
 
 ```bash
-npx --yes @seanxdo/superview@latest
+npx --yes cc-flight@latest
 ```
 
 或全局安装：
 
 ```bash
-npm install -g @seanxdo/superview
-superview
+npm install -g cc-flight
+ccflight
 ```
 
 从指定项目目录启动——SuperView 会自动扫描并默认选中该项目：
 
 ```bash
-superview .                          # 当前目录
-superview /path/to/your/project      # 绝对路径
-superview --project-dir=/path/to/project
+ccflight .                          # 当前目录
+ccflight /path/to/your/project      # 绝对路径
+ccflight --project-dir=/path/to/project
 ```
 
 然后打开 **http://127.0.0.1:5174**，扫描你的 agent 日志即可。

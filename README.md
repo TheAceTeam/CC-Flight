@@ -5,22 +5,22 @@
 ## Quick Start
 
 ```bash
-npx @seanxdo/superview
+npx cc-flight
 ```
 
 Or install globally:
 
 ```bash
-npm install -g @seanxdo/superview
-superview
+npm install -g cc-flight
+ccflight
 ```
 
 Launch pre-focused on a project directory — SuperView auto-scans and selects that project on open:
 
 ```bash
-superview .                          # current directory
-superview /path/to/your/project      # absolute path
-superview --project-dir=/path/to/project
+ccflight .                          # current directory
+ccflight /path/to/your/project      # absolute path
+ccflight --project-dir=/path/to/project
 ```
 
 Then open **http://127.0.0.1:5174** and scan your agent logs.

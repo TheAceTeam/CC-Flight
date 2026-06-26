@@ -1,4 +1,4 @@
-# SuperView
+# CC Flight
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
@@ -15,7 +15,7 @@ npm install -g cc-flight
 ccflight
 ```
 
-Launch pre-focused on a project directory — SuperView auto-scans and selects that project on open:
+Launch pre-focused on a project directory — CC Flight auto-scans and selects that project on open:
 
 ```bash
 ccflight .                          # current directory
@@ -25,7 +25,7 @@ ccflight --project-dir=/path/to/project
 
 Then open **http://127.0.0.1:5174** and scan your agent logs.
 
-SuperView is a local-first flight recorder for coding agents. It ingests session logs from Codex, Claude Code, and OpenCode, reconstructs every task journey, and surfaces hidden agent work — context snapshots, tool calls, cost, errors, and project telemetry — in a single dashboard.
+CC Flight is a local-first flight recorder for coding agents. It ingests session logs from Codex, Claude Code, and OpenCode, reconstructs every task journey, and surfaces hidden agent work — context snapshots, tool calls, cost, errors, and project telemetry — in a single dashboard.
 
 ## Package Rename
 
@@ -50,19 +50,19 @@ For future updates, switch scripts and docs to `cc-flight` or `ccflight`.
 
 <table>
   <tr>
-    <td colspan="4" align="center"><img src="docs/assets/02.png" width="900" alt="SuperView screenshot" /></td>
+    <td colspan="4" align="center"><img src="docs/assets/02.png" width="900" alt="CC Flight screenshot" /></td>
   </tr>
   <tr>
-    <td colspan="4" align="center"><img src="docs/assets/03.png" width="900" alt="SuperView screenshot" /></td>
+    <td colspan="4" align="center"><img src="docs/assets/03.png" width="900" alt="CC Flight screenshot" /></td>
   </tr>
   <tr>
-    <td colspan="4" align="center"><img src="docs/assets/08.png" width="900" alt="SuperView screenshot" /></td>
+    <td colspan="4" align="center"><img src="docs/assets/08.png" width="900" alt="CC Flight screenshot" /></td>
   </tr>
   <tr>
-    <td><img src="docs/assets/04.png" width="100%" alt="SuperView screenshot" /></td>
-    <td><img src="docs/assets/05.png" width="100%" alt="SuperView screenshot" /></td>
-    <td><img src="docs/assets/06.png" width="100%" alt="SuperView screenshot" /></td>
-    <td><img src="docs/assets/07.png" width="100%" alt="SuperView screenshot" /></td>
+    <td><img src="docs/assets/04.png" width="100%" alt="CC Flight screenshot" /></td>
+    <td><img src="docs/assets/05.png" width="100%" alt="CC Flight screenshot" /></td>
+    <td><img src="docs/assets/06.png" width="100%" alt="CC Flight screenshot" /></td>
+    <td><img src="docs/assets/07.png" width="100%" alt="CC Flight screenshot" /></td>
   </tr>
 </table>
 
@@ -233,4 +233,4 @@ SUPERVIEW_PORT         # Production server port (default: 5174)
 
 ## Privacy
 
-SuperView is local-first. No accounts, no cloud sync, no remote backend. Raw agent logs stay on your machine. Normalized records are stored in a local SQLite database. Evidence views expose only redacted payloads with source provenance (path, line, timestamp, hash) — enough for debugging, not raw dumps.
+CC Flight is local-first. No accounts, no cloud sync, no remote backend. Raw agent logs stay on your machine. Normalized records are stored in a local SQLite database. Evidence views expose only redacted payloads with source provenance (path, line, timestamp, hash) — enough for debugging, not raw dumps.

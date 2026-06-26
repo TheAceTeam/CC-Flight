@@ -1,4 +1,4 @@
-# SuperView
+# CC Flight
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
@@ -15,7 +15,7 @@ npm install -g cc-flight
 ccflight
 ```
 
-从指定项目目录启动——SuperView 会自动扫描并默认选中该项目：
+从指定项目目录启动——CC Flight 会自动扫描并默认选中该项目：
 
 ```bash
 ccflight .                          # 当前目录
@@ -25,7 +25,7 @@ ccflight --project-dir=/path/to/project
 
 然后打开 **http://127.0.0.1:5174**，扫描你的 agent 日志即可。
 
-SuperView 是一个本地优先的 coding agent 飞行记录器。它会读取 Codex、Claude Code 和 OpenCode 的 session 日志，重建每一轮任务旅程，并将隐藏的 agent 工作——上下文快照、工具调用、成本、错误和项目遥测——呈现在一个统一的仪表盘中。
+CC Flight 是一个本地优先的 coding agent 飞行记录器。它会读取 Codex、Claude Code 和 OpenCode 的 session 日志，重建每一轮任务旅程，并将隐藏的 agent 工作——上下文快照、工具调用、成本、错误和项目遥测——呈现在一个统一的仪表盘中。
 
 ## 包名迁移
 
@@ -50,19 +50,19 @@ superview
 
 <table>
   <tr>
-    <td colspan="4" align="center"><img src="docs/assets/02.png" width="900" alt="SuperView 截图" /></td>
+    <td colspan="4" align="center"><img src="docs/assets/02.png" width="900" alt="CC Flight 截图" /></td>
   </tr>
   <tr>
-    <td colspan="4" align="center"><img src="docs/assets/03.png" width="900" alt="SuperView 截图" /></td>
+    <td colspan="4" align="center"><img src="docs/assets/03.png" width="900" alt="CC Flight 截图" /></td>
   </tr>
   <tr>
-    <td colspan="4" align="center"><img src="docs/assets/08.png" width="900" alt="SuperView screenshot" /></td>
+    <td colspan="4" align="center"><img src="docs/assets/08.png" width="900" alt="CC Flight screenshot" /></td>
   </tr>
   <tr>
-    <td><img src="docs/assets/04.png" width="100%" alt="SuperView 截图" /></td>
-    <td><img src="docs/assets/05.png" width="100%" alt="SuperView 截图" /></td>
-    <td><img src="docs/assets/06.png" width="100%" alt="SuperView 截图" /></td>
-    <td><img src="docs/assets/07.png" width="100%" alt="SuperView 截图" /></td>
+    <td><img src="docs/assets/04.png" width="100%" alt="CC Flight 截图" /></td>
+    <td><img src="docs/assets/05.png" width="100%" alt="CC Flight 截图" /></td>
+    <td><img src="docs/assets/06.png" width="100%" alt="CC Flight 截图" /></td>
+    <td><img src="docs/assets/07.png" width="100%" alt="CC Flight 截图" /></td>
   </tr>
 </table>
 
@@ -233,4 +233,4 @@ SUPERVIEW_PORT         # 生产服务器端口（默认：5174）
 
 ## 隐私
 
-SuperView 完全本地运行。无需账号、云同步或远程后端。原始 agent 日志始终留在你的机器上。标准化记录存储在本地 SQLite 数据库中。证据视图仅暴露脱敏 payload 及来源信息（路径、行号、时间戳、哈希），足以用于调试，但不会泄露原始内容。
+CC Flight 完全本地运行。无需账号、云同步或远程后端。原始 agent 日志始终留在你的机器上。标准化记录存储在本地 SQLite 数据库中。证据视图仅暴露脱敏 payload 及来源信息（路径、行号、时间戳、哈希），足以用于调试，但不会泄露原始内容。

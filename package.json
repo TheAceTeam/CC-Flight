@@ -1,6 +1,6 @@
 {
   "name": "cc-flight",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "Flight recorder for Claude Code and coding agents — timeline dashboard with replayable agent-run drill-downs.",
   "type": "module",
   "license": "MIT",

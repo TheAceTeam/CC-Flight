@@ -79,7 +79,7 @@ export type AppCopy = {
     scan: string;
   };
   title: { eyebrow: string; emptyProject: string; lead: string; share: string; shareCopied: string; shareCardTitle: string; shareCopy: string; shareCopyMarkdown: string; shareDownloadPng: string; shareClose: string; sharePngSaved: string; shareUsageByDay: string };
-  projectControls: { provider: string; providerAria: string; project: string; projectAria: string; all: string; noProvider: string };
+  projectControls: { provider: string; providerAria: string; project: string; projectAria: string; all: string; noProvider: string; search: string; noSearchResults: string };
   metrics: { projects: string; events: string; tasks: string; tokens: string; kvHit: string; cost: string; showDailyTokens: string; hideDailyTokens: string; dailyUsageByDay: string };
   empty: {
     loadingTitle: string;
@@ -357,7 +357,9 @@ export const COPY: Record<Language, AppCopy> = {
       project: "Project",
       projectAria: "Project",
       all: "All",
-      noProvider: "No provider"
+      noProvider: "No provider",
+      search: "Search projects",
+      noSearchResults: "No matching projects"
     },
     metrics: {
       projects: "Projects",
@@ -743,7 +745,9 @@ export const COPY: Record<Language, AppCopy> = {
       project: "项目",
       projectAria: "项目",
       all: "全部",
-      noProvider: "无来源"
+      noProvider: "无来源",
+      search: "搜索项目",
+      noSearchResults: "没有匹配项目"
     },
     metrics: {
       projects: "项目",

@@ -176,6 +176,7 @@ export function App() {
   const [projectProviderFilter, setProjectProviderFilter] =
     useState<ProjectProviderFilter>("all");
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+  const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [agentLogRoot, setAgentLogRoot] = useState("");
   const [scanPanelOpen, setScanPanelOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -623,12 +624,16 @@ export function App() {
     }
   }
 
-  const filteredProjects = useMemo(
+  const providerFilteredProjects = useMemo(
     () => filterProjectsByProvider(projects, projectProviderFilter),
     [projects, projectProviderFilter],
   );
+  const filteredProjects = useMemo(
+    () => filterProjectsBySearch(providerFilteredProjects, projectSearchQuery),
+    [providerFilteredProjects, projectSearchQuery],
+  );
   const selectedProject =
-    filteredProjects.find((project) => project.id === selectedProjectId) ??
+    providerFilteredProjects.find((project) => project.id === selectedProjectId) ??
     null;
   const journeys = timeline?.taskJourneys ?? [];
   const timelineEventsById = useMemo(
@@ -851,6 +856,16 @@ export function App() {
                     ),
                   )}
                 </div>
+                <label className="project-dropdown-search">
+                  <Search size={13} aria-hidden="true" />
+                  <input
+                    type="search"
+                    value={projectSearchQuery}
+                    onChange={(event) => setProjectSearchQuery(event.target.value)}
+                    placeholder={copy.projectControls.search}
+                    aria-label={copy.projectControls.search}
+                  />
+                </label>
                 <div
                   className="project-dropdown-list"
                   role="listbox"
@@ -858,7 +873,9 @@ export function App() {
                 >
                   {filteredProjects.length === 0 ? (
                     <div className="project-dropdown-empty">
-                      {copy.empty.noProviderTitle}
+                      {providerFilteredProjects.length === 0
+                        ? copy.empty.noProviderTitle
+                        : copy.projectControls.noSearchResults}
                     </div>
                   ) : (
                     filteredProjects.map((project) => (
@@ -1067,7 +1084,7 @@ export function App() {
             scanLabel={copy.topbar.scan}
             placeholder={copy.topbar.agentLogRootPlaceholder}
           />
-        ) : filteredProjects.length === 0 ? (
+        ) : providerFilteredProjects.length === 0 ? (
           <EmptyState
             copy={copy.empty}
             title={copy.empty.noProviderTitle}
@@ -4567,6 +4584,19 @@ function filterProjectsByProvider(
     project.sessions.some(
       (session) =>
         session.provider === provider || session.id.startsWith(`${provider}:`),
+    ),
+  );
+}
+
+function filterProjectsBySearch(
+  projects: ProjectWithSessions[],
+  searchQuery: string,
+) {
+  const query = searchQuery.trim().toLowerCase();
+  if (!query) return projects;
+  return projects.filter((project) =>
+    [project.name, project.cwd, project.repoRoot ?? ""].some((value) =>
+      value.toLowerCase().includes(query),
     ),
   );
 }

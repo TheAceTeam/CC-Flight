@@ -414,6 +414,32 @@ select:disabled {
   color: #fff;
 }
 
+.project-dropdown-search {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .06);
+  color: rgba(255, 255, 255, .58);
+}
+
+.project-dropdown-search input {
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--on-shell);
+  font: 700 12px/1.2 ui-sans-serif, system-ui, sans-serif;
+}
+
+.project-dropdown-search input::placeholder {
+  color: rgba(255, 255, 255, .48);
+}
+
 .project-dropdown-list {
   display: grid;
   gap: 2px;

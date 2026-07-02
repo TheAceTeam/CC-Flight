@@ -1429,6 +1429,24 @@ select {
   letter-spacing: -0.01em;
 }
 
+.context-session-skills {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.context-session-skills .skill-chip-row {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.context-session-skills li {
+  display: inline-flex;
+}
+
 .context-snapshot-rail {
   display: flex;
   gap: 8px;

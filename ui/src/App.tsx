@@ -1946,7 +1946,7 @@ function healthSeverityClass(score: number) {
   return "green";
 }
 
-function ContextReplayPanel({
+export function ContextReplayPanel({
   copy,
   replay,
   loading,
@@ -2289,7 +2289,33 @@ function ContextReplayPanel({
               <span>{copy.contextReplayBlocks}</span>
               <strong>{replay.blocks.length}</strong>
             </div>
+            <div className="context-replay-metric">
+              <span>{copy.contextReplaySkills}</span>
+              <strong>{replay.journey.skills.length}</strong>
+            </div>
           </div>
+          {replay.journey.skills.length > 0 ? (
+            <div className="context-session-skills">
+              <span className="skill-chip-label">{copy.skills}</span>
+              <ul className="skill-chip-row" aria-label={copy.skills}>
+                {replay.journey.skills.map((skill) => (
+                  <li key={`${skill.name}-${skill.source}-${skill.path ?? ""}`}>
+                    <span
+                      className="skill-chip"
+                      title={[
+                        skill.source,
+                        skill.path ?? skill.command ?? skill.evidencePath,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    >
+                      {skill.name}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
 
         <div

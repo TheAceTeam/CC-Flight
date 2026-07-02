@@ -134,6 +134,7 @@ export type AppCopy = {
     contextReplayEmpty: string;
     contextReplayObserved: string;
     contextReplayBlocks: string;
+    contextReplaySkills: string;
     contextReplaySnapshotRail: string;
     contextReplayWarnings: string;
     contextReplayNoWarnings: string;
@@ -437,6 +438,7 @@ export const COPY: Record<Language, AppCopy> = {
       contextReplayEmpty: "Open this task after details are indexed to inspect observable context.",
       contextReplayObserved: "Observable log evidence only: prompt, tool I/O, file references, verification, warnings, and final response.",
       contextReplayBlocks: "blocks",
+      contextReplaySkills: "skills",
       contextReplaySnapshotRail: "Context snapshot rail",
       contextReplayWarnings: "Context warnings",
       contextReplayNoWarnings: "No warnings for this snapshot",
@@ -822,6 +824,7 @@ export const COPY: Record<Language, AppCopy> = {
       contextReplayEmpty: "打开这轮任务后，可查看日志中可观察到的上下文。",
       contextReplayObserved: "仅展示日志中可观察证据：prompt、tool I/O、文件引用、验证、warning 和最终回复。",
       contextReplayBlocks: "blocks",
+      contextReplaySkills: "skills",
       contextReplaySnapshotRail: "Context snapshot rail",
       contextReplayWarnings: "Context warnings",
       contextReplayNoWarnings: "这个快照没有 warning",

@@ -4,7 +4,7 @@ import { COPY } from "../ui/src/i18n";
 import { InsightBoard } from "../ui/src/App";
 import type { JourneyInsight } from "../ui/src/insights";
 
-describe("InsightBoard mode toggle", () => {
+describe("InsightBoard visibility toggle", () => {
   beforeEach(() => {
     const store = new Map<string, string>();
     vi.stubGlobal("localStorage", {
@@ -15,7 +15,7 @@ describe("InsightBoard mode toggle", () => {
     });
   });
 
-  test("defaults to compact cards and switches to full cards without losing selection", () => {
+  test("defaults to closed and toggles to maximized without losing selection", () => {
     const onSelectJourney = vi.fn();
 
     render(
@@ -28,22 +28,23 @@ describe("InsightBoard mode toggle", () => {
     );
 
     const board = screen.getByLabelText("Sessions needing attention");
-    expect(within(board).getByText("Tool loop pressure")).toBeInTheDocument();
+    expect(within(board).queryByText("Tool loop pressure")).not.toBeInTheDocument();
     expect(within(board).queryByText("4 repeated tool calls")).not.toBeInTheDocument();
-    expect(within(board).queryByText("4 tools")).not.toBeInTheDocument();
+    expect(within(board).getByRole("button", { name: "Maximize insight board" })).toBeInTheDocument();
 
-    fireEvent.click(within(board).getByRole("button", { name: "Expand insight board" }));
+    fireEvent.click(within(board).getByRole("button", { name: "Maximize insight board" }));
 
+    expect(within(board).getByText("Tool loop pressure")).toBeInTheDocument();
     expect(within(board).getByText("4 repeated tool calls")).toBeInTheDocument();
     expect(within(board).getByText("4 tools")).toBeInTheDocument();
 
     fireEvent.click(within(board).getByRole("button", { name: /Tool loop pressure.*Risky task/ }));
 
     expect(onSelectJourney).toHaveBeenCalledWith("journey-risk");
-    expect(within(board).getByRole("button", { name: "Compact insight board" })).toBeInTheDocument();
+    expect(within(board).getByRole("button", { name: "Close insight board" })).toBeInTheDocument();
   });
 
-  test("remembers the last selected display mode", () => {
+  test("remembers the selected visibility state", () => {
     const first = render(
       <InsightBoard
         copy={COPY.en.timeline}
@@ -53,9 +54,25 @@ describe("InsightBoard mode toggle", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Expand insight board" }));
-    expect(localStorage.getItem("superview-insight-board-mode")).toBe("full");
+    fireEvent.click(screen.getByRole("button", { name: "Maximize insight board" }));
+    expect(localStorage.getItem("superview-insight-board-mode")).toBe("maximized");
     first.unmount();
+
+    const second = render(
+      <InsightBoard
+        copy={COPY.en.timeline}
+        insights={[insight]}
+        activeJourneyId={null}
+        onSelectJourney={vi.fn()}
+      />,
+    );
+
+    let board = screen.getByLabelText("Sessions needing attention");
+    expect(within(board).getByText("4 repeated tool calls")).toBeInTheDocument();
+
+    fireEvent.click(within(board).getByRole("button", { name: "Close insight board" }));
+    expect(localStorage.getItem("superview-insight-board-mode")).toBe("closed");
+    second.unmount();
 
     render(
       <InsightBoard
@@ -66,9 +83,9 @@ describe("InsightBoard mode toggle", () => {
       />,
     );
 
-    const board = screen.getByLabelText("Sessions needing attention");
-    expect(within(board).getByText("4 repeated tool calls")).toBeInTheDocument();
-    expect(within(board).getByRole("button", { name: "Compact insight board" })).toBeInTheDocument();
+    board = screen.getByLabelText("Sessions needing attention");
+    expect(within(board).queryByText("4 repeated tool calls")).not.toBeInTheDocument();
+    expect(within(board).getByRole("button", { name: "Maximize insight board" })).toBeInTheDocument();
   });
 });
 

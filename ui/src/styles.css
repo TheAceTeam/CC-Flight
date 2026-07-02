@@ -3932,7 +3932,7 @@ pre {
 }
 
 .insight-mode-toggle:hover,
-.insight-mode-toggle[aria-pressed="true"] {
+.insight-mode-toggle[aria-expanded="true"] {
   border-color: color-mix(in srgb, var(--orange) 56%, var(--line));
   background: color-mix(in srgb, var(--orange-soft) 48%, var(--surface-2));
   color: var(--orange);
@@ -4012,37 +4012,9 @@ pre {
   color: var(--warning);
 }
 
-.insight-board.compact {
-  gap: 6px;
-  padding: 8px;
-}
-
-.insight-board.compact .insight-list {
-  gap: 5px;
-}
-
-.insight-board.compact .insight-card {
-  grid-template-columns: 36px minmax(0, 1fr);
-  gap: 4px 8px;
-  padding: 7px;
-}
-
-.insight-board.compact .insight-score {
-  grid-row: auto;
-  min-height: 40px;
-  font-size: 8px;
-}
-
-.insight-board.compact .insight-score strong {
-  font-size: 15px;
-}
-
-.insight-board.compact .insight-copy {
-  align-content: center;
-}
-
-.insight-board.compact .insight-copy em {
-  -webkit-line-clamp: 1;
+.insight-board.closed {
+  gap: 0;
+  padding: 8px 10px;
 }
 
 .insight-copy {

@@ -17,7 +17,6 @@ import {
   Leaf,
   Map as MapIcon,
   Maximize2,
-  Minimize2,
   Moon,
   Pause,
   Play,
@@ -1783,21 +1782,21 @@ export function InsightBoard({
   activeJourneyId: string | null;
   onSelectJourney: (journeyId: string) => void;
 }) {
-  const [compact, setCompact] = useState(
-    () => localStorage.getItem(INSIGHT_BOARD_MODE_KEY) !== "full",
+  const [closed, setClosed] = useState(
+    () => localStorage.getItem(INSIGHT_BOARD_MODE_KEY) !== "maximized",
   );
-  const modeLabel = compact ? copy.insightBoardExpand : copy.insightBoardCompact;
+  const modeLabel = closed ? copy.insightBoardMaximize : copy.insightBoardClose;
   const toggleMode = () => {
-    setCompact((value) => {
+    setClosed((value) => {
       const next = !value;
-      localStorage.setItem(INSIGHT_BOARD_MODE_KEY, next ? "compact" : "full");
+      localStorage.setItem(INSIGHT_BOARD_MODE_KEY, next ? "closed" : "maximized");
       return next;
     });
   };
 
   return (
     <section
-      className={`insight-board${compact ? " compact" : ""}`}
+      className={`insight-board${closed ? " closed" : ""}`}
       aria-label={copy.insightBoardAria}
     >
       <div className="insight-board-heading">
@@ -1811,14 +1810,14 @@ export function InsightBoard({
             className="insight-mode-toggle"
             aria-label={modeLabel}
             title={modeLabel}
-            aria-pressed={compact}
+            aria-expanded={!closed}
             onClick={toggleMode}
           >
-            {compact ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
+            {closed ? <Maximize2 size={13} /> : <X size={13} />}
           </button>
         </div>
       </div>
-      {insights.length === 0 ? (
+      {closed ? null : insights.length === 0 ? (
         <p>{copy.insightBoardEmpty}</p>
       ) : (
         <div className="insight-list">
@@ -1838,25 +1837,21 @@ export function InsightBoard({
                 <strong>{copy.insightSignals[insight.primaryKind]}</strong>
                 <em>{insight.title}</em>
               </span>
-              {!compact ? (
-                <>
-                  <span className="insight-metrics">
-                    <span>{formatMillionTokens(insight.metrics.tokens)} {copy.tokens}</span>
-                    <span>{insight.metrics.toolCalls} {copy.insightTools}</span>
-                    <span>{insight.metrics.files} {copy.insightFiles}</span>
-                  </span>
-                  <span className="insight-reasons">
-                    {insight.signals
-                      .filter((signal) => signal.kind !== "high_cost")
-                      .slice(0, 3)
-                      .map((signal) => (
-                        <b key={signal.kind}>
-                          {formatInsightSignal(copy, signal.kind, signal.metric)}
-                        </b>
-                      ))}
-                  </span>
-                </>
-              ) : null}
+              <span className="insight-metrics">
+                <span>{formatMillionTokens(insight.metrics.tokens)} {copy.tokens}</span>
+                <span>{insight.metrics.toolCalls} {copy.insightTools}</span>
+                <span>{insight.metrics.files} {copy.insightFiles}</span>
+              </span>
+              <span className="insight-reasons">
+                {insight.signals
+                  .filter((signal) => signal.kind !== "high_cost")
+                  .slice(0, 3)
+                  .map((signal) => (
+                    <b key={signal.kind}>
+                      {formatInsightSignal(copy, signal.kind, signal.metric)}
+                    </b>
+                  ))}
+              </span>
             </button>
           ))}
         </div>

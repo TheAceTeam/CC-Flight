@@ -114,8 +114,8 @@ export type AppCopy = {
     insightBoardAria: string;
     insightBoardTitle: string;
     insightBoardEmpty: string;
-    insightBoardCompact: string;
-    insightBoardExpand: string;
+    insightBoardClose: string;
+    insightBoardMaximize: string;
     insightScore: string;
     insightTools: string;
     insightFiles: string;
@@ -409,8 +409,8 @@ export const COPY: Record<Language, AppCopy> = {
       insightBoardAria: "Sessions needing attention",
       insightBoardTitle: "Attention Board",
       insightBoardEmpty: "No red or yellow sessions detected.",
-      insightBoardCompact: "Compact insight board",
-      insightBoardExpand: "Expand insight board",
+      insightBoardClose: "Close insight board",
+      insightBoardMaximize: "Maximize insight board",
       insightScore: "health",
       insightTools: "tools",
       insightFiles: "files",
@@ -794,8 +794,8 @@ export const COPY: Record<Language, AppCopy> = {
       insightBoardAria: "需要关注的 Session",
       insightBoardTitle: "关注面板",
       insightBoardEmpty: "未检测到红色或黄色 Session。",
-      insightBoardCompact: "精简洞察面板",
-      insightBoardExpand: "展开洞察面板",
+      insightBoardClose: "关闭关注面板",
+      insightBoardMaximize: "最大化关注面板",
       insightScore: "健康分",
       insightTools: "工具",
       insightFiles: "文件",

@@ -759,8 +759,10 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
   const insightBoard = page.getByLabel("Sessions needing attention");
   await expect(insightBoard).toBeVisible();
   await expect(insightBoard.getByText("Attention Board")).toBeVisible();
+  await expect(insightBoard.getByText("Tool loop pressure")).toHaveCount(0);
+  await insightBoard.getByRole("button", { name: "Maximize insight board" }).click();
   await expect(insightBoard.getByText("Tool loop pressure").first()).toBeVisible();
-  await insightBoard.getByRole("button").first().click();
+  await insightBoard.getByRole("button", { name: /Tool loop pressure/ }).first().click();
   await expect(detailsPane.getByText("Build task journey from input 300")).toBeVisible();
   await expect(page.locator(".conversation-master-item")).toHaveCount(5);
   await expect(page.locator(".conversation-master-item").first()).toContainText("Build task journey from input 300");

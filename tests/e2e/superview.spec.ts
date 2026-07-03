@@ -730,8 +730,8 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
   await expect(page.getByText("Cleared blocks 4")).toBeVisible();
   await expect(page.getByText("CLI Conversation", { exact: true })).toBeVisible();
   await expect(page.getByText("User Inputs", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("Run Ledger", { exact: true })).toHaveCount(0);
-  await expect(page.locator(".run-row")).toHaveCount(0);
+  await expect(page.getByText("Run Ledger", { exact: true })).toBeVisible();
+  await expect(page.locator(".run-row")).toHaveCount(1);
   await expect(page.getByLabel("Project", { exact: true })).toBeVisible();
   await expect(page.locator(".status-cluster").getByText("Tokens", { exact: true })).toBeVisible();
   await expect(page.locator(".status-cluster").getByText("0.006M", { exact: true })).toBeVisible();

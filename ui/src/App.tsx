@@ -48,6 +48,7 @@ import type {
   DailyTokenUsageResponse,
   IngestJob,
   ProjectTimeline,
+  RunReplay,
   SessionRecord,
   SkillUsage,
   TaskJourney,
@@ -61,6 +62,7 @@ import {
   fetchDailyTokenUsage,
   fetchIngestJob,
   fetchProjects,
+  fetchRun,
   fetchTaskJourneyDetail,
   fetchTimeline,
   ProjectWithSessions,
@@ -165,6 +167,12 @@ export function App() {
     Record<string, boolean>
   >({});
   const contextReplayLoadingRef = useRef(new Set<string>());
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [runReplays, setRunReplays] = useState<Record<string, RunReplay>>({});
+  const [runLoadingIds, setRunLoadingIds] = useState<Record<string, boolean>>(
+    {},
+  );
+  const runLoadingRef = useRef(new Set<string>());
   const [collapsedJourneyIds, setCollapsedJourneyIds] = useState<
     Record<string, boolean>
   >({});
@@ -274,6 +282,7 @@ export function App() {
   }, [selectedProjectId, projects]);
 
   useEffect(() => {
+    setSelectedRunId(null);
     if (!selectedProjectId) return;
     void loadTimeline(selectedProjectId);
   }, [selectedProjectId]);
@@ -545,6 +554,9 @@ export function App() {
       setCollapsedJourneyIds({});
       setJourneyDetails({});
       setContextReplays({});
+      setSelectedRunId(null);
+      setRunReplays({});
+      setRunLoadingIds({});
       setError(null);
       await loadProjects();
     } catch {
@@ -621,6 +633,25 @@ export function App() {
         ...current,
         [journeyId]: false,
       }));
+    }
+  }
+
+  async function loadRun(sessionId: string) {
+    setSelectedRunId(sessionId);
+    if (runReplays[sessionId] || runLoadingRef.current.has(sessionId)) return;
+    runLoadingRef.current.add(sessionId);
+    setRunLoadingIds((current) => ({ ...current, [sessionId]: true }));
+    try {
+      const replay = await fetchRun(sessionId);
+      setRunReplays((current) => ({ ...current, [sessionId]: replay }));
+      setError(null);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error ? loadError.message : String(loadError),
+      );
+    } finally {
+      runLoadingRef.current.delete(sessionId);
+      setRunLoadingIds((current) => ({ ...current, [sessionId]: false }));
     }
   }
 
@@ -1100,6 +1131,14 @@ export function App() {
           />
         ) : (
           <div className="dashboard-grid conversation-dashboard-grid">
+            <RunLedgerPanel
+              copy={copy.timeline}
+              sessions={selectedProject?.sessions ?? []}
+              selectedRunId={selectedRunId}
+              selectedRun={selectedRunId ? runReplays[selectedRunId] : null}
+              loadingRunIds={runLoadingIds}
+              onSelectRun={loadRun}
+            />
             <section className="timeline-panel">
               <ConversationThread
                 copy={copy.timeline}
@@ -1169,6 +1208,136 @@ export function App() {
           {shareToast}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function RunLedgerPanel({
+  copy,
+  sessions,
+  selectedRunId,
+  selectedRun,
+  loadingRunIds,
+  onSelectRun,
+}: {
+  copy: AppCopy["timeline"];
+  sessions: SessionRecord[];
+  selectedRunId: string | null;
+  selectedRun: RunReplay | null;
+  loadingRunIds: Record<string, boolean>;
+  onSelectRun: (sessionId: string) => void;
+}) {
+  const orderedSessions = useMemo(
+    () =>
+      [...sessions].sort(
+        (a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt),
+      ),
+    [sessions],
+  );
+  const selectedSession =
+    orderedSessions.find((session) => session.id === selectedRunId) ??
+    selectedRun?.session ??
+    null;
+
+  return (
+    <section className="run-ledger-panel" aria-label={copy.runLedgerTitle}>
+      <div className="run-ledger-heading">
+        <div>
+          <span>{copy.runLedgerTitle}</span>
+          <strong>{copy.runLedgerCount(orderedSessions.length)}</strong>
+        </div>
+      </div>
+      {orderedSessions.length === 0 ? (
+        <p className="muted">{copy.runLedgerEmpty}</p>
+      ) : (
+        <div className="run-ledger-body">
+          <div className="run-ledger-list" aria-label={copy.runLedgerTitle}>
+            {orderedSessions.map((session) => {
+              const active = session.id === selectedRunId;
+              return (
+                <button
+                  key={session.id}
+                  type="button"
+                  className={`run-row${active ? " active" : ""}`}
+                  onClick={() => onSelectRun(session.id)}
+                  aria-pressed={active}
+                >
+                  <span className="run-row-title">
+                    {session.agentName || labelForProvider(session.provider)}
+                  </span>
+                  <span className="run-row-id">
+                    {session.externalSessionId || session.id}
+                  </span>
+                  <span className="run-row-meta">
+                    {labelForProvider(session.provider)} ·{" "}
+                    {formatDate(session.startedAt)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="run-ledger-detail">
+            {!selectedRunId ? (
+              <p className="muted">{copy.runLedgerNoSelection}</p>
+            ) : loadingRunIds[selectedRunId] ? (
+              <p className="muted">{copy.runLedgerLoading}</p>
+            ) : selectedRun && selectedSession ? (
+              <RunLedgerDetail
+                copy={copy}
+                replay={selectedRun}
+                session={selectedSession}
+              />
+            ) : (
+              <p className="muted">{copy.runLedgerNoSelection}</p>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function RunLedgerDetail({
+  copy,
+  replay,
+  session,
+}: {
+  copy: AppCopy["timeline"];
+  replay: RunReplay;
+  session: SessionRecord;
+}) {
+  return (
+    <div className="run-detail">
+      <div className="run-detail-heading">
+        <div>
+          <span>{session.agentName || labelForProvider(session.provider)}</span>
+          <strong>{session.externalSessionId || session.id}</strong>
+        </div>
+        <em>{copy.eventCount(replay.events.length)}</em>
+      </div>
+      <div className="run-detail-meta">
+        <span>{labelForProvider(session.provider)}</span>
+        <span>{formatDate(session.startedAt)}</span>
+        {session.endedAt ? (
+          <span>{formatDurationBetween(session.startedAt, session.endedAt)}</span>
+        ) : null}
+        <span>{shortenPath(session.cwd)}</span>
+      </div>
+      <h3>{copy.runLedgerEvents}</h3>
+      {replay.events.length === 0 ? (
+        <p className="muted">{copy.runLedgerNoEvents}</p>
+      ) : (
+        <ol className="run-event-list">
+          {replay.events.map((event) => (
+            <li key={event.id} className={`run-event run-event-${event.status}`}>
+              <span>{formatDate(event.timestamp)}</span>
+              <strong>{event.title}</strong>
+              {event.detail ? <p>{event.detail}</p> : null}
+              {event.toolName ? <em>{event.toolName}</em> : null}
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }
@@ -4636,6 +4805,15 @@ function formatDate(value: string, _copy?: unknown) {
   return date.toLocaleString();
 }
 
+function formatDurationBetween(startedAt: string, endedAt: string) {
+  const start = Date.parse(startedAt);
+  const end = Date.parse(endedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+    return endedAt;
+  }
+  return formatDuration(end - start);
+}
+
 function formatDuration(durationMs: number) {
   if (durationMs < 1000) return `${durationMs}ms`;
   const seconds = durationMs / 1000;
@@ -4659,6 +4837,12 @@ function formatMetricValue(metricKey: MetricKey, value: number) {
   return metricKey === "tokens"
     ? formatMillionTokens(value)
     : value.toLocaleString();
+}
+
+function shortenPath(path: string) {
+  const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
+  if (parts.length <= 2) return path;
+  return parts.slice(-2).join("/");
 }
 
 function isIngestBusy(job: IngestJob | null) {

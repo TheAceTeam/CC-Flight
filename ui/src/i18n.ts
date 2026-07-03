@@ -96,6 +96,13 @@ export type AppCopy = {
   loading: { scanningLogs: string; loadingTimeline: string; loadingIndex: string; loadingDailyTokens: string; steady: string; aria: string };
   timeline: {
     heading: string;
+    runLedgerTitle: string;
+    runLedgerCount: (count: number) => string;
+    runLedgerEmpty: string;
+    runLedgerLoading: string;
+    runLedgerNoSelection: string;
+    runLedgerEvents: string;
+    runLedgerNoEvents: string;
     rangeOf: string;
     loaded: (tasks: number, events: number) => string;
     prevPage: string;
@@ -394,6 +401,13 @@ export const COPY: Record<Language, AppCopy> = {
     },
     timeline: {
       heading: "CLI Conversation",
+      runLedgerTitle: "Run Ledger",
+      runLedgerCount: (count: number) => `${count} session${count !== 1 ? "s" : ""}`,
+      runLedgerEmpty: "No sessions captured for this project.",
+      runLedgerLoading: "Loading session...",
+      runLedgerNoSelection: "No session selected.",
+      runLedgerEvents: "Session Events",
+      runLedgerNoEvents: "No events captured for this session.",
       rangeOf: "of",
       loaded: (tasks: number, events: number) => `${tasks} task journeys loaded from ${events} events`,
       prevPage: "Prev page",
@@ -782,6 +796,13 @@ export const COPY: Record<Language, AppCopy> = {
     },
     timeline: {
       heading: "CLI 对话",
+      runLedgerTitle: "Run Ledger",
+      runLedgerCount: (count: number) => `${count} 个 session`,
+      runLedgerEmpty: "该项目暂无已捕获 session。",
+      runLedgerLoading: "正在加载 session...",
+      runLedgerNoSelection: "未选择 session。",
+      runLedgerEvents: "Session 事件",
+      runLedgerNoEvents: "该 session 暂无事件。",
       rangeOf: "/",
       loaded: (tasks: number, events: number) => `已从 ${events} 个事件加载 ${tasks} 轮任务旅程`,
       prevPage: "上一页",

@@ -69,7 +69,26 @@ vi.mock("../ui/src/api", () => ({
       updatedAt: "2026-06-21T00:00:00.000Z",
     },
     episodes: [],
-    events: [],
+    events: [
+      {
+        id: "event-project-activity",
+        projectId: "project-alpha",
+        sessionId: "codex:subagent-session",
+        turnId: null,
+        timestamp: "2026-06-21T00:05:10.000Z",
+        kind: "tool_call",
+        lane: "Code",
+        title: "Read failing spec",
+        detail: "The subagent opened tests/failing.test.ts.",
+        toolName: "shell",
+        callId: "call-read-spec",
+        status: "success",
+        files: ["tests/failing.test.ts"],
+        rawEventRefId: null,
+        tokenUsage: null,
+        skills: [],
+      },
+    ],
     causalEdges: [],
     taskJourneys: [],
     tokenUsage: zeroTokens(),
@@ -116,6 +135,18 @@ describe("Subagent session view", () => {
     });
     expect(await within(drawer).findByText("Subagent inspected failing tests")).toBeInTheDocument();
     expect(within(drawer).getByText("Worker session loaded the failing spec and reported the root cause.")).toBeInTheDocument();
+  });
+
+  test("shows recent activity instead of an empty journey message", async () => {
+    render(<App />);
+
+    const activity = await screen.findByRole("region", {
+      name: "Project Activity",
+    });
+    expect(within(activity).getByText("Read failing spec")).toBeInTheDocument();
+    expect(
+      screen.queryByText("No user-input task journeys are visible on this page."),
+    ).not.toBeInTheDocument();
   });
 });
 

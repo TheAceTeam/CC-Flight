@@ -111,6 +111,8 @@ export type AppCopy = {
     prevPage: string;
     nextPage: string;
     emptyPage: string;
+    projectActivityTitle: string;
+    projectActivityCount: (count: number) => string;
     aria: string;
     masterAria: string;
     detailsAria: string;
@@ -419,6 +421,8 @@ export const COPY: Record<Language, AppCopy> = {
       prevPage: "Prev page",
       nextPage: "Next page",
       emptyPage: "No user-input task journeys are visible on this page.",
+      projectActivityTitle: "Project Activity",
+      projectActivityCount: (count: number) => `${count} recent event${count !== 1 ? "s" : ""}`,
       aria: "Task conversation thread",
       masterAria: "User input index",
       detailsAria: "Conversation details",
@@ -817,6 +821,8 @@ export const COPY: Record<Language, AppCopy> = {
       prevPage: "上一页",
       nextPage: "下一页",
       emptyPage: "当前页没有可见的用户输入任务旅程。",
+      projectActivityTitle: "Project Activity",
+      projectActivityCount: (count: number) => `${count} 条最近事件`,
       aria: "任务对话 thread",
       masterAria: "用户输入索引",
       detailsAria: "对话详情",

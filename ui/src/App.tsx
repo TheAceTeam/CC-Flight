@@ -1316,6 +1316,51 @@ function SubagentActivityPanel({
   );
 }
 
+function ProjectActivityFallback({
+  copy,
+  events,
+  selectedEventId,
+  onSelectEvent,
+}: {
+  copy: AppCopy["timeline"];
+  events: TimelineEvent[];
+  selectedEventId: string | null;
+  onSelectEvent: (event: TimelineEvent) => void;
+}) {
+  return (
+    <section
+      className="project-activity-panel"
+      aria-label={copy.projectActivityTitle}
+    >
+      <div className="project-activity-heading">
+        <div>
+          <span>{copy.projectActivityTitle}</span>
+          <strong>{copy.projectActivityCount(events.length)}</strong>
+        </div>
+      </div>
+      <ol className="project-activity-list">
+        {events.map((event) => (
+          <li key={event.id}>
+            <button
+              type="button"
+              className={`project-activity-row${event.id === selectedEventId ? " active" : ""}`}
+              onClick={() => onSelectEvent(event)}
+            >
+              <span className={`event-dot ${event.status}`} aria-hidden="true" />
+              <span className="project-activity-time">
+                {formatDate(event.timestamp)}
+              </span>
+              <strong>{event.title}</strong>
+              <em>{event.lane}</em>
+              {event.detail ? <p>{event.detail}</p> : null}
+            </button>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 function RunLedgerDetail({
   copy,
   replay,
@@ -1794,6 +1839,19 @@ function ConversationThread({
   }, [orderedJourneys, selectedJourney]);
 
   if (journeys.length === 0) {
+    const recentEvents = [...timelineEventsById.values()]
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+      .slice(0, 24);
+    if (recentEvents.length > 0) {
+      return (
+        <ProjectActivityFallback
+          copy={copy}
+          events={recentEvents}
+          selectedEventId={selectedEventId}
+          onSelectEvent={onSelectEvent}
+        />
+      );
+    }
     return <p className="muted">{copy.emptyPage}</p>;
   }
 

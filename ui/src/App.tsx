@@ -1131,13 +1131,14 @@ export function App() {
           />
         ) : (
           <div className="dashboard-grid conversation-dashboard-grid">
-            <RunLedgerPanel
+            <SubagentActivityPanel
               copy={copy.timeline}
               sessions={selectedProject?.sessions ?? []}
               selectedRunId={selectedRunId}
               selectedRun={selectedRunId ? runReplays[selectedRunId] : null}
               loadingRunIds={runLoadingIds}
               onSelectRun={loadRun}
+              onCloseRun={() => setSelectedRunId(null)}
             />
             <section className="timeline-panel">
               <ConversationThread
@@ -1212,13 +1213,14 @@ export function App() {
   );
 }
 
-function RunLedgerPanel({
+function SubagentActivityPanel({
   copy,
   sessions,
   selectedRunId,
   selectedRun,
   loadingRunIds,
   onSelectRun,
+  onCloseRun,
 }: {
   copy: AppCopy["timeline"];
   sessions: SessionRecord[];
@@ -1226,74 +1228,91 @@ function RunLedgerPanel({
   selectedRun: RunReplay | null;
   loadingRunIds: Record<string, boolean>;
   onSelectRun: (sessionId: string) => void;
+  onCloseRun: () => void;
 }) {
-  const orderedSessions = useMemo(
+  const subagentSessions = useMemo(
     () =>
-      [...sessions].sort(
-        (a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt),
-      ),
+      sessions
+        .filter(isSubagentSession)
+        .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt)),
     [sessions],
   );
   const selectedSession =
-    orderedSessions.find((session) => session.id === selectedRunId) ??
+    subagentSessions.find((session) => session.id === selectedRunId) ??
     selectedRun?.session ??
     null;
 
+  if (subagentSessions.length === 0) return null;
+
   return (
-    <section className="run-ledger-panel" aria-label={copy.runLedgerTitle}>
-      <div className="run-ledger-heading">
-        <div>
-          <span>{copy.runLedgerTitle}</span>
-          <strong>{copy.runLedgerCount(orderedSessions.length)}</strong>
+    <>
+      <section
+        className="subagent-activity-panel"
+        aria-label={copy.subagentActivityTitle}
+      >
+        <div className="subagent-activity-heading">
+          <span>{copy.subagentActivityTitle}</span>
+          <strong>{copy.subagentActivityCount(subagentSessions.length)}</strong>
         </div>
-      </div>
-      {orderedSessions.length === 0 ? (
-        <p className="muted">{copy.runLedgerEmpty}</p>
-      ) : (
-        <div className="run-ledger-body">
-          <div className="run-ledger-list" aria-label={copy.runLedgerTitle}>
-            {orderedSessions.map((session) => {
-              const active = session.id === selectedRunId;
-              return (
-                <button
-                  key={session.id}
-                  type="button"
-                  className={`run-row${active ? " active" : ""}`}
-                  onClick={() => onSelectRun(session.id)}
-                  aria-pressed={active}
-                >
-                  <span className="run-row-title">
-                    {session.agentName || labelForProvider(session.provider)}
-                  </span>
-                  <span className="run-row-id">
-                    {session.externalSessionId || session.id}
-                  </span>
-                  <span className="run-row-meta">
-                    {labelForProvider(session.provider)} ·{" "}
-                    {formatDate(session.startedAt)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="run-ledger-detail">
-            {!selectedRunId ? (
-              <p className="muted">{copy.runLedgerNoSelection}</p>
-            ) : loadingRunIds[selectedRunId] ? (
-              <p className="muted">{copy.runLedgerLoading}</p>
-            ) : selectedRun && selectedSession ? (
-              <RunLedgerDetail
-                copy={copy}
-                replay={selectedRun}
-                session={selectedSession}
-              />
-            ) : (
-              <p className="muted">{copy.runLedgerNoSelection}</p>
-            )}
-          </div>
+        <div className="subagent-activity-list">
+          {subagentSessions.map((session) => {
+            const active = session.id === selectedRunId;
+            return (
+              <button
+                key={session.id}
+                type="button"
+                className={`subagent-activity-item${active ? " active" : ""}`}
+                onClick={() => onSelectRun(session.id)}
+                aria-pressed={active}
+              >
+                <span>
+                  {session.agentName || labelForProvider(session.provider)}
+                </span>
+                <strong>{session.externalSessionId || session.id}</strong>
+                <em>{formatDate(session.startedAt)}</em>
+              </button>
+            );
+          })}
         </div>
-      )}
-    </section>
+      </section>
+      {selectedRunId && selectedSession ? (
+        <aside
+          className="subagent-session-drawer"
+          role="dialog"
+          aria-label={`${selectedSession.agentName || labelForProvider(selectedSession.provider)} session`}
+        >
+          <div className="subagent-session-drawer-heading">
+            <div>
+              <span>{copy.subagentActivityTitle}</span>
+              <strong>
+                {selectedSession.agentName ||
+                  labelForProvider(selectedSession.provider)}
+              </strong>
+            </div>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={onCloseRun}
+              aria-label={copy.subagentActivityClose}
+              title={copy.subagentActivityClose}
+            >
+              <X size={16} />
+            </button>
+          </div>
+          {loadingRunIds[selectedRunId] ? (
+            <p className="muted">{copy.runLedgerLoading}</p>
+          ) : selectedRun ? (
+            <RunLedgerDetail
+              copy={copy}
+              replay={selectedRun}
+              session={selectedSession}
+            />
+          ) : (
+            <p className="muted">{copy.runLedgerNoSelection}</p>
+          )}
+        </aside>
+      ) : null}
+    </>
   );
 }
 
@@ -4791,6 +4810,20 @@ function providerFromSessionId(sessionId: string) {
   if (sessionId.startsWith("claude-code:")) return "claude-code";
   if (sessionId.startsWith("opencode:")) return "opencode";
   return "codex";
+}
+
+function isSubagentSession(session: SessionRecord) {
+  const haystack = [
+    session.agentName ?? "",
+    session.externalSessionId,
+    session.id,
+    session.path,
+    session.source ?? "",
+  ]
+    .join(" ")
+    .replace(/\\/g, "/")
+    .toLowerCase();
+  return haystack.includes("/subagents/") || haystack.includes("subagent");
 }
 
 function labelForProvider(provider: string) {

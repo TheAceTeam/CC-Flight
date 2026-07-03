@@ -96,6 +96,9 @@ export type AppCopy = {
   loading: { scanningLogs: string; loadingTimeline: string; loadingIndex: string; loadingDailyTokens: string; steady: string; aria: string };
   timeline: {
     heading: string;
+    subagentActivityTitle: string;
+    subagentActivityCount: (count: number) => string;
+    subagentActivityClose: string;
     runLedgerTitle: string;
     runLedgerCount: (count: number) => string;
     runLedgerEmpty: string;
@@ -401,6 +404,9 @@ export const COPY: Record<Language, AppCopy> = {
     },
     timeline: {
       heading: "CLI Conversation",
+      subagentActivityTitle: "Subagent Activity",
+      subagentActivityCount: (count: number) => `${count} subagent session${count !== 1 ? "s" : ""}`,
+      subagentActivityClose: "Close subagent session",
       runLedgerTitle: "Run Ledger",
       runLedgerCount: (count: number) => `${count} session${count !== 1 ? "s" : ""}`,
       runLedgerEmpty: "No sessions captured for this project.",
@@ -796,6 +802,9 @@ export const COPY: Record<Language, AppCopy> = {
     },
     timeline: {
       heading: "CLI 对话",
+      subagentActivityTitle: "Subagent Activity",
+      subagentActivityCount: (count: number) => `${count} 个 subagent session`,
+      subagentActivityClose: "关闭 subagent session",
       runLedgerTitle: "Run Ledger",
       runLedgerCount: (count: number) => `${count} 个 session`,
       runLedgerEmpty: "该项目暂无已捕获 session。",

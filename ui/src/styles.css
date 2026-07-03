@@ -981,6 +981,131 @@ h1 {
   box-shadow: var(--shadow);
 }
 
+.subagent-activity-panel {
+  display: grid;
+  grid-template-columns: minmax(170px, 220px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.subagent-activity-heading {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.subagent-activity-heading span,
+.subagent-session-drawer-heading span {
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.subagent-activity-heading strong,
+.subagent-session-drawer-heading strong {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.subagent-activity-list {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.subagent-activity-item {
+  flex: 0 0 min(280px, 78vw);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
+  min-height: 54px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.subagent-activity-item:hover,
+.subagent-activity-item.active,
+.subagent-activity-item[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--orange) 42%, var(--line));
+  background: color-mix(in srgb, var(--orange-soft) 54%, var(--surface-2));
+}
+
+.subagent-activity-item span {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subagent-activity-item strong {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subagent-activity-item em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.subagent-session-drawer {
+  position: fixed;
+  z-index: 80;
+  top: 72px;
+  right: 16px;
+  bottom: 16px;
+  width: min(520px, calc(100vw - 32px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: 0 28px 80px -28px color-mix(in srgb, var(--ink) 52%, transparent);
+  overflow: auto;
+}
+
+.subagent-session-drawer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.subagent-session-drawer-heading div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
 .run-ledger-panel {
   min-width: 0;
   padding: 14px;
@@ -3857,6 +3982,10 @@ pre {
   }
 
   .conversation-master-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .subagent-activity-panel {
     grid-template-columns: 1fr;
   }
 

@@ -93,14 +93,17 @@ describe("Subagent session view", () => {
     });
   });
 
-  test("opens a subagent session replay from the selected project", async () => {
+  test("opens subagent replay from a compact activity drawer", async () => {
     render(<App />);
 
-    const ledger = await screen.findByRole("region", { name: "Run Ledger" });
+    expect(screen.queryByRole("region", { name: "Run Ledger" })).not.toBeInTheDocument();
+    const activity = await screen.findByRole("region", {
+      name: "Subagent Activity",
+    });
     expect(
-      await within(ledger).findByRole("button", { name: /main-session/ }),
-    ).toBeInTheDocument();
-    const subagentRow = await within(ledger).findByRole("button", {
+      within(activity).queryByRole("button", { name: /main-session/ }),
+    ).not.toBeInTheDocument();
+    const subagentRow = await within(activity).findByRole("button", {
       name: /Subagent Worker/,
     });
     expect(subagentRow).toHaveTextContent("subagent-session");
@@ -108,8 +111,11 @@ describe("Subagent session view", () => {
     fireEvent.click(subagentRow);
 
     expect(fetchRunMock).toHaveBeenCalledWith("codex:subagent-session");
-    expect(await within(ledger).findByText("Subagent inspected failing tests")).toBeInTheDocument();
-    expect(within(ledger).getByText("Worker session loaded the failing spec and reported the root cause.")).toBeInTheDocument();
+    const drawer = await screen.findByRole("dialog", {
+      name: /Subagent Worker/,
+    });
+    expect(await within(drawer).findByText("Subagent inspected failing tests")).toBeInTheDocument();
+    expect(within(drawer).getByText("Worker session loaded the failing spec and reported the root cause.")).toBeInTheDocument();
   });
 });
 

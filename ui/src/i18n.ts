@@ -98,6 +98,7 @@ export type AppCopy = {
     heading: string;
     subagentActivityTitle: string;
     subagentActivityCount: (count: number) => string;
+    subagentActivityPanelClose: string;
     subagentActivityClose: string;
     runLedgerTitle: string;
     runLedgerCount: (count: number) => string;
@@ -408,6 +409,7 @@ export const COPY: Record<Language, AppCopy> = {
       heading: "CLI Conversation",
       subagentActivityTitle: "Subagent Activity",
       subagentActivityCount: (count: number) => `${count} subagent session${count !== 1 ? "s" : ""}`,
+      subagentActivityPanelClose: "Close Subagent Activity",
       subagentActivityClose: "Close subagent session",
       runLedgerTitle: "Run Ledger",
       runLedgerCount: (count: number) => `${count} session${count !== 1 ? "s" : ""}`,
@@ -808,6 +810,7 @@ export const COPY: Record<Language, AppCopy> = {
       heading: "CLI 对话",
       subagentActivityTitle: "Subagent Activity",
       subagentActivityCount: (count: number) => `${count} 个 subagent session`,
+      subagentActivityPanelClose: "关闭 Subagent Activity",
       subagentActivityClose: "关闭 subagent session",
       runLedgerTitle: "Run Ledger",
       runLedgerCount: (count: number) => `${count} 个 session`,

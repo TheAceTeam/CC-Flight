@@ -995,12 +995,24 @@ h1 {
 }
 
 .subagent-activity-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.subagent-activity-title {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.subagent-activity-heading span,
+.subagent-activity-close {
+  flex: 0 0 auto;
+}
+
+.subagent-activity-title span,
 .subagent-session-drawer-heading span {
   color: var(--orange);
   font-size: 11px;
@@ -1008,7 +1020,7 @@ h1 {
   text-transform: uppercase;
 }
 
-.subagent-activity-heading strong,
+.subagent-activity-title strong,
 .subagent-session-drawer-heading strong {
   color: var(--ink);
   font-size: 13px;

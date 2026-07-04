@@ -1300,7 +1300,7 @@ function SubagentActivityPanel({
             </div>
             <button
               type="button"
-              className="icon-button"
+              className="icon-button subagent-session-drawer-close"
               onClick={onCloseRun}
               aria-label={copy.subagentActivityClose}
               title={copy.subagentActivityClose}

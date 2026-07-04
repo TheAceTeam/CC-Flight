@@ -1114,6 +1114,22 @@ h1 {
   min-width: 0;
 }
 
+.subagent-session-drawer-close {
+  flex: 0 0 auto;
+  width: 32px;
+  min-height: 32px;
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.subagent-session-drawer-close:hover {
+  border-color: color-mix(in srgb, var(--danger) 48%, var(--line-strong));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-2));
+  color: var(--danger);
+}
+
 .project-activity-panel {
   min-width: 0;
 }

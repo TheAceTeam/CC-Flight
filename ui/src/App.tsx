@@ -187,6 +187,7 @@ export function App() {
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [agentLogRoot, setAgentLogRoot] = useState("");
   const [scanPanelOpen, setScanPanelOpen] = useState(false);
+  const [scanStarting, setScanStarting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [shareToast, setShareToast] = useState<string | null>(null);
@@ -565,9 +566,10 @@ export function App() {
   }
 
   async function handleScan() {
-    if (isIngestBusy(job)) return;
+    if (scanStarting || isIngestBusy(job)) return;
     setScanPanelOpen(false);
     setError(null);
+    setScanStarting(true);
     try {
       const root = agentLogRoot.trim();
       const jobId = await startIngest(
@@ -580,6 +582,8 @@ export function App() {
       setError(
         scanError instanceof Error ? scanError.message : String(scanError),
       );
+    } finally {
+      setScanStarting(false);
     }
   }
 
@@ -751,8 +755,10 @@ export function App() {
   }
 
   const ingestBusy = isIngestBusy(job);
+  const scanBusy = scanStarting || ingestBusy;
   const blockingMessage = getBlockingMessage({
     copy,
+    scanBusy,
     loading,
     timelineLoading,
     dailyTokenUsageLoading,
@@ -760,6 +766,7 @@ export function App() {
   const blockingJob = getBlockingJob({
     job,
     message: blockingMessage,
+    scanStarting,
     ingestBusy,
     loading,
     timelineLoading,
@@ -788,7 +795,7 @@ export function App() {
             <button
               className="shell-button scan-dropdown-trigger"
               onClick={() => setScanPanelOpen((open) => !open)}
-              disabled={ingestBusy}
+              disabled={scanBusy}
               aria-expanded={scanPanelOpen}
               aria-controls="scan-agent-log-panel"
             >
@@ -811,7 +818,7 @@ export function App() {
                     onChange={(event) =>
                       setAgentProvider(event.target.value as AgentProvider)
                     }
-                    disabled={ingestBusy}
+                    disabled={scanBusy}
                   >
                     <option value="codex">Codex</option>
                     <option value="claude-code">Claude Code</option>
@@ -825,13 +832,13 @@ export function App() {
                     value={agentLogRoot}
                     onChange={(event) => setAgentLogRoot(event.target.value)}
                     placeholder={copy.topbar.agentLogRootPlaceholder}
-                    disabled={ingestBusy}
+                    disabled={scanBusy}
                   />
                 </label>
                 <button
                   className="shell-button scan-dropdown-submit"
                   onClick={handleScan}
-                  disabled={ingestBusy}
+                  disabled={scanBusy}
                 >
                   <RotateCw size={16} />
                   {copy.topbar.scan}
@@ -855,7 +862,7 @@ export function App() {
               className="shell-button project-dropdown-trigger"
               onClick={() => setProjectDropdownOpen((open) => !open)}
               aria-expanded={projectDropdownOpen}
-              disabled={timelineLoading || ingestBusy}
+              disabled={timelineLoading || scanBusy}
             >
               <FileText size={16} />
               {selectedProject?.name ?? copy.projectControls.project}
@@ -1097,7 +1104,7 @@ export function App() {
             agentLogRoot={agentLogRoot}
             onAgentLogRootChange={setAgentLogRoot}
             onScan={handleScan}
-            disabled={ingestBusy}
+            disabled={scanBusy}
             scanLabel={copy.topbar.scan}
             placeholder={copy.topbar.agentLogRootPlaceholder}
           />
@@ -1111,7 +1118,7 @@ export function App() {
             agentLogRoot={agentLogRoot}
             onAgentLogRootChange={setAgentLogRoot}
             onScan={handleScan}
-            disabled={ingestBusy}
+            disabled={scanBusy}
             scanLabel={copy.topbar.scan}
             placeholder={copy.topbar.agentLogRootPlaceholder}
           />
@@ -1125,7 +1132,7 @@ export function App() {
             agentLogRoot={agentLogRoot}
             onAgentLogRootChange={setAgentLogRoot}
             onScan={handleScan}
-            disabled={ingestBusy}
+            disabled={scanBusy}
             scanLabel={copy.topbar.scan}
             placeholder={copy.topbar.agentLogRootPlaceholder}
           />
@@ -4942,15 +4949,18 @@ function isIngestBusy(job: IngestJob | null) {
 
 function getBlockingMessage({
   copy,
+  scanBusy,
   loading,
   timelineLoading,
   dailyTokenUsageLoading,
 }: {
   copy: AppCopy;
+  scanBusy: boolean;
   loading: boolean;
   timelineLoading: boolean;
   dailyTokenUsageLoading: boolean;
 }) {
+  if (scanBusy) return copy.loading.scanningLogs;
   if (timelineLoading) return copy.loading.loadingTimeline;
   if (loading) return copy.loading.loadingIndex;
   if (dailyTokenUsageLoading) return copy.loading.loadingDailyTokens;
@@ -4960,6 +4970,7 @@ function getBlockingMessage({
 function getBlockingJob({
   job,
   message,
+  scanStarting,
   ingestBusy,
   loading,
   timelineLoading,
@@ -4967,6 +4978,7 @@ function getBlockingJob({
 }: {
   job: IngestJob | null;
   message: string | null;
+  scanStarting: boolean;
   ingestBusy: boolean;
   loading: boolean;
   timelineLoading: boolean;
@@ -4974,6 +4986,8 @@ function getBlockingJob({
 }) {
   if (!message) return null;
   if (ingestBusy && job) return job;
+  if (scanStarting)
+    return createLoaderJob("starting-ingest", "queued", 0, 1, message);
   if (loading)
     return createLoaderJob("loading-projects", "scanning", 3, 12, message);
   if (timelineLoading)

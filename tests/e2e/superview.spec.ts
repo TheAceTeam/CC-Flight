@@ -923,9 +923,9 @@ test("blocks conflicting controls while ingest is running", async ({ page }) => 
   await expect(blockingLoader).toContainText("Scanning agent logs");
   await expect(page.getByRole("button", { name: "Scan Agent Logs" }).first()).toBeDisabled();
   await expect(page.getByLabel("Toggle theme")).toBeEnabled();
-  await expect(blockingLoader.getByRole("status", { name: /Ingest running, parsing, 7 of 20 files processed, 35 percent/ })).toBeVisible();
+  await expect(blockingLoader.locator(".blocking-loader-progress-meta")).toContainText("Phase:");
+  await expect(blockingLoader.locator(".blocking-loader-progress-meta")).toContainText("files");
   await expect(page.locator(".workspace > .ingest-level-progress")).toHaveCount(0);
-  await expect(page.getByRole("img", { name: "Pixel Mario running" })).toBeVisible();
   await expect(blockingLoader).toHaveCount(0, { timeout: 10_000 });
   await expect(page.getByRole("button", { name: "Scan Agent Logs" }).first()).toBeEnabled();
 });

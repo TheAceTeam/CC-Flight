@@ -4,9 +4,9 @@
 
 The current Three.js Context Flow demo shows motion, but it does not yet show the useful thing: **what context content the agent appears to carry from prompt to result, and how that content changes over time**.
 
-This feature should add a parallel tab beside Thread View called **Context Replay**. It replays one user-prompt task journey as a sequence of observable context snapshots. Each snapshot shows the actual content blocks SuperView can reconstruct from logs: user prompt, developer/system-like messages when present, history prompts, assistant summaries, tool inputs, tool outputs, file paths, file excerpts, errors, verification output, token usage, skills, and final response.
+This feature should add a parallel tab beside Thread View called **Context Replay**. It replays one user-prompt task journey as a sequence of observable context snapshots. Each snapshot shows the actual content blocks CC Flight can reconstruct from logs: user prompt, developer/system-like messages when present, history prompts, assistant summaries, tool inputs, tool outputs, file paths, file excerpts, errors, verification output, token usage, skills, and final response.
 
-The product promise is not "we can see the model's private hidden context window." SuperView can only show **observable context** from agent logs and stored redacted evidence. The UI must label inferred context state clearly.
+The product promise is not "we can see the model's private hidden context window." CC Flight can only show **observable context** from agent logs and stored redacted evidence. The UI must label inferred context state clearly.
 
 ## User Goal
 
@@ -196,7 +196,7 @@ Each block is a readable card with:
 - type badge
 - source: event id, raw line, file path
 - actual excerpt, capped with expand/collapse
-- why SuperView thinks the block is active or inactive
+- why CC Flight thinks the block is active or inactive
 - token estimate or token usage contribution when available
 
 Cards are grouped:

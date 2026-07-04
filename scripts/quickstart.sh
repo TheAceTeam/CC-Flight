@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# SuperView -- Quickstart script
+# CC Flight -- Quickstart script
 # -------------------------------
-# Clones or enters the SuperView repo, installs dependencies, and starts
+# Clones or enters the CC Flight repo, installs dependencies, and starts
 # both the API server and the Vite dev server in one command.
 #
 # Usage:
@@ -11,8 +11,8 @@
 
 set -e
 
-REPO_URL="https://github.com/SeanXDO/SuperView.git"
-REPO_DIR="SuperView"
+REPO_URL="https://github.com/TheAceTeam/CC-Flight.git"
+REPO_DIR="CC-Flight"
 API_PORT="${SUPERVIEW_API_PORT:-5174}"
 UI_PORT="${SUPERVIEW_UI_PORT:-5173}"
 UI_HOST="127.0.0.1"
@@ -22,9 +22,9 @@ UI_HOST="127.0.0.1"
 # ------------------------------------------------------------------
 show_help() {
   cat <<EOF
-SuperView Quickstart
+CC Flight Quickstart
 
-Clones (or enters) the SuperView repository, installs dependencies, and
+Clones (or enters) the CC Flight repository, installs dependencies, and
 starts the development servers.
 
 USAGE
@@ -111,23 +111,22 @@ fi
 # Repo setup
 # ------------------------------------------------------------------
 is_in_repo() {
-  # Heuristic: current directory contains a package.json with "superview"
-  # and a .git directory that points at the SuperView remote.
-  if [ -f "package.json" ] && grep -q '"superview"' package.json 2>/dev/null; then
+  # Heuristic: current directory contains a package.json with "cc-flight".
+  if [ -f "package.json" ] && grep -q '"cc-flight"' package.json 2>/dev/null; then
     return 0
   fi
   return 1
 }
 
 if is_in_repo; then
-  info "Already inside the SuperView repo. Skipping clone."
+  info "Already inside the CC Flight repo. Skipping clone."
 else
   # Not in the repo -- clone (or enter an existing clone in a subdir).
   if [ -d "$REPO_DIR" ]; then
     info "Found existing ./${REPO_DIR} directory. Using it."
     cd "$REPO_DIR"
   else
-    info "Cloning SuperView from ${REPO_URL}..."
+    info "Cloning CC Flight from ${REPO_URL}..."
     if ! git clone --depth 1 "$REPO_URL" 2>/dev/null; then
       # If git is not available or the clone fails, offer a fallback message.
       err "Failed to clone repository."
@@ -216,7 +215,7 @@ esac
 info "Starting UI dev server..."
 echo ""
 printf "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
-printf "${GREEN}  SuperView is starting up!${NC}\n"
+printf "${GREEN}  CC Flight is starting up!${NC}\n"
 printf "${GREEN}  Open ${UI_URL} in your browser.${NC}\n"
 printf "${GREEN}  Press Ctrl-C to stop all servers.${NC}\n"
 printf "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"

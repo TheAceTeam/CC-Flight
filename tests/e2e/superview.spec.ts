@@ -85,7 +85,7 @@ test("shows the Mario loading game while the project index loads", async ({ page
   await page.goto("/");
 
   const blockingLoader = page.getByRole("status", { name: "Blocking operation" });
-  await expect(blockingLoader).toContainText("Loading SuperView index");
+  await expect(blockingLoader).toContainText("Loading CC Flight index");
   await expect(blockingLoader.getByRole("status", { name: /Ingest running, scanning, 3 of 12 files processed, 25 percent/ })).toBeVisible();
   await expect(page.getByRole("img", { name: "Pixel Mario running" })).toBeVisible();
 

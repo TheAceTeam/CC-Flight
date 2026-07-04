@@ -3,14 +3,14 @@ import { resolveAutoSelectId, type AutoSelectProject } from "../ui/src/autoSelec
 
 const projects: AutoSelectProject[] = [
   { id: "p_aimarketing", cwd: "/Users/sean/workspace/AIMarketing" },
-  { id: "p_superview", cwd: "/Users/sean/workspace/exp/SuperView" },
+  { id: "p_superview", cwd: "/Users/sean/workspace/exp/CC-Flight" },
   { id: "p_ppt", cwd: "/Users/sean/workspace/guizang-ppt-skill" },
 ];
 
 describe("resolveAutoSelectId", () => {
   it("selects the project whose cwd exactly matches the launch dir", () => {
     expect(
-      resolveAutoSelectId(projects, "/Users/sean/workspace/exp/SuperView", null),
+      resolveAutoSelectId(projects, "/Users/sean/workspace/exp/CC-Flight", null),
     ).toBe("p_superview");
   });
 
@@ -18,7 +18,7 @@ describe("resolveAutoSelectId", () => {
     expect(
       resolveAutoSelectId(
         projects,
-        "/Users/sean/workspace/exp/SuperView",
+        "/Users/sean/workspace/exp/CC-Flight",
         "/Users/sean/workspace/AIMarketing",
       ),
     ).toBe("p_superview");
@@ -32,12 +32,12 @@ describe("resolveAutoSelectId", () => {
 
   it("matches via endsWith fallback (trailing-slash / nested differences)", () => {
     const withTrailingSlash: AutoSelectProject[] = [
-      { id: "p_superview", cwd: "/host/Users/sean/workspace/exp/SuperView" },
+      { id: "p_superview", cwd: "/host/Users/sean/workspace/exp/CC-Flight" },
     ];
     expect(
       resolveAutoSelectId(
         withTrailingSlash,
-        "/Users/sean/workspace/exp/SuperView",
+        "/Users/sean/workspace/exp/CC-Flight",
         null,
       ),
     ).toBe("p_superview");
@@ -46,10 +46,10 @@ describe("resolveAutoSelectId", () => {
   it("does not match an unrelated sibling or parent directory", () => {
     const siblings: AutoSelectProject[] = [
       { id: "p_exp", cwd: "/Users/sean/workspace/exp" },
-      { id: "p_other", cwd: "/Users/sean/workspace/exp/SuperViewOther" },
+      { id: "p_other", cwd: "/Users/sean/workspace/exp/CC-FlightOther" },
     ];
     expect(
-      resolveAutoSelectId(siblings, "/Users/sean/workspace/exp/SuperView", null),
+      resolveAutoSelectId(siblings, "/Users/sean/workspace/exp/CC-Flight", null),
     ).toBeNull();
   });
 
@@ -62,7 +62,7 @@ describe("resolveAutoSelectId", () => {
     expect(
       resolveAutoSelectId(
         partialScan,
-        "/Users/sean/workspace/exp/SuperView",
+        "/Users/sean/workspace/exp/CC-Flight",
         null,
       ),
     ).toBeNull();
@@ -73,7 +73,7 @@ describe("resolveAutoSelectId", () => {
     const partialScan: AutoSelectProject[] = [
       { id: "p_aimarketing", cwd: "/Users/sean/workspace/AIMarketing" },
     ];
-    const target = "/Users/sean/workspace/exp/SuperView";
+    const target = "/Users/sean/workspace/exp/CC-Flight";
     expect(resolveAutoSelectId(partialScan, target, null)).toBeNull();
     const fullScan = [
       ...partialScan,
@@ -89,10 +89,10 @@ describe("resolveAutoSelectId", () => {
   it("ignores projects with a null cwd", () => {
     const withNullCwd: AutoSelectProject[] = [
       { id: "p_null", cwd: null },
-      { id: "p_superview", cwd: "/Users/sean/workspace/exp/SuperView" },
+      { id: "p_superview", cwd: "/Users/sean/workspace/exp/CC-Flight" },
     ];
     expect(
-      resolveAutoSelectId(withNullCwd, "/Users/sean/workspace/exp/SuperView", null),
+      resolveAutoSelectId(withNullCwd, "/Users/sean/workspace/exp/CC-Flight", null),
     ).toBe("p_superview");
   });
 });

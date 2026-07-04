@@ -19,7 +19,7 @@ export default defineConfig({
 
 function chromeDevToolsWorkspacePlugin() {
   return {
-    name: "superview-chrome-devtools-workspace",
+    name: "cc-flight-chrome-devtools-workspace",
     configureServer(server: { middlewares: { use: (path: string, handler: (req: IncomingMessage, res: ServerResponse) => void) => void } }) {
       server.middlewares.use(CHROME_DEVTOOLS_CONFIG_PATH, serveChromeDevToolsConfig);
     },

@@ -19,6 +19,6 @@ export function startProdServer(opts?: { port?: number; projectDir?: string }) {
   });
 
   return app.listen(port, "0.0.0.0", () => {
-    console.log(`SuperView running at http://127.0.0.1:${port}`);
+    console.log(`CC Flight running at http://127.0.0.1:${port}`);
   });
 }

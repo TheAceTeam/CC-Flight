@@ -63,7 +63,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
 
-## SuperView Agent Notes
+## CC Flight Agent Notes
 
 ### Design System
 Always read `DESIGN.md` before making any visual or UI decisions.
@@ -72,7 +72,7 @@ Do not deviate from `DESIGN.md` without explicit user approval.
 In QA mode, flag any code that does not match `DESIGN.md`.
 
 ### Product Frame
-SuperView is a web app/dashboard for Codex users. Its job is to make coding-agent logs feel like a replayable trace map, not a raw transcript.
+CC Flight is a web app/dashboard for Codex users. Its job is to make coding-agent logs feel like a replayable trace map, not a raw transcript.
 
 The memorable first impression is: "wow, I have never seen a coding agent from this angle."
 

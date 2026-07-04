@@ -6,7 +6,7 @@
 
 **Architecture:** Reuse `buildXRayModel` from `ui/src/runAtlasModel.ts` as the single source of truth. `ui/src/RunAtlas.tsx` gets a third preview mode that renders X-Ray nodes and links as a horizontal 2D tunnel, shares selection state with the 3D mode, and keeps `XRayInspector` as the diagnostic detail panel.
 
-**Tech Stack:** React, TypeScript, existing SuperView i18n dictionary, CSS grid/flex layout, Playwright e2e, Vitest model coverage already in place.
+**Tech Stack:** React, TypeScript, existing CC Flight i18n dictionary, CSS grid/flex layout, Playwright e2e, Vitest model coverage already in place.
 
 ---
 

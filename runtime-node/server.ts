@@ -2,12 +2,12 @@ import express from "express";
 import type { Request } from "express";
 import { AgentProvider, AgentSourceConfig, TimelineLane, TimelineQuery } from "../core/types";
 import { buildContextReplay } from "../core/contextReplay";
-import { SuperViewDatabase } from "../storage/database";
+import { CCFlightDatabase } from "../storage/database";
 import { IngestService } from "./ingest";
 import { buildChromeDevToolsConfig, CHROME_DEVTOOLS_CONFIG_PATH } from "./chrome-devtools";
 
 export function createServer(opts?: { projectDir?: string }) {
-  const db = new SuperViewDatabase();
+  const db = new CCFlightDatabase();
   const ingest = new IngestService(db);
   const app = express();
 

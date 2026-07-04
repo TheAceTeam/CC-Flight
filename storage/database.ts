@@ -33,7 +33,7 @@ type EventRow = Omit<TimelineEvent, "files" | "tokenUsage" | "skills"> & {
   skillsJson: string | null;
 };
 
-export class SuperViewDatabase {
+export class CCFlightDatabase {
   private db: Database.Database;
 
   constructor(databasePath = resolveDatabasePath()) {

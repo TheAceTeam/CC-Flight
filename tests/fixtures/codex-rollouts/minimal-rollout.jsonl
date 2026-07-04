@@ -1,4 +1,4 @@
 {"timestamp":"2026-05-25T01:00:00.000Z","type":"session_meta","payload":{"id":"fixture-minimal-session","timestamp":"2026-05-25T01:00:00.000Z","cwd":"/tmp/superview-fixture","cli_version":"0.125.0","model_provider":"OpenAI","source":"cli"}}
 {"timestamp":"2026-05-25T01:00:01.000Z","type":"turn_context","payload":{"turn_id":"turn-1","cwd":"/tmp/superview-fixture","model":"gpt-5","approval_policy":"never","sandbox_policy":"danger-full-access"}}
-{"timestamp":"2026-05-25T01:00:02.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Build a SuperView timeline prototype"}]}}
+{"timestamp":"2026-05-25T01:00:02.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Build a CC Flight timeline prototype"}]}}
 {"timestamp":"2026-05-25T01:00:04.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"I will inspect the project and build the prototype."}]}}

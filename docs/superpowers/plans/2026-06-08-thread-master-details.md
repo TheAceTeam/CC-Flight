@@ -6,7 +6,7 @@
 
 **Architecture:** Keep Atlas View untouched. `ui/src/App.tsx` keeps `viewMode === "atlas"` exactly on `RunAtlas`; only the `ConversationThread` branch gains selected-journey state, a master prompt list, and a detail pane that reuses `ConversationTurn`. Existing journey paging and detail loading behavior remain intact.
 
-**Tech Stack:** React state, TypeScript, existing SuperView i18n dictionary, CSS grid/responsive layout, Playwright e2e.
+**Tech Stack:** React state, TypeScript, existing CC Flight i18n dictionary, CSS grid/responsive layout, Playwright e2e.
 
 ---
 

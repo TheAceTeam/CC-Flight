@@ -34,7 +34,7 @@ afterEach(() => {
   rmSync(claudeHome, { recursive: true, force: true });
 });
 
-describe("SuperView API", () => {
+describe("CC Flight API", () => {
   it("reports health and starts an ingest job", async () => {
     const app = createServer();
     const health = await request(app).get("/api/health");

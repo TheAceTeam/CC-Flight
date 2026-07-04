@@ -9,5 +9,5 @@ app.get("/", (_req, res) => {
 });
 
 app.listen(port, "127.0.0.1", () => {
-  console.log(`SuperView API listening on http://127.0.0.1:${port}`);
+  console.log(`CC Flight API listening on http://127.0.0.1:${port}`);
 });

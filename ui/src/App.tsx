@@ -783,7 +783,7 @@ export function App() {
         <div className="topbar-actions">
           <a
             className="icon-button"
-            href="https://github.com/TheAceTeam/SuperView"
+            href="https://github.com/TheAceTeam/CC-Flight"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub"
@@ -1206,7 +1206,7 @@ export function App() {
           summary={recapSummaryLine}
           tokenUsage={projectTokenUsage}
           dailyUsage={dailyTokenUsage}
-          repoUrl="https://github.com/TheAceTeam/SuperView"
+          repoUrl="https://github.com/TheAceTeam/CC-Flight"
           onClose={() => setProjectShareOpen(false)}
           onToast={showShareToast}
         />
@@ -1471,22 +1471,22 @@ function ProjectShareCard({
 
   function buildPlainText() {
     const lines = [
-      `${projectName} — SuperView project recap`,
+      `${projectName} — CC Flight project recap`,
       "",
       ...metrics.map((m) => `• ${m.label}: ${m.value}`),
       "",
-      `Captured with SuperView — ${repoUrl}`,
+      `Captured with CC Flight — ${repoUrl}`,
     ];
     return lines.join("\n");
   }
 
   function buildMarkdown() {
     const lines = [
-      `## ${projectName} — SuperView project recap`,
+      `## ${projectName} — CC Flight project recap`,
       "",
       ...metrics.map((m) => `- **${m.label}:** ${m.value}`),
       "",
-      `_${projectName} · ${dateLabel} · SuperView — ${repoUrl}_`,
+      `_${projectName} · ${dateLabel} · CC Flight — ${repoUrl}_`,
     ];
     return lines.join("\n");
   }
@@ -1606,7 +1606,7 @@ function ProjectShareCard({
       <div className="share-card" onClick={(e) => e.stopPropagation()}>
         <div className="share-card-header">
           <div className="share-card-header-brand">
-            <strong>SuperView</strong>
+            <strong>CC Flight</strong>
             <span>{copy.shareCardTitle}</span>
           </div>
           <button
@@ -1655,7 +1655,7 @@ function ProjectShareCard({
 
           <div className="share-card-stats-footer">
             <span className="share-card-stats-project">
-              {projectName} · {dateLabel} · SuperView
+              {projectName} · {dateLabel} · CC Flight
             </span>
           </div>
         </div>
@@ -3015,7 +3015,7 @@ function ShareCard({
     );
     lines.push("");
     lines.push(
-      `_${projectName || journey.projectId} · ${now.toLocaleDateString()} · SuperView_`,
+      `_${projectName || journey.projectId} · ${now.toLocaleDateString()} · CC Flight_`,
     );
     return lines.join("\n");
   }
@@ -3043,7 +3043,7 @@ function ShareCard({
       <div className="share-card" onClick={(e) => e.stopPropagation()}>
         <div className="share-card-header">
           <div className="share-card-header-brand">
-            <strong>SuperView</strong>
+            <strong>CC Flight</strong>
             <span>{copy.shareCardTitle}</span>
           </div>
           <button

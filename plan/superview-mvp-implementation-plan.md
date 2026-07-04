@@ -1,8 +1,8 @@
-# SuperView MVP Implementation Plan
+# CC Flight MVP Implementation Plan
 
 ## 1. Product Goal
 
-SuperView is a local-first Codex log visualization dashboard for complex engineering work. The MVP turns Codex rollout JSONL files into a project timeline, then lets users drill into a single Codex run as a replayable side-scrolling level.
+CC Flight is a local-first Codex log visualization dashboard for complex engineering work. The MVP turns Codex rollout JSONL files into a project timeline, then lets users drill into a single Codex run as a replayable side-scrolling level.
 
 The memorable outcome is: "wow, I have never seen a coding agent from this angle."
 
@@ -28,7 +28,7 @@ Out of scope for Phase 1:
 
 ## 3. Architecture
 
-SuperView is built as a desktop-ready local web app:
+CC Flight is built as a desktop-ready local web app:
 
 ```txt
 React UI
@@ -167,7 +167,7 @@ MVP must be desktop-ready without shipping a desktop app yet:
 - Use job-based ingest so desktop windows do not freeze.
 - Avoid coupling API response shapes to SQLite row shapes.
 
-Electron is the likely first desktop shell because SuperView needs Node-friendly local file, git, and process access. Tauri can be revisited after the core product stabilizes.
+Electron is the likely first desktop shell because CC Flight needs Node-friendly local file, git, and process access. Tauri can be revisited after the core product stabilizes.
 
 ## 9. Test Plan
 
@@ -205,7 +205,7 @@ E2E tests:
 
 - `pnpm dev` starts the local dashboard.
 - Scan reads real Codex rollout JSONL files.
-- The current SuperView project can appear as a project timeline.
+- The current CC Flight project can appear as a project timeline.
 - Timeline shows lanes for Product, Code, Agent Runs, Verification, and Risks.
 - Clicking a run opens replay view.
 - Tool call, patch, failure, and verification evidence appear in replay.

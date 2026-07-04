@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { AgentLogAdapter, AgentLogSource, AgentProvider, AgentSourceConfig, CodexHistoryPrompt, GitCommitRecord, IngestJob, NormalizedBundle } from "../core/types";
-import { SuperViewDatabase } from "../storage/database";
+import { CCFlightDatabase } from "../storage/database";
 import { resolveCodexHome } from "../storage/paths";
 import { adapterForProvider, defaultAdapters } from "./adapters";
 import { getCommits, getRepoRoot } from "./git-provider";
@@ -30,7 +30,7 @@ interface IngestCandidate {
 export class IngestService {
   private workersByJobId = new Map<string, ChildProcess>();
 
-  constructor(private db: SuperViewDatabase) {}
+  constructor(private db: CCFlightDatabase) {}
 
   start(options: IngestStartOptions | string = {}): IngestStartResult {
     const activeJob = this.db.getActiveIngestJob();
@@ -114,7 +114,7 @@ export class IngestService {
   }
 }
 
-export async function runIngestJob(db: SuperViewDatabase, jobId: string, ingestOptions: IngestStartOptions | string = {}, options: { workerPid?: number | null } = {}) {
+export async function runIngestJob(db: CCFlightDatabase, jobId: string, ingestOptions: IngestStartOptions | string = {}, options: { workerPid?: number | null } = {}) {
   const job = db.getJob(jobId);
   if (!job) {
     throw new Error(`Ingest job ${jobId} not found`);
@@ -292,7 +292,7 @@ async function loadHistoryBySessionId(codexHome?: string) {
   }
 }
 
-async function loadHistoryForJob(db: SuperViewDatabase, job: IngestJob, codexHome?: string) {
+async function loadHistoryForJob(db: CCFlightDatabase, job: IngestJob, codexHome?: string) {
   job.phase = "loading_history";
   db.upsertJob(job);
   return loadHistoryBySessionId(codexHome);

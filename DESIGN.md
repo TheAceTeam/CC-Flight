@@ -1,7 +1,7 @@
-# Design System - SuperView
+# Design System - CC Flight
 
 ## Product Context
-- **What this is:** SuperView is a complex-engineering timeline tool that reconstructs a project from its beginning to the present. Codex logs, git history, docs, tests, releases, user interruptions, and verification evidence become one continuous development timeline. Individual Codex runs can still open as side-scrolling replay levels.
+- **What this is:** CC Flight is a complex-engineering timeline tool that reconstructs a project from its beginning to the present. Codex logs, git history, docs, tests, releases, user interruptions, and verification evidence become one continuous development timeline. Individual Codex runs can still open as side-scrolling replay levels.
 - **Who it is for:** Codex users and engineering teams who want to understand how a complex project actually evolved: what decisions were made, where implementation drifted, when work was verified, where risk accumulated, and which agent runs moved the project forward.
 - **Space/industry:** AI developer tools, coding-agent observability, LLM tracing, and developer workflow debugging.
 - **Project type:** Engineering timeline dashboard with game-like replay drill-downs. The foundation is a from-start-to-now project timeline; the platformer view is a memorable detail view for individual runs or episodes.
@@ -15,7 +15,7 @@ Current LLM observability products converge on trace inspection, spans, evals, p
 - [Braintrust trace inspection](https://www.braintrust.dev/docs/observe/examine-traces) supports hierarchy, timeline, conversation, raw trace, rerun, and share views.
 - [Helicone sessions](https://docs.helicone.ai/features/sessions) and [session replay](https://docs.helicone.ai/guides/cookbooks/replay-session) emphasize session metadata, tracking, logging, and replay for AI agent calls.
 
-The category baseline is useful but visually predictable: tables, trace trees, cost charts, and provider metrics. SuperView should keep those fundamentals, but its own face should be the "agent flight recorder": a dashboard that makes a coding session feel like a navigable object with geography, causality, and replay.
+The category baseline is useful but visually predictable: tables, trace trees, cost charts, and provider metrics. CC Flight should keep those fundamentals, but its own face should be the "agent flight recorder": a dashboard that makes a coding session feel like a navigable object with geography, causality, and replay.
 
 Gamification references worth borrowing from:
 
@@ -24,7 +24,7 @@ Gamification references worth borrowing from:
 - [freeCodeCamp](https://github.com/freeCodeCamp/freeCodeCamp) turns learning into a path of small challenges, projects, and visible certification milestones.
 - [Moodle badges](https://docs.moodle.org/en/Badges) show how badges can represent evidence-backed achievements instead of empty decoration.
 
-SuperView should make complex engineering work legible first. The product’s foundation is a timeline that answers: how did this project get here? The game layer then makes individual runs and episodes replayable.
+CC Flight should make complex engineering work legible first. The product’s foundation is a timeline that answers: how did this project get here? The game layer then makes individual runs and episodes replayable.
 
 ## Product Model
 - **Project Timeline:** The highest-level object. It spans from project start to now and combines commits, Codex sessions, docs, plans, tests, releases, deploys, user corrections, and unresolved risks.
@@ -36,10 +36,10 @@ SuperView should make complex engineering work legible first. The product’s fo
 - **Narrative Layer:** Auto-generated summary of what changed, why it changed, and what remains uncertain across the project lifecycle.
 
 ## Game Concept
-- **Game title inside the product:** SuperView: Agent Run.
+- **Game title inside the product:** CC Flight: Agent Run.
 - **Primary inspiration:** Classic side-scrolling platformers, especially the instantly understood structure of a run: start, obstacles, jumps, power-ups, checkpoints, hazards, boss moments, and a finish flag.
 - **Secondary inspiration:** Automation/factory games. A small subsystem shows how context, file reads, patches, tests, and verification flow through a pipeline.
-- **Prototype IP posture:** For the current concept prototype, SuperView may lean directly into Mario-like platformer language and visual placeholders: bricks, coins, pipes, mushrooms, flags, pits, and side-scrolling level structure. Final production IP treatment can be resolved later by the project owner.
+- **Prototype IP posture:** For the current concept prototype, CC Flight may lean directly into Mario-like platformer language and visual placeholders: bricks, coins, pipes, mushrooms, flags, pits, and side-scrolling level structure. Final production IP treatment can be resolved later by the project owner.
 - **Fantasy:** You are watching a coding agent run a level made from your repo and task. The agent must gather enough context, jump across tool calls, patch code, survive tests, and reach a verified finish.
 - **Core loop:** Pick a run, replay the side-scrolling level, inspect obstacles, see where the agent lost momentum, collect artifacts, compare alternate routes, and save the behavior pattern.
 - **Session as level:** Every Codex log is a playable level. Short clean sessions become speedrun levels; messy sessions become obstacle courses; failed sessions become challenge levels.
@@ -186,10 +186,10 @@ SuperView should make complex engineering work legible first. The product’s fo
 ## Decisions Log
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2026-05-25 | Initial design system created | Created by design consultation for a Codex log visualization dashboard. Research showed trace tools converge on observability tables and spans; SuperView should differentiate with a map-first agent flight recorder. |
-| 2026-05-25 | Added evidence-backed game mechanics | Borrowed quests, badges, progression, and learning paths from Habitica, Exercism, freeCodeCamp, and Moodle badges while keeping SuperView serious and trace-driven. |
-| 2026-05-25 | Reframed SuperView as developer platformer plus factory | User clarified they want the product to lean toward familiar games like Mario, not generic gamification. The accepted direction is side-scrolling platformer as primary metaphor with a small automation/factory layer for workflow causality. |
+| 2026-05-25 | Initial design system created | Created by design consultation for a Codex log visualization dashboard. Research showed trace tools converge on observability tables and spans; CC Flight should differentiate with a map-first agent flight recorder. |
+| 2026-05-25 | Added evidence-backed game mechanics | Borrowed quests, badges, progression, and learning paths from Habitica, Exercism, freeCodeCamp, and Moodle badges while keeping CC Flight serious and trace-driven. |
+| 2026-05-25 | Reframed CC Flight as developer platformer plus factory | User clarified they want the product to lean toward familiar games like Mario, not generic gamification. The accepted direction is side-scrolling platformer as primary metaphor with a small automation/factory layer for workflow causality. |
 | 2026-05-25 | Relaxed prototype IP boundary | User stated IP safety does not need to constrain this prototype. The design can use Mario-like placeholder language and visuals for now. |
 | 2026-05-25 | Selected replay-driven animation | User chose Variant C over ambient motion. Motion should be tied to session replay: the agent sprite moves through events and the factory belt advances with the timeline. |
 | 2026-05-25 | Promoted project timeline to foundation | User clarified the target is complex engineering: generate a from-start-to-now timeline of the full development process as the base view. Agent Run remains a drill-down interaction. |
-| 2026-05-25 | Adopted command-center visual reference | User provided Evreghen Command Center design tokens. SuperView should use warm off-white workspace, dark frosted shell, compact system typography, and orange telemetry accents while retaining timeline-first IA and replay drill-downs. |
+| 2026-05-25 | Adopted command-center visual reference | User provided Evreghen Command Center design tokens. CC Flight should use warm off-white workspace, dark frosted shell, compact system typography, and orange telemetry accents while retaining timeline-first IA and replay drill-downs. |

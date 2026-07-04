@@ -385,7 +385,7 @@ export const COPY: Record<Language, AppCopy> = {
       dailyUsageByDay: "Daily usage by day"
     },
     empty: {
-      loadingTitle: "Loading SuperView index",
+      loadingTitle: "Loading CC Flight index",
       loadingDetail: "Checking local SQLite state.",
       noRunsTitle: "No agent runs indexed",
       noRunsDetail: "Scan local Codex, Claude Code, or OpenCode logs to build the first timeline.",
@@ -399,9 +399,9 @@ export const COPY: Record<Language, AppCopy> = {
     loading: {
       scanningLogs: "Scanning agent logs",
       loadingTimeline: "Loading timeline page",
-      loadingIndex: "Loading SuperView index",
+      loadingIndex: "Loading CC Flight index",
       loadingDailyTokens: "Loading daily token usage",
-      steady: "Keeping the workspace steady while SuperView updates.",
+      steady: "Keeping the workspace steady while CC Flight updates.",
       aria: "Blocking operation"
     },
     timeline: {
@@ -680,7 +680,7 @@ export const COPY: Record<Language, AppCopy> = {
       steps: [
         {
           title: "Scan Agent Logs",
-          detail: "Point SuperView at your Codex, Claude Code, or OpenCode log directory to begin indexing agent runs."
+          detail: "Point CC Flight at your Codex, Claude Code, or OpenCode log directory to begin indexing agent runs."
         },
         {
           title: "Switch Projects",
@@ -785,7 +785,7 @@ export const COPY: Record<Language, AppCopy> = {
       dailyUsageByDay: "按天用量"
     },
     empty: {
-      loadingTitle: "正在加载 SuperView 索引",
+      loadingTitle: "正在加载 CC Flight 索引",
       loadingDetail: "正在检查本地 SQLite 状态。",
       noRunsTitle: "还没有索引 Agent Runs",
       noRunsDetail: "扫描本地 Codex、Claude Code 或 OpenCode 日志，生成第一条时间线。",
@@ -799,9 +799,9 @@ export const COPY: Record<Language, AppCopy> = {
     loading: {
       scanningLogs: "正在扫描 agent 日志",
       loadingTimeline: "正在加载时间线分页",
-      loadingIndex: "正在加载 SuperView 索引",
+      loadingIndex: "正在加载 CC Flight 索引",
       loadingDailyTokens: "正在加载按天 token 用量",
-      steady: "SuperView 更新中，暂时锁定工作区。",
+      steady: "CC Flight 更新中，暂时锁定工作区。",
       aria: "阻塞操作"
     },
     timeline: {
@@ -1080,7 +1080,7 @@ export const COPY: Record<Language, AppCopy> = {
       steps: [
         {
           title: "扫描 Agent 日志",
-          detail: "将 SuperView 指向您的 Codex、Claude Code 或 OpenCode 日志目录，开始索引 Agent 运行记录。"
+          detail: "将 CC Flight 指向您的 Codex、Claude Code 或 OpenCode 日志目录，开始索引 Agent 运行记录。"
         },
         {
           title: "切换项目",

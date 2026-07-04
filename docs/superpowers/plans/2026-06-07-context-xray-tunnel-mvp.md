@@ -6,7 +6,7 @@
 
 **Architecture:** Keep the existing 2D Insight Board as the entry point and add a pure model builder in `ui/src/runAtlasModel.ts` for X-Ray nodes, links, diagnostics, and suggested actions. `ui/src/RunAtlas.tsx` renders that model with Three.js and an inspector while using existing `TaskJourneyDetail.events`, `causalEdges`, and `AtlasInsight` data; no database or API migration is required.
 
-**Tech Stack:** TypeScript, Vitest, React, Three.js, existing SuperView i18n copy dictionary, Playwright e2e expectations.
+**Tech Stack:** TypeScript, Vitest, React, Three.js, existing CC Flight i18n copy dictionary, Playwright e2e expectations.
 
 ---
 

@@ -6,15 +6,15 @@ product
 
 ## Users
 
-Developers and engineering teams who run coding agents — Codex CLI, Claude Code, and OpenCode — and want to understand what those agents actually did. They open SuperView after (or between) agent sessions to debug a confusing run, account for token spend and cost, audit context-window behavior, and see hidden work that a raw transcript buries: tool calls, context snapshots, errors, and project telemetry.
+Developers and engineering teams who run coding agents — Codex CLI, Claude Code, and OpenCode — and want to understand what those agents actually did. They open CC Flight after (or between) agent sessions to debug a confusing run, account for token spend and cost, audit context-window behavior, and see hidden work that a raw transcript buries: tool calls, context snapshots, errors, and project telemetry.
 
-Their context is local and private: SuperView runs on their own machine against logs that never leave it. The job to be done is **"make a coding-agent session legible"** — turn an opaque pile of JSONL into a navigable, replayable trace map they can reason about at a glance.
+Their context is local and private: CC Flight runs on their own machine against logs that never leave it. The job to be done is **"make a coding-agent session legible"** — turn an opaque pile of JSONL into a navigable, replayable trace map they can reason about at a glance.
 
 ## Product Purpose
 
-SuperView is a local-first **flight recorder for coding agents**. It ingests session logs from multiple providers, reconstructs every task journey, and surfaces the run's anatomy in one dashboard: Session Recap (cost, tokens, tool calls, errors, model usage, rhythm), Context Replay (snapshot-by-snapshot walkthrough of the agent's context window), Token Timeline, Share Cards, and per-event Evidence with redacted provenance.
+CC Flight is a local-first **flight recorder for coding agents**. It ingests session logs from multiple providers, reconstructs every task journey, and surfaces the run's anatomy in one dashboard: Session Recap (cost, tokens, tool calls, errors, model usage, rhythm), Context Replay (snapshot-by-snapshot walkthrough of the agent's context window), Token Timeline, Share Cards, and per-event Evidence with redacted provenance.
 
-It exists because the LLM-observability category is converging on the same visually predictable surface — trace trees, span tables, cost charts, provider metric grids — that treats an agent session as a transcript to inspect rather than an object to navigate. SuperView's bet is that a coding session has geography, causality, and momentum, and that showing it that way produces the memorable reaction: *"I have never seen a coding agent from this angle."*
+It exists because the LLM-observability category is converging on the same visually predictable surface — trace trees, span tables, cost charts, provider metric grids — that treats an agent session as a transcript to inspect rather than an object to navigate. CC Flight's bet is that a coding session has geography, causality, and momentum, and that showing it that way produces the memorable reaction: *"I have never seen a coding agent from this angle."*
 
 Success is a developer opening a session they didn't understand and leaving with a clear mental model of how the agent got from task to verified finish — where it stalled, what it cost, and where risk still lives.
 
@@ -28,10 +28,10 @@ Three words: **operational, precise, quietly confident.** The tone is the calm a
 
 ## Anti-references
 
-- **Generic trace-tree observability dashboards** (LangSmith / Langfuse / Braintrust style): span trees, raw tables, and provider metric grids. SuperView keeps the fundamentals but must not wear the category's predictable face.
+- **Generic trace-tree observability dashboards** (LangSmith / Langfuse / Braintrust style): span trees, raw tables, and provider metric grids. CC Flight keeps the fundamentals but must not wear the category's predictable face.
 - **Toy / childish gamification:** a real dashboard with cartoon stickers, badge spam, confetti, or toy mascots. If a game metaphor appears, it must read as a clever developer instrument, not a Mario clone with toy stickers.
-- **Cluttered enterprise APM** (Datadog / Grafana wall-of-widgets): density that overwhelms instead of focusing attention. SuperView prioritizes legibility and a single clear reading path over maximal widget count.
-- **Cloud SaaS marketing UI:** hero-metric templates, gradient accents, identical card grids, sign-up funnels. SuperView is local-first with no accounts.
+- **Cluttered enterprise APM** (Datadog / Grafana wall-of-widgets): density that overwhelms instead of focusing attention. CC Flight prioritizes legibility and a single clear reading path over maximal widget count.
+- **Cloud SaaS marketing UI:** hero-metric templates, gradient accents, identical card grids, sign-up funnels. CC Flight is local-first with no accounts.
 
 ## Design Principles
 

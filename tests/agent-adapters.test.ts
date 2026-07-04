@@ -41,7 +41,7 @@ describe("agent log adapters", () => {
     const sourceRoot = mkdtempSync(path.join(tmpdir(), "superview-claude-history-home-"));
     const mappedProject = "/Users/sean/workspace/cangjie_oss/EasyExcel4CJ";
     try {
-      const projectDir = path.join(sourceRoot, "projects", "-Users-sean-workspace-exp-SuperView");
+      const projectDir = path.join(sourceRoot, "projects", "-Users-sean-workspace-exp-CC-Flight");
       mkdirSync(projectDir, { recursive: true });
       writeFileSync(
         path.join(sourceRoot, "history.jsonl"),
@@ -55,7 +55,7 @@ describe("agent log adapters", () => {
         path.join(projectDir, "history-session-1.jsonl"),
         [
           JSON.stringify({
-            cwd: "/Users/sean/workspace/exp/SuperView",
+            cwd: "/Users/sean/workspace/exp/CC-Flight",
             sessionId: "history-session-1",
             version: "1.2.3",
             type: "user",
@@ -66,7 +66,7 @@ describe("agent log adapters", () => {
             timestamp: "2026-04-25T04:01:45.308Z"
           }),
           JSON.stringify({
-            cwd: "/Users/sean/workspace/exp/SuperView",
+            cwd: "/Users/sean/workspace/exp/CC-Flight",
             sessionId: "history-session-1",
             version: "1.2.3",
             type: "assistant",

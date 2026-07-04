@@ -33,7 +33,7 @@ export class IngestService {
   constructor(private db: CCFlightDatabase) {}
 
   start(options: IngestStartOptions | string = {}): IngestStartResult {
-    const activeJob = this.db.getActiveIngestJob();
+    const activeJob = this.recoverStaleActiveJob(this.db.getActiveIngestJob());
     if (activeJob) {
       return { job: activeJob, alreadyRunning: true };
     }
@@ -66,6 +66,18 @@ export class IngestService {
       this.db.upsertJob(job);
     }
     return { job, alreadyRunning: false };
+  }
+
+  private recoverStaleActiveJob(job: IngestJob | null): IngestJob | null {
+    if (!job) return null;
+    if (isLikelyActiveJob(job)) return job;
+    job.status = "failed";
+    job.phase = "failed";
+    job.finishedAt = new Date().toISOString();
+    job.currentFile = null;
+    job.errors.push("Ingest worker is no longer running; marked stale job failed.");
+    this.db.upsertJob(job);
+    return null;
   }
 
   getJob(jobId: string) {
@@ -355,6 +367,22 @@ async function maybeDelayForTests() {
   const delayMs = Number(process.env.SUPERVIEW_TEST_INGEST_FILE_DELAY_MS ?? 0);
   if (Number.isFinite(delayMs) && delayMs > 0) {
     await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+}
+
+function isLikelyActiveJob(job: IngestJob) {
+  if (job.workerPid && isProcessRunning(job.workerPid)) return true;
+  const startedMs = Date.parse(job.startedAt);
+  const ageMs = Number.isFinite(startedMs) ? Date.now() - startedMs : Number.POSITIVE_INFINITY;
+  return job.status === "queued" && ageMs < 30_000;
+}
+
+function isProcessRunning(pid: number) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
   }
 }
 

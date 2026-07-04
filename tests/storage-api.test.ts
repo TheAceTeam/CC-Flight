@@ -7,6 +7,7 @@ import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createServer } from "../runtime-node/server";
 import { INGEST_PROCESSOR_VERSION } from "../runtime-node/ingest";
+import { CCFlightDatabase } from "../storage/database";
 
 let dataDir: string;
 let codexHome: string;
@@ -511,6 +512,45 @@ describe("CC Flight API", () => {
     } finally {
       rmSync(largeCodexHome, { recursive: true, force: true });
     }
+  });
+
+  it("marks stale active ingest jobs failed before starting a new scan", async () => {
+    const staleJobId = "stale-ingest-job";
+    const stalePid = 999_999_999;
+    const db = new CCFlightDatabase();
+    db.upsertJob({
+      id: staleJobId,
+      status: "running",
+      phase: "writing",
+      startedAt: "2026-01-01T00:00:00.000Z",
+      finishedAt: null,
+      totalFiles: 1,
+      processedFiles: 0,
+      totalEvents: 0,
+      errors: [],
+      skippedFiles: 0,
+      candidateFiles: 1,
+      changedFiles: 1,
+      processedBytes: 0,
+      totalBytes: 1,
+      currentFile: "/tmp/stale.jsonl",
+      workerPid: stalePid,
+      processorVersion: INGEST_PROCESSOR_VERSION
+    });
+
+    const app = createServer();
+    const ingest = await request(app).post("/api/ingest").send({ codexHome });
+    expect(ingest.status).toBe(202);
+    expect(ingest.body.alreadyRunning).toBe(false);
+    expect(ingest.body.jobId).not.toBe(staleJobId);
+
+    const stale = await request(app).get(`/api/ingest/jobs/${staleJobId}`);
+    expect(stale.status).toBe(200);
+    expect(stale.body.status).toBe("failed");
+    expect(stale.body.errors).toContain("Ingest worker is no longer running; marked stale job failed.");
+
+    const job = await waitForJob(app, ingest.body.jobId);
+    expect(job.status).toBe("completed");
   });
 
   it("marks a crashed ingest worker failed and keeps APIs responsive", async () => {

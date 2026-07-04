@@ -137,24 +137,26 @@ describe("Subagent session view", () => {
     expect(within(drawer).getByText("Worker session loaded the failing spec and reported the root cause.")).toBeInTheDocument();
   });
 
-  test("closes the subagent activity panel and open drawer", async () => {
+  test("keeps the activity panel persistent while allowing the drawer to close", async () => {
     render(<App />);
 
     const activity = await screen.findByRole("region", {
       name: "Subagent Activity",
     });
+    expect(within(activity).queryByRole("button", { name: /close/i })).not.toBeInTheDocument();
+
     const subagentRow = await within(activity).findByRole("button", {
       name: /Subagent Worker/,
     });
     fireEvent.click(subagentRow);
 
-    expect(await screen.findByRole("dialog", { name: /Subagent Worker/ })).toBeInTheDocument();
+    const drawer = await screen.findByRole("dialog", { name: /Subagent Worker/ });
 
     fireEvent.click(
-      within(activity).getByRole("button", { name: "Close Subagent Activity" }),
+      within(drawer).getByRole("button", { name: "Close subagent session" }),
     );
 
-    expect(screen.queryByRole("region", { name: "Subagent Activity" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Subagent Activity" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: /Subagent Worker/ })).not.toBeInTheDocument();
   });
 

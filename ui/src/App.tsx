@@ -1237,7 +1237,6 @@ function SubagentActivityPanel({
   onSelectRun: (sessionId: string) => void;
   onCloseRun: () => void;
 }) {
-  const [panelClosed, setPanelClosed] = useState(false);
   const subagentSessions = useMemo(
     () =>
       sessions
@@ -1245,20 +1244,12 @@ function SubagentActivityPanel({
         .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt)),
     [sessions],
   );
-  const subagentSessionKey = useMemo(
-    () => subagentSessions.map((session) => session.id).join("|"),
-    [subagentSessions],
-  );
   const selectedSession =
     subagentSessions.find((session) => session.id === selectedRunId) ??
     selectedRun?.session ??
     null;
 
-  useEffect(() => {
-    setPanelClosed(false);
-  }, [subagentSessionKey]);
-
-  if (subagentSessions.length === 0 || panelClosed) return null;
+  if (subagentSessions.length === 0) return null;
 
   return (
     <>
@@ -1271,18 +1262,6 @@ function SubagentActivityPanel({
             <span>{copy.subagentActivityTitle}</span>
             <strong>{copy.subagentActivityCount(subagentSessions.length)}</strong>
           </div>
-          <button
-            type="button"
-            className="icon-button subagent-activity-close"
-            onClick={() => {
-              setPanelClosed(true);
-              onCloseRun();
-            }}
-            aria-label={copy.subagentActivityPanelClose}
-            title={copy.subagentActivityPanelClose}
-          >
-            <X size={16} />
-          </button>
         </div>
         <div className="subagent-activity-list">
           {subagentSessions.map((session) => {

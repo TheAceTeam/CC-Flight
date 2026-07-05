@@ -6066,6 +6066,14 @@ pre {
   gap: 12px;
   align-items: start;
   min-width: 0;
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+.subthread-layout button {
+  font-family: inherit;
+  letter-spacing: 0;
 }
 
 .subthread-group-heading,
@@ -6076,18 +6084,7 @@ pre {
   gap: 12px;
 }
 
-.subthread-card-heading span {
-  color: var(--orange);
-  font: 800 11px/1 var(--spine-mono);
-  text-transform: uppercase;
-}
-
-.subthread-card-heading strong {
-  color: var(--ink);
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-
+.subthread-card-heading span,
 .subthread-group-heading span {
   color: var(--orange);
   font-family: ui-sans-serif, system-ui, sans-serif;
@@ -6098,6 +6095,7 @@ pre {
   text-transform: uppercase;
 }
 
+.subthread-card-heading strong,
 .subthread-group-heading strong {
   color: var(--ink);
   font-family: ui-sans-serif, system-ui, sans-serif;
@@ -6140,7 +6138,10 @@ pre {
 
 .subthread-index-item strong {
   min-width: 0;
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, sans-serif;
   font-size: 12px;
+  font-weight: 900;
   line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6150,7 +6151,10 @@ pre {
 .subthread-index-item em {
   grid-column: 2;
   color: var(--muted);
-  font: 700 10.5px/1.25 var(--spine-mono);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
   font-style: normal;
 }
 
@@ -6190,7 +6194,10 @@ pre {
 
 .subthread-card-heading em {
   color: var(--muted);
-  font: 700 11px/1.25 var(--spine-mono);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
   font-style: normal;
   text-align: right;
   overflow-wrap: anywhere;

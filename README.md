@@ -68,6 +68,16 @@ For future updates, switch scripts and docs to `cc-flight` or `ccflight`.
 
 ## Features
 
+### New in 0.6.0: Subagent Threads
+
+Subagent work is now attached to the user-input journey that launched it:
+
+- User-input rows show a `Subagent N` marker when nested workers are detected.
+- The task detail pane has a dedicated **Subagent** tab beside **Context Replay** and **Conversation**.
+- Subagent sessions are shown as a compact thread index plus a focused replay, so multi-worker activity can be scanned without scrolling through one long nested feed.
+- Claude Code subagents are matched by parent session source path and time window, including workers whose `cwd` falls into a child project directory.
+- Codex ingest includes archived sessions from `~/.codex/archived_sessions`.
+
 ### Session Recap
 
 A collapsible flight-recorder readout panel with five sections:
@@ -108,7 +118,7 @@ Built-in pricing table for Claude and GPT models (June 2026 rates). All rates ar
 
 | Provider | Source | Default Path |
 |----------|--------|--------------|
-| Codex CLI | Session JSONL files | `~/.codex/sessions/**/*.jsonl` |
+| Codex CLI | Session JSONL files | `~/.codex/sessions/**/*.jsonl`, `~/.codex/archived_sessions/**/*.jsonl` |
 | Claude Code | Project JSONL files | `~/.claude/projects/**/*.jsonl` |
 | OpenCode | Exported session files | Manual export |
 

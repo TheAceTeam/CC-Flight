@@ -68,6 +68,16 @@ superview
 
 ## 功能
 
+### 0.6.0 新增：Subagent Threads
+
+Subagent 工作现在会关联到发起它的 user-input journey：
+
+- 左侧 user-input 行在检测到嵌套 worker 时显示 `Subagent N` 标记。
+- 任务详情面板中，**Subagent** 与 **Context Replay**、**Conversation** 并列为独立 tab。
+- Subagent 会话以紧凑线程索引 + 聚焦回放展示，多个 worker 的全局情况不再需要在长列表里反复滚动。
+- Claude Code subagent 会按父 session source path 和时间窗口关联，包括 `cwd` 落在子项目目录里的 worker。
+- Codex 导入会包含 `~/.codex/archived_sessions` 中的归档 session。
+
 ### 会话概览
 
 可折叠的飞行记录仪面板，包含五个模块：
@@ -108,7 +118,7 @@ superview
 
 | 提供商 | 数据来源 | 默认路径 |
 |--------|---------|---------|
-| Codex CLI | Session JSONL 文件 | `~/.codex/sessions/**/*.jsonl` |
+| Codex CLI | Session JSONL 文件 | `~/.codex/sessions/**/*.jsonl`、`~/.codex/archived_sessions/**/*.jsonl` |
 | Claude Code | Project JSONL 文件 | `~/.claude/projects/**/*.jsonl` |
 | OpenCode | 导出 session 文件 | 手动导出 |
 

@@ -2,8 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { App } from "../ui/src/App";
 
-const { fetchRunMock, fetchTaskJourneyDetailMock, fetchTimelineMock } = vi.hoisted(() => ({
-  fetchRunMock: vi.fn(),
+const { fetchTaskJourneyDetailMock, fetchTimelineMock } = vi.hoisted(() => ({
   fetchTaskJourneyDetailMock: vi.fn(),
   fetchTimelineMock: vi.fn(),
 }));
@@ -12,33 +11,6 @@ vi.mock("../ui/src/api", () => ({
   fetchConfig: vi.fn(async () => ({ projectDir: null })),
   fetchProjects: vi.fn(async () => {
     const sessions = fixtureSessions();
-    fetchRunMock.mockImplementation(async (sessionId: string) => ({
-      session:
-        sessions.find((session) => session.id === sessionId) ?? sessions[0],
-      events: [
-        {
-          id: "event-subagent-started",
-          projectId: "project-alpha",
-          sessionId,
-          turnId: null,
-          timestamp: "2026-06-21T00:05:00.000Z",
-          kind: "message",
-          lane: "assistant",
-          title: "Subagent inspected failing tests",
-          detail:
-            "Worker session loaded the failing spec and reported the root cause.",
-          toolName: null,
-          callId: null,
-          status: "success",
-          files: ["tests/failing.test.ts"],
-          rawEventRefId: null,
-          tokenUsage: null,
-          skills: [],
-        },
-      ],
-      nodes: [],
-      artifacts: [],
-    }));
     return [
       {
         id: "project-alpha",
@@ -59,7 +31,7 @@ vi.mock("../ui/src/api", () => ({
   })),
   fetchEventEvidence: vi.fn(),
   fetchIngestJob: vi.fn(),
-  fetchRun: fetchRunMock,
+  fetchRun: vi.fn(),
   fetchTaskJourneyDetail: fetchTaskJourneyDetailMock,
   fetchTimeline: fetchTimelineMock,
   resetDatabase: vi.fn(),
@@ -68,7 +40,6 @@ vi.mock("../ui/src/api", () => ({
 
 describe("Subagent session view", () => {
   beforeEach(() => {
-    fetchRunMock.mockReset();
     fetchTaskJourneyDetailMock.mockReset();
     fetchTimelineMock.mockReset();
     fetchTimelineMock.mockImplementation(async () => fixtureEmptyTimeline());
@@ -82,51 +53,12 @@ describe("Subagent session view", () => {
     });
   });
 
-  test("opens subagent replay from a compact activity drawer", async () => {
+  test("hides the legacy subagent activity panel and drawer", async () => {
     render(<App />);
 
     expect(screen.queryByRole("region", { name: "Run Ledger" })).not.toBeInTheDocument();
-    const activity = await screen.findByRole("region", {
-      name: "Subagent Activity",
-    });
-    expect(
-      within(activity).queryByRole("button", { name: /main-session/ }),
-    ).not.toBeInTheDocument();
-    const subagentRow = await within(activity).findByRole("button", {
-      name: /Subagent Worker/,
-    });
-    expect(subagentRow).toHaveTextContent("subagent-session");
-
-    fireEvent.click(subagentRow);
-
-    expect(fetchRunMock).toHaveBeenCalledWith("codex:subagent-session");
-    const drawer = await screen.findByRole("dialog", {
-      name: /Subagent Worker/,
-    });
-    expect(await within(drawer).findByText("Subagent inspected failing tests")).toBeInTheDocument();
-    expect(within(drawer).getByText("Worker session loaded the failing spec and reported the root cause.")).toBeInTheDocument();
-  });
-
-  test("keeps the activity panel persistent while allowing the drawer to close", async () => {
-    render(<App />);
-
-    const activity = await screen.findByRole("region", {
-      name: "Subagent Activity",
-    });
-    expect(within(activity).queryByRole("button", { name: /close/i })).not.toBeInTheDocument();
-
-    const subagentRow = await within(activity).findByRole("button", {
-      name: /Subagent Worker/,
-    });
-    fireEvent.click(subagentRow);
-
-    const drawer = await screen.findByRole("dialog", { name: /Subagent Worker/ });
-
-    fireEvent.click(
-      within(drawer).getByRole("button", { name: "Close subagent session" }),
-    );
-
-    expect(screen.getByRole("region", { name: "Subagent Activity" })).toBeInTheDocument();
+    await screen.findByRole("region", { name: "Project Activity" });
+    expect(screen.queryByRole("region", { name: "Subagent Activity" })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: /Subagent Worker/ })).not.toBeInTheDocument();
   });
 

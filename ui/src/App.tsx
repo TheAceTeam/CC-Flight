@@ -48,7 +48,6 @@ import type {
   DailyTokenUsageResponse,
   IngestJob,
   ProjectTimeline,
-  RunReplay,
   SessionRecord,
   SkillUsage,
   TaskSubThread,
@@ -63,7 +62,6 @@ import {
   fetchDailyTokenUsage,
   fetchIngestJob,
   fetchProjects,
-  fetchRun,
   fetchTaskJourneyDetail,
   fetchTimeline,
   ProjectWithSessions,
@@ -168,12 +166,6 @@ export function App() {
     Record<string, boolean>
   >({});
   const contextReplayLoadingRef = useRef(new Set<string>());
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [runReplays, setRunReplays] = useState<Record<string, RunReplay>>({});
-  const [runLoadingIds, setRunLoadingIds] = useState<Record<string, boolean>>(
-    {},
-  );
-  const runLoadingRef = useRef(new Set<string>());
   const [collapsedJourneyIds, setCollapsedJourneyIds] = useState<
     Record<string, boolean>
   >({});
@@ -284,7 +276,6 @@ export function App() {
   }, [selectedProjectId, projects]);
 
   useEffect(() => {
-    setSelectedRunId(null);
     if (!selectedProjectId) return;
     void loadTimeline(selectedProjectId);
   }, [selectedProjectId]);
@@ -564,9 +555,6 @@ export function App() {
       setCollapsedJourneyIds({});
       setJourneyDetails({});
       setContextReplays({});
-      setSelectedRunId(null);
-      setRunReplays({});
-      setRunLoadingIds({});
       setError(null);
       await loadProjects();
     } catch {
@@ -646,25 +634,6 @@ export function App() {
         ...current,
         [journeyId]: false,
       }));
-    }
-  }
-
-  async function loadRun(sessionId: string) {
-    setSelectedRunId(sessionId);
-    if (runReplays[sessionId] || runLoadingRef.current.has(sessionId)) return;
-    runLoadingRef.current.add(sessionId);
-    setRunLoadingIds((current) => ({ ...current, [sessionId]: true }));
-    try {
-      const replay = await fetchRun(sessionId);
-      setRunReplays((current) => ({ ...current, [sessionId]: replay }));
-      setError(null);
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : String(loadError),
-      );
-    } finally {
-      runLoadingRef.current.delete(sessionId);
-      setRunLoadingIds((current) => ({ ...current, [sessionId]: false }));
     }
   }
 
@@ -1147,15 +1116,6 @@ export function App() {
           />
         ) : (
           <div className="dashboard-grid conversation-dashboard-grid">
-            <SubagentActivityPanel
-              copy={copy.timeline}
-              sessions={selectedProject?.sessions ?? []}
-              selectedRunId={selectedRunId}
-              selectedRun={selectedRunId ? runReplays[selectedRunId] : null}
-              loadingRunIds={runLoadingIds}
-              onSelectRun={loadRun}
-              onCloseRun={() => setSelectedRunId(null)}
-            />
             <section className="timeline-panel">
               <ConversationThread
                 copy={copy.timeline}
@@ -1229,111 +1189,6 @@ export function App() {
   );
 }
 
-function SubagentActivityPanel({
-  copy,
-  sessions,
-  selectedRunId,
-  selectedRun,
-  loadingRunIds,
-  onSelectRun,
-  onCloseRun,
-}: {
-  copy: AppCopy["timeline"];
-  sessions: SessionRecord[];
-  selectedRunId: string | null;
-  selectedRun: RunReplay | null;
-  loadingRunIds: Record<string, boolean>;
-  onSelectRun: (sessionId: string) => void;
-  onCloseRun: () => void;
-}) {
-  const subagentSessions = useMemo(
-    () =>
-      sessions
-        .filter(isSubagentSession)
-        .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt)),
-    [sessions],
-  );
-  const selectedSession =
-    subagentSessions.find((session) => session.id === selectedRunId) ??
-    selectedRun?.session ??
-    null;
-
-  if (subagentSessions.length === 0) return null;
-
-  return (
-    <>
-      <section
-        className="subagent-activity-panel"
-        aria-label={copy.subagentActivityTitle}
-      >
-        <div className="subagent-activity-heading">
-          <div className="subagent-activity-title">
-            <span>{copy.subagentActivityTitle}</span>
-            <strong>{copy.subagentActivityCount(subagentSessions.length)}</strong>
-          </div>
-        </div>
-        <div className="subagent-activity-list">
-          {subagentSessions.map((session) => {
-            const active = session.id === selectedRunId;
-            return (
-              <button
-                key={session.id}
-                type="button"
-                className={`subagent-activity-item${active ? " active" : ""}`}
-                onClick={() => onSelectRun(session.id)}
-                aria-pressed={active}
-              >
-                <span>
-                  {session.agentName || labelForProvider(session.provider)}
-                </span>
-                <strong>{session.externalSessionId || session.id}</strong>
-                <em>{formatDate(session.startedAt)}</em>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-      {selectedRunId && selectedSession ? (
-        <aside
-          className="subagent-session-drawer"
-          role="dialog"
-          aria-label={`${selectedSession.agentName || labelForProvider(selectedSession.provider)} session`}
-        >
-          <div className="subagent-session-drawer-heading">
-            <div>
-              <span>{copy.subagentActivityTitle}</span>
-              <strong>
-                {selectedSession.agentName ||
-                  labelForProvider(selectedSession.provider)}
-              </strong>
-            </div>
-            <button
-              type="button"
-              className="icon-button subagent-session-drawer-close"
-              onClick={onCloseRun}
-              aria-label={copy.subagentActivityClose}
-              title={copy.subagentActivityClose}
-            >
-              <X size={16} />
-            </button>
-          </div>
-          {loadingRunIds[selectedRunId] ? (
-            <p className="muted">{copy.runLedgerLoading}</p>
-          ) : selectedRun ? (
-            <RunLedgerDetail
-              copy={copy}
-              replay={selectedRun}
-              session={selectedSession}
-            />
-          ) : (
-            <p className="muted">{copy.runLedgerNoSelection}</p>
-          )}
-        </aside>
-      ) : null}
-    </>
-  );
-}
-
 function ProjectActivityFallback({
   copy,
   events,
@@ -1376,51 +1231,6 @@ function ProjectActivityFallback({
         ))}
       </ol>
     </section>
-  );
-}
-
-function RunLedgerDetail({
-  copy,
-  replay,
-  session,
-}: {
-  copy: AppCopy["timeline"];
-  replay: RunReplay;
-  session: SessionRecord;
-}) {
-  return (
-    <div className="run-detail">
-      <div className="run-detail-heading">
-        <div>
-          <span>{session.agentName || labelForProvider(session.provider)}</span>
-          <strong>{session.externalSessionId || session.id}</strong>
-        </div>
-        <em>{copy.eventCount(replay.events.length)}</em>
-      </div>
-      <div className="run-detail-meta">
-        <span>{labelForProvider(session.provider)}</span>
-        <span>{formatDate(session.startedAt)}</span>
-        {session.endedAt ? (
-          <span>{formatDurationBetween(session.startedAt, session.endedAt)}</span>
-        ) : null}
-        <span>{shortenPath(session.cwd)}</span>
-      </div>
-      <h3>{copy.runLedgerEvents}</h3>
-      {replay.events.length === 0 ? (
-        <p className="muted">{copy.runLedgerNoEvents}</p>
-      ) : (
-        <ol className="run-event-list">
-          {replay.events.map((event) => (
-            <li key={event.id} className={`run-event run-event-${event.status}`}>
-              <span>{formatDate(event.timestamp)}</span>
-              <strong>{event.title}</strong>
-              {event.detail ? <p>{event.detail}</p> : null}
-              {event.toolName ? <em>{event.toolName}</em> : null}
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
   );
 }
 
@@ -5147,20 +4957,6 @@ function providerFromSessionId(sessionId: string) {
   return "codex";
 }
 
-function isSubagentSession(session: SessionRecord) {
-  const haystack = [
-    session.agentName ?? "",
-    session.externalSessionId,
-    session.id,
-    session.path,
-    session.source ?? "",
-  ]
-    .join(" ")
-    .replace(/\\/g, "/")
-    .toLowerCase();
-  return haystack.includes("/subagents/") || haystack.includes("subagent");
-}
-
 function labelForProvider(provider: string) {
   if (provider === "claude-code") return "Claude Code";
   if (provider === "opencode") return "OpenCode";
@@ -5171,15 +4967,6 @@ function formatDate(value: string, _copy?: unknown) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
-}
-
-function formatDurationBetween(startedAt: string, endedAt: string) {
-  const start = Date.parse(startedAt);
-  const end = Date.parse(endedAt);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
-    return endedAt;
-  }
-  return formatDuration(end - start);
 }
 
 function formatDuration(durationMs: number) {

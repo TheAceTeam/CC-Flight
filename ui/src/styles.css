@@ -6168,6 +6168,14 @@ pre {
   background: color-mix(in srgb, var(--orange-soft) 34%, var(--surface-2));
 }
 
+.subthread-layout {
+  display: grid;
+  grid-template-columns: minmax(210px, 280px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
 .subthread-group-heading,
 .subthread-card-heading {
   display: flex;
@@ -6190,13 +6198,79 @@ pre {
   overflow-wrap: anywhere;
 }
 
+.subthread-index {
+  display: grid;
+  gap: 8px;
+  max-height: min(72vh, 760px);
+  min-width: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.subthread-index-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 8px;
+  align-items: start;
+  min-height: 62px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.subthread-index-item:hover,
+.subthread-index-item.active,
+.subthread-index-item[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--orange) 50%, var(--line));
+  background: color-mix(in srgb, var(--orange-soft) 56%, var(--surface-2));
+}
+
+.subthread-index-item strong {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subthread-index-item em {
+  grid-column: 2;
+  color: var(--muted);
+  font: 700 10.5px/1.25 var(--spine-mono);
+  font-style: normal;
+}
+
+.subthread-status {
+  width: 9px;
+  height: 9px;
+  margin-top: 3px;
+  border-radius: 999px;
+  background: var(--line-strong);
+}
+
+.subthread-status.success {
+  background: var(--success);
+}
+
+.subthread-status.failed {
+  background: var(--danger);
+}
+
 .subthread-card {
   display: grid;
   gap: 12px;
+  max-height: min(72vh, 760px);
+  min-width: 0;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface-2);
+  overflow: auto;
 }
 
 .subthread-card-heading div {
@@ -6233,6 +6307,13 @@ pre {
   }
   .subthread-group {
     margin-left: 0;
+  }
+  .subthread-layout {
+    grid-template-columns: 1fr;
+  }
+  .subthread-index,
+  .subthread-card {
+    max-height: none;
   }
 }
 

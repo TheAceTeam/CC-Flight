@@ -3964,6 +3964,19 @@ function CausalSpine({
   const [cur, setCur] = useState(-1);
   const [playing, setPlaying] = useState(false);
   const moveRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const subThreads = detail?.subThreads ?? [];
+  const subThreadSummaries = useMemo(
+    () =>
+      subThreads.map((thread) => ({
+        thread,
+        moves: buildSpineMoves(thread.events),
+      })),
+    [subThreads],
+  );
+  const subThreadIds = subThreads.map((thread) => thread.id).join("|");
+  const [selectedSubThreadId, setSelectedSubThreadId] = useState<string | null>(
+    null,
+  );
 
   const lastIndex = moves.length - 1;
 
@@ -3989,6 +4002,14 @@ function CausalSpine({
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
   }, [cur]);
+
+  useEffect(() => {
+    setSelectedSubThreadId((current) =>
+      current && subThreads.some((thread) => thread.id === current)
+        ? current
+        : subThreads[0]?.id ?? null,
+    );
+  }, [subThreadIds]);
 
   const togglePlay = () => {
     if (playing) {
@@ -4056,10 +4077,13 @@ function CausalSpine({
   const prompt =
     fallbackPrompt ?? events.find((event) => event.kind === "user_prompt");
   const promptText = prompt?.detail ?? journey.title;
-  const subThreads = detail?.subThreads ?? [];
   const toolCalls = moves.reduce((n, m) => n + m.actions.length, 0);
   const corrections = moves.filter((m) => m.isRedirect).length;
   const pct = moves.length ? ((cur + 1) / moves.length) * 100 : 0;
+  const selectedSubThread =
+    subThreadSummaries.find(({ thread }) => thread.id === selectedSubThreadId) ??
+    subThreadSummaries[0] ??
+    null;
 
   return (
     <div className="causal-spine" aria-label={copy.spineAria}>
@@ -4266,15 +4290,35 @@ function CausalSpine({
             <span>{copy.subThreadTitle}</span>
             <strong>{copy.subThreadCount(subThreads.length)}</strong>
           </div>
-          {subThreads.map((thread) => (
-            <SubThreadSpine
-              key={thread.id}
-              copy={copy}
-              thread={thread}
-              selectedEventId={selectedEventId}
-              onSelectEvent={onSelectEvent}
-            />
-          ))}
+          <div className="subthread-layout">
+            <div className="subthread-index" role="list">
+              {subThreadSummaries.map(({ thread, moves }, index) => (
+                <button
+                  key={thread.id}
+                  type="button"
+                  className={`subthread-index-item${thread.id === selectedSubThread?.thread.id ? " active" : ""}`}
+                  aria-pressed={thread.id === selectedSubThread?.thread.id}
+                  onClick={() => setSelectedSubThreadId(thread.id)}
+                >
+                  <span className={`subthread-status ${thread.journey.status}`} />
+                  <strong>{subThreadTitle(thread)}</strong>
+                  <em>
+                    #{index + 1} · {moves.length} {copy.spineMoves} ·{" "}
+                    {thread.events.length} {copy.runLedgerEvents}
+                  </em>
+                </button>
+              ))}
+            </div>
+            {selectedSubThread ? (
+              <SubThreadSpine
+                copy={copy}
+                thread={selectedSubThread.thread}
+                moves={selectedSubThread.moves}
+                selectedEventId={selectedEventId}
+                onSelectEvent={onSelectEvent}
+              />
+            ) : null}
+          </div>
         </section>
       ) : null}
 
@@ -4339,22 +4383,27 @@ function CausalSpine({
   );
 }
 
+function subThreadTitle(thread: TaskSubThread) {
+  return (
+    thread.events.find((event) => event.kind === "user_prompt")?.detail ??
+    thread.journey.title
+  );
+}
+
 function SubThreadSpine({
   copy,
   thread,
+  moves,
   selectedEventId,
   onSelectEvent,
 }: {
   copy: AppCopy["timeline"];
   thread: TaskSubThread;
+  moves: SpineMove[];
   selectedEventId: string | null;
   onSelectEvent: (event: TimelineEvent) => void;
 }) {
-  const moves = useMemo(() => buildSpineMoves(thread.events), [thread.events]);
   const provider = thread.session?.provider ?? providerFromSessionId(thread.journey.sessionId);
-  const title =
-    thread.events.find((event) => event.kind === "user_prompt")?.detail ??
-    thread.journey.title;
   const sourceName = thread.sourcePath.split(/[\\/]/).at(-1) ?? thread.sourcePath;
 
   return (
@@ -4362,7 +4411,7 @@ function SubThreadSpine({
       <header className="subthread-card-heading">
         <div>
           <span>{thread.session?.agentName || labelForProvider(provider)}</span>
-          <strong>{title}</strong>
+          <strong>{subThreadTitle(thread)}</strong>
         </div>
         <em>
           {copy.subThreadSource}: {sourceName}

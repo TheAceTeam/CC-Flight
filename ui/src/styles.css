@@ -1644,6 +1644,7 @@ select {
 
 .conversation-master-item {
   display: grid;
+  position: relative;
   min-width: 0;
   gap: 6px;
   padding: 10px 11px;
@@ -1670,6 +1671,32 @@ select {
 
 .conversation-master-item.success {
   border-color: color-mix(in srgb, var(--success) 34%, var(--line));
+}
+
+.conversation-master-item.has-subagent {
+  padding-left: 36px;
+  border-color: color-mix(in srgb, var(--blue) 56%, var(--line));
+  border-left-width: 3px;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--blue-soft) 52%, transparent) 0,
+      transparent 46px
+    ),
+    var(--surface);
+}
+
+.conversation-master-item.has-subagent:hover,
+.conversation-master-item.has-subagent.active,
+.conversation-master-item.has-subagent[aria-current="true"] {
+  border-color: color-mix(in srgb, var(--blue) 74%, var(--orange));
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--blue-soft) 70%, transparent) 0,
+      transparent 54px
+    ),
+    color-mix(in srgb, var(--orange-soft) 34%, var(--surface));
 }
 
 .conversation-master-item > span {
@@ -1708,7 +1735,26 @@ select {
   min-width: 0;
 }
 
-.journey-subagent-badge {
+.conversation-master-item .journey-subagent-marker {
+  position: absolute;
+  top: 11px;
+  left: 11px;
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--blue) 54%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--blue-soft) 72%, var(--surface-2));
+  color: color-mix(in srgb, var(--blue) 88%, var(--ink));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 10%, transparent);
+}
+
+.conversation-master-item .journey-subagent-marker svg {
+  stroke-width: 2.6;
+}
+
+.conversation-master-item .journey-subagent-badge {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
@@ -1716,8 +1762,8 @@ select {
   padding: 2px 7px;
   border: 1px solid color-mix(in srgb, var(--blue) 42%, var(--line));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--blue-soft) 64%, var(--surface-2));
-  color: color-mix(in srgb, var(--blue) 78%, var(--ink));
+  background: color-mix(in srgb, var(--blue-soft) 74%, var(--surface-2));
+  color: color-mix(in srgb, var(--blue) 86%, var(--ink));
   font: 900 10px/1.1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   letter-spacing: 0;
   white-space: nowrap;

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { App } from "../ui/src/App";
 import {
@@ -78,6 +78,7 @@ describe("App auto update toggle", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -132,4 +133,61 @@ describe("App auto update toggle", () => {
     );
     expect(autoUpdateIntervals).toHaveLength(0);
   });
+
+  test("refreshes the database with the selected project's agent providers", async () => {
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    vi.mocked(fetchProjects).mockResolvedValueOnce([
+      {
+        id: "project-auto",
+        name: "Auto Project",
+        cwd: "/tmp/auto",
+        repoRoot: "/tmp/auto",
+        createdAt: "2026-06-21T00:00:00.000Z",
+        updatedAt: "2026-06-21T00:00:00.000Z",
+        tokenUsage: { input: 0, output: 0, reasoning: 0, cachedInput: 0, total: 0 },
+        sessions: [
+          session("codex:main", "codex"),
+          session("claude-code:worker", "claude-code"),
+        ],
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "Auto update on" });
+    await waitFor(() => {
+      expect(
+        setIntervalSpy.mock.calls.some((call) => Number(call[1]) === 60_000),
+      ).toBe(true);
+    });
+
+    const dbTimerCallback = setIntervalSpy.mock.calls
+      .filter((call) => Number(call[1]) === 60_000)
+      .at(-1)?.[0] as (() => Promise<void>) | undefined;
+    expect(dbTimerCallback).toBeTruthy();
+    await act(async () => {
+      await dbTimerCallback?.();
+    });
+
+    expect(startIngest).toHaveBeenCalledWith({
+      sources: [{ provider: "codex" }, { provider: "claude-code" }],
+    });
+  });
 });
+
+function session(id: string, provider: "codex" | "claude-code" | "opencode") {
+  return {
+    id,
+    projectId: "project-auto",
+    path: `/tmp/${id}.jsonl`,
+    cwd: "/tmp/auto",
+    startedAt: "2026-06-21T00:00:00.000Z",
+    endedAt: "2026-06-21T00:00:01.000Z",
+    cliVersion: null,
+    modelProvider: null,
+    source: "fixture",
+    provider,
+    externalSessionId: id,
+    agentName: null,
+  };
+}

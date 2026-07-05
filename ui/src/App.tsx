@@ -382,7 +382,7 @@ export function App() {
     };
   }, [job, selectedProjectId]);
 
-  // Poll the selected project: refresh DB via provider-scoped scan every 60s, refresh UI every 15s
+  // Poll the selected project: refresh DB via the project's providers every 60s, refresh UI every 15s.
   useEffect(() => {
     if (!selectedProjectId) return;
     if (!autoUpdateEnabled) return;
@@ -404,8 +404,16 @@ export function App() {
     const dbTimer = window.setInterval(async () => {
       if (isIngestBusy(jobRef.current)) return;
       try {
+        const activeProject = projects.find((project) => project.id === selectedProjectId);
+        const providers = Array.from(
+          new Set(
+            (activeProject?.sessions ?? []).map((session) => session.provider),
+          ),
+        );
         const jobId = await startIngest({
-          sources: [{ provider: agentProvider }],
+          sources: (providers.length > 0 ? providers : [agentProvider]).map(
+            (provider) => ({ provider }),
+          ),
         });
         setJob(await fetchIngestJob(jobId));
       } catch {
@@ -416,7 +424,7 @@ export function App() {
       window.clearInterval(uiTimer);
       window.clearInterval(dbTimer);
     };
-  }, [selectedProjectId, agentProvider, autoUpdateEnabled]);
+  }, [selectedProjectId, projects, agentProvider, autoUpdateEnabled]);
 
   // Drag-and-drop JSONL import
   useEffect(() => {
@@ -2181,17 +2189,27 @@ function ConversationMasterItem({
 }) {
   const promptText = fallbackPrompt?.detail ?? journey.title;
   const subThreadCount = journey.subThreadCount ?? 0;
+  const hasSubThreads = subThreadCount > 0;
   return (
     <button
       type="button"
       data-journey-id={journey.id}
-      className={`conversation-master-item ${journey.status} ${active ? "active" : ""}`}
+      className={`conversation-master-item ${journey.status} ${active ? "active" : ""} ${hasSubThreads ? "has-subagent" : ""}`}
       aria-current={active ? "true" : undefined}
       onClick={onSelect}
     >
+      {hasSubThreads ? (
+        <span
+          className="journey-subagent-marker"
+          title={copy.subThreadCount(subThreadCount)}
+          aria-hidden="true"
+        >
+          <Brain size={14} />
+        </span>
+      ) : null}
       <span className="conversation-master-meta">
         <span>{formatDate(journey.startedAt, copy)}</span>
-        {subThreadCount > 0 ? (
+        {hasSubThreads ? (
           <span
             className="journey-subagent-badge"
             aria-label={copy.subThreadCount(subThreadCount)}

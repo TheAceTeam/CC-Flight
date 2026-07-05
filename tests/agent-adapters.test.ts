@@ -184,6 +184,26 @@ describe("agent log adapters", () => {
       rmSync(codexHome, { recursive: true, force: true });
     }
   });
+
+  it("discovers archived Codex rollout sessions", async () => {
+    const codexHome = mkdtempSync(path.join(tmpdir(), "superview-codex-archive-home-"));
+    try {
+      cpSync(path.resolve("tests/fixtures/fake-codex-home"), codexHome, { recursive: true });
+      const archiveDir = path.join(codexHome, "archived_sessions");
+      mkdirSync(archiveDir, { recursive: true });
+      cpSync(
+        path.resolve("tests/fixtures/codex-rollouts/minimal-rollout.jsonl"),
+        path.join(archiveDir, "rollout-2026-07-03T00-25-34-archive.jsonl"),
+      );
+
+      const sources = await codexAdapter.scan({ provider: "codex", root: codexHome });
+
+      expect(sources).toHaveLength(2);
+      expect(sources.some((source) => source.path.includes("archived_sessions"))).toBe(true);
+    } finally {
+      rmSync(codexHome, { recursive: true, force: true });
+    }
+  });
 });
 
 function requireBundle<T>(bundle: T | null): T {

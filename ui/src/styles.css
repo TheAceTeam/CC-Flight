@@ -6231,6 +6231,17 @@ pre {
   letter-spacing: 0;
 }
 
+.subthread-layout .spine-pre {
+  border-color: var(--line);
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
 .subthread-layout .spine-effort-lbl,
 .subthread-layout .spine-outcome,
 .subthread-layout .spine-redirect-tag {

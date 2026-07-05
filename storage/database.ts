@@ -757,8 +757,7 @@ export class CCFlightDatabase {
 
   private listSubThreadsForJourney(journey: TaskJourneyDetail["journey"]): TaskSubThread[] {
     const parentSession = this.getSession(journey.sessionId);
-    if (!parentSession) return [];
-    const parentKey = parentSession.externalSessionId || stripProviderPrefix(parentSession.id);
+    const parentKey = parentSession?.externalSessionId || stripProviderPrefix(journey.sessionId);
     if (!parentKey) return [];
     const escapedLike = escapeSqlLike(parentKey);
     const endClause = journey.exitType === "next_prompt" ? "AND e.timestamp <= ?" : "";
@@ -804,7 +803,7 @@ export class CCFlightDatabase {
   private withSubThreadCounts(journeys: TaskJourney[], projectId: string): TaskJourney[] {
     if (journeys.length === 0) return journeys;
     const sessionsById = new Map(this.listSessions(projectId).map((session) => [session.id, session]));
-    const subagentSources = this.listSubagentSourceSummaries(projectId);
+    const subagentSources = this.listSubagentSourceSummaries();
     if (subagentSources.length === 0) return journeys.map((journey) => ({ ...journey, subThreadCount: 0 }));
     return journeys.map((journey) => {
       const parentSession = sessionsById.get(journey.sessionId);
@@ -816,18 +815,17 @@ export class CCFlightDatabase {
     });
   }
 
-  private listSubagentSourceSummaries(projectId: string): Array<{ sourcePath: string; startedAt: string }> {
+  private listSubagentSourceSummaries(): Array<{ sourcePath: string; startedAt: string }> {
     return this.db
       .prepare(
         `SELECT r.source_path as sourcePath, MIN(e.timestamp) as startedAt
          FROM raw_event_refs r
          JOIN events e ON e.raw_event_ref_id = r.id
-         WHERE e.project_id = ?
-           AND (r.source_path LIKE '%/subagents/%' OR r.source_path LIKE '%\\subagents\\%')
+         WHERE r.source_path LIKE '%/subagents/%' OR r.source_path LIKE '%\\subagents\\%'
          GROUP BY r.source_path
          ORDER BY MIN(e.timestamp) ASC`
       )
-      .all(projectId) as Array<{ sourcePath: string; startedAt: string }>;
+      .all() as Array<{ sourcePath: string; startedAt: string }>;
   }
 
   private listEventsForSourcePath(sourcePath: string): TimelineEvent[] {

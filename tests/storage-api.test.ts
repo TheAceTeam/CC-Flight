@@ -742,7 +742,7 @@ function createClaudeSubagentHome() {
     path.join(subagentDir, "agent-worker.jsonl"),
     [
       JSON.stringify({
-        cwd: "/tmp/subthread-project",
+        cwd: "/tmp/subthread-project/packages/worker",
         sessionId: "worker-session",
         version: "1.2.3",
         type: "user",
@@ -750,7 +750,7 @@ function createClaudeSubagentHome() {
         timestamp: "2026-05-29T00:00:02.000Z"
       }),
       JSON.stringify({
-        cwd: "/tmp/subthread-project",
+        cwd: "/tmp/subthread-project/packages/worker",
         sessionId: "worker-session",
         version: "1.2.3",
         type: "assistant",

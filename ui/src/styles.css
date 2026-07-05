@@ -6158,6 +6158,69 @@ pre {
   transition: transform .25s var(--spine-enter);
 }
 
+.subthread-group {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 0 48px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--orange) 28%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--orange-soft) 34%, var(--surface-2));
+}
+
+.subthread-group-heading,
+.subthread-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.subthread-group-heading span,
+.subthread-card-heading span {
+  color: var(--orange);
+  font: 800 11px/1 var(--spine-mono);
+  text-transform: uppercase;
+}
+
+.subthread-group-heading strong,
+.subthread-card-heading strong {
+  color: var(--ink);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.subthread-card {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.subthread-card-heading div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.subthread-card-heading em {
+  color: var(--muted);
+  font: 700 11px/1.25 var(--spine-mono);
+  font-style: normal;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.subthread-spine-track {
+  display: grid;
+}
+
+.subthread-move .spine-nodes {
+  padding-bottom: 14px;
+}
+
 @media (max-width: 720px) {
   .spine-stage {
     grid-template-columns: 1fr;
@@ -6167,6 +6230,9 @@ pre {
   }
   .spine-scrub {
     width: 120px;
+  }
+  .subthread-group {
+    margin-left: 0;
   }
 }
 

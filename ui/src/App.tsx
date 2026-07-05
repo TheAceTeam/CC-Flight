@@ -51,6 +51,7 @@ import type {
   RunReplay,
   SessionRecord,
   SkillUsage,
+  TaskSubThread,
   TaskJourney,
   TaskJourneyDetail,
   TimelineEvent,
@@ -4055,6 +4056,7 @@ function CausalSpine({
   const prompt =
     fallbackPrompt ?? events.find((event) => event.kind === "user_prompt");
   const promptText = prompt?.detail ?? journey.title;
+  const subThreads = detail?.subThreads ?? [];
   const toolCalls = moves.reduce((n, m) => n + m.actions.length, 0);
   const corrections = moves.filter((m) => m.isRedirect).length;
   const pct = moves.length ? ((cur + 1) / moves.length) * 100 : 0;
@@ -4258,6 +4260,24 @@ function CausalSpine({
         </nav>
       </div>
 
+      {subThreads.length > 0 ? (
+        <section className="subthread-group" aria-label={copy.subThreadTitle}>
+          <div className="subthread-group-heading">
+            <span>{copy.subThreadTitle}</span>
+            <strong>{copy.subThreadCount(subThreads.length)}</strong>
+          </div>
+          {subThreads.map((thread) => (
+            <SubThreadSpine
+              key={thread.id}
+              copy={copy}
+              thread={thread}
+              selectedEventId={selectedEventId}
+              onSelectEvent={onSelectEvent}
+            />
+          ))}
+        </section>
+      ) : null}
+
       <div className="spine-transport" role="group" aria-label={copy.spineAria}>
         <button
           type="button"
@@ -4316,6 +4336,153 @@ function CausalSpine({
         </div>
       </div>
     </div>
+  );
+}
+
+function SubThreadSpine({
+  copy,
+  thread,
+  selectedEventId,
+  onSelectEvent,
+}: {
+  copy: AppCopy["timeline"];
+  thread: TaskSubThread;
+  selectedEventId: string | null;
+  onSelectEvent: (event: TimelineEvent) => void;
+}) {
+  const moves = useMemo(() => buildSpineMoves(thread.events), [thread.events]);
+  const provider = thread.session?.provider ?? providerFromSessionId(thread.journey.sessionId);
+  const title =
+    thread.events.find((event) => event.kind === "user_prompt")?.detail ??
+    thread.journey.title;
+  const sourceName = thread.sourcePath.split(/[\\/]/).at(-1) ?? thread.sourcePath;
+
+  return (
+    <article className="subthread-card">
+      <header className="subthread-card-heading">
+        <div>
+          <span>{thread.session?.agentName || labelForProvider(provider)}</span>
+          <strong>{title}</strong>
+        </div>
+        <em>
+          {copy.subThreadSource}: {sourceName}
+        </em>
+      </header>
+      {moves.length > 0 ? (
+        <div className="subthread-spine-track">
+          {moves.map((move) => (
+            <div
+              key={move.id}
+              className={`spine-move subthread-move played${move.isRedirect ? " is-redirect" : ""}`}
+            >
+              <div className="spine-rail">
+                <span className="spine-station" />
+                <span className="spine-connector" />
+              </div>
+              <div className="spine-nodes">
+                {move.thoughtText || move.redacted ? (
+                  <button
+                    type="button"
+                    className={`spine-node think${
+                      move.thoughtEvent?.id === selectedEventId ? " selected" : ""
+                    }`}
+                    onClick={() => {
+                      if (move.thoughtEvent) onSelectEvent(move.thoughtEvent);
+                    }}
+                  >
+                    <span className="spine-role">
+                      <Brain size={13} /> {copy.spineThought}
+                    </span>
+                    {move.redacted ? (
+                      <div className="spine-effort">
+                        <span className="spine-beats">
+                          <i className="spine-beat hot" />
+                          <i className="spine-beat hot" />
+                          <i className="spine-beat hot" />
+                        </span>
+                        <span className="spine-effort-lbl">{copy.spineRedacted}</span>
+                      </div>
+                    ) : (
+                      <div className="spine-body">{move.thoughtText}</div>
+                    )}
+                  </button>
+                ) : null}
+
+                {move.actions.length > 0 ? (
+                  <button
+                    type="button"
+                    className={`spine-node act${
+                      move.actions.some((action) => action.event.id === selectedEventId)
+                        ? " selected"
+                        : ""
+                    }`}
+                    onClick={() => onSelectEvent(move.actions[0].event)}
+                  >
+                    <span className="spine-role">
+                      <Zap size={13} /> {copy.spineAction}
+                    </span>
+                    <div className="spine-act-list">
+                      {move.actions.map((action) => (
+                        <div className="spine-act-item" key={action.event.id}>
+                          <span className="spine-verb">{action.label}</span>
+                          {action.command ? (
+                            <pre className="spine-pre">{action.command}</pre>
+                          ) : null}
+                          {action.files.length > 0 ? (
+                            <div className="spine-files">
+                              {action.files.map((file) => (
+                                <span className="spine-filechip" key={file}>
+                                  {file}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </button>
+                ) : null}
+
+                {move.hasObserve ? (
+                  <button
+                    type="button"
+                    className={`spine-node observe ${move.observeOk ? "ok" : "err"}${
+                      move.observeEvent?.id === selectedEventId ? " selected" : ""
+                    }`}
+                    onClick={() => {
+                      if (move.observeEvent) onSelectEvent(move.observeEvent);
+                    }}
+                  >
+                    <span className="spine-role">
+                      {move.observeOk ? <Check size={13} /> : <X size={13} />}{" "}
+                      {copy.spineObserved}
+                      {move.outcomeLabel ? (
+                        <>
+                          {" · "}
+                          <span className={`spine-outcome ${move.observeOk ? "ok" : "err"}`}>
+                            {move.outcomeLabel}
+                          </span>
+                        </>
+                      ) : null}
+                    </span>
+                    {move.observeText ? (
+                      <pre className="spine-pre">{move.observeText}</pre>
+                    ) : null}
+                    {move.isRedirect ? (
+                      <div className="spine-redirect-tag">
+                        <CornerUpLeft size={12} /> {copy.spineCourseCorrected}
+                      </div>
+                    ) : null}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="muted">{copy.noBackground}</p>
+      )}
+    </article>
   );
 }
 

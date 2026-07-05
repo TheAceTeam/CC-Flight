@@ -220,10 +220,19 @@ export interface TaskJourney {
   stages: TaskJourneyStage[];
 }
 
+export interface TaskSubThread {
+  id: string;
+  sourcePath: string;
+  session: SessionRecord | null;
+  journey: TaskJourney;
+  events: TimelineEvent[];
+}
+
 export interface TaskJourneyDetail {
   journey: TaskJourney;
   events: TimelineEvent[];
   causalEdges: CausalEdge[];
+  subThreads?: TaskSubThread[];
 }
 
 export type ContextBlockType =

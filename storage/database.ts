@@ -15,6 +15,8 @@ import {
   RawEventRef,
   RunReplay,
   SessionRecord,
+  TaskSubThread,
+  TaskJourney,
   TaskJourneyDetail,
   TokenUsage,
   TimelineQuery,
@@ -654,8 +656,10 @@ export class CCFlightDatabase {
     if (!project) return null;
     const events = this.listEvents(projectId, query);
     const timeline = buildProjectTimeline(project, events);
+    const subagentEventIds = this.subagentEventIds(projectId);
     return {
       ...timeline,
+      taskJourneys: timeline.taskJourneys.filter((journey) => !subagentEventIds.has(journey.promptEventId)),
       episodes: this.listEpisodes(projectId),
       tokenUsage: this.getProjectTokenUsage(projectId),
       totalEvents: this.countEvents(projectId, query),
@@ -727,17 +731,96 @@ export class CCFlightDatabase {
     for (const project of projects) {
       const events = this.listEvents(project.id);
       const timeline = buildProjectTimeline(project, events);
-      const journey = timeline.taskJourneys.find((candidate) => candidate.id === journeyId);
+      const subagentEventIds = this.subagentEventIds(project.id);
+      const journey = timeline.taskJourneys
+        .filter((candidate) => !subagentEventIds.has(candidate.promptEventId))
+        .find((candidate) => candidate.id === journeyId);
       if (!journey) continue;
       const eventIds = new Set(journey.eventIds);
       const journeyEvents = events.filter((event) => eventIds.has(event.id));
       return {
         journey,
         events: journeyEvents,
-        causalEdges: timeline.causalEdges.filter((edge) => eventIds.has(edge.fromEventId) || eventIds.has(edge.toEventId))
+        causalEdges: timeline.causalEdges.filter((edge) => eventIds.has(edge.fromEventId) || eventIds.has(edge.toEventId)),
+        subThreads: this.listSubThreadsForJourney(journey)
       };
     }
     return null;
+  }
+
+  private listSubThreadsForJourney(journey: TaskJourneyDetail["journey"]): TaskSubThread[] {
+    const parentSession = this.getSession(journey.sessionId);
+    if (!parentSession) return [];
+    const parentKey = parentSession.externalSessionId || stripProviderPrefix(parentSession.id);
+    if (!parentKey) return [];
+    const escapedLike = escapeSqlLike(parentKey);
+    const endClause = journey.exitType === "next_prompt" ? "AND e.timestamp <= ?" : "";
+    const params = [
+      `%/${escapedLike}/subagents/%`,
+      `%\\${escapedLike}\\subagents\\%`,
+      journey.startedAt,
+      ...(journey.exitType === "next_prompt" ? [journey.endedAt] : [])
+    ];
+    const sourceRows = this.db
+      .prepare(
+        `SELECT r.source_path as sourcePath
+         FROM raw_event_refs r
+         JOIN events e ON e.raw_event_ref_id = r.id
+         WHERE (r.source_path LIKE ? ESCAPE '\\' OR r.source_path LIKE ? ESCAPE '\\')
+           AND e.timestamp >= ?
+           ${endClause}
+         GROUP BY r.source_path
+         ORDER BY MIN(e.timestamp) ASC`
+      )
+      .all(...params) as Array<{ sourcePath: string }>;
+
+    return sourceRows.flatMap((row, index) => {
+      const events = this.listEventsForSourcePath(row.sourcePath);
+      if (events.length === 0) return [];
+      const subProject = this.getProject(events[0].projectId);
+      if (!subProject) return [];
+      const subTimeline = buildProjectTimeline(subProject, events);
+      const subJourney = subTimeline.taskJourneys[0] ?? taskJourneyFromEvents(subProject.id, row.sourcePath, events);
+      if (!subJourney) return [];
+      return [
+        {
+          id: `${journey.id}:subthread:${index}`,
+          sourcePath: row.sourcePath,
+          session: this.getSession(events[0].sessionId),
+          journey: subJourney,
+          events
+        }
+      ];
+    });
+  }
+
+  private listEventsForSourcePath(sourcePath: string): TimelineEvent[] {
+    const rows = this.db
+      .prepare(
+        `SELECT e.id, e.project_id as projectId, e.session_id as sessionId, e.turn_id as turnId, e.timestamp, e.kind, e.lane, e.title, e.detail,
+                e.tool_name as toolName, e.call_id as callId, e.status, e.files_json as filesJson, e.raw_event_ref_id as rawEventRefId,
+                e.duration_ms as durationMs, e.output_event_id as outputEventId, e.commit_hash as commitHash, e.token_usage_json as tokenUsageJson,
+                e.skills_json as skillsJson
+         FROM events e
+         JOIN raw_event_refs r ON r.id = e.raw_event_ref_id
+         WHERE r.source_path = ?
+         ORDER BY e.timestamp ASC`
+      )
+      .all(sourcePath) as EventRow[];
+    return rows.map(rowToTimelineEvent);
+  }
+
+  private subagentEventIds(projectId: string): Set<string> {
+    const rows = this.db
+      .prepare(
+        `SELECT e.id
+         FROM events e
+         JOIN raw_event_refs r ON r.id = e.raw_event_ref_id
+         WHERE e.project_id = ?
+           AND (r.source_path LIKE '%/subagents/%' OR r.source_path LIKE '%\\subagents\\%')`
+      )
+      .all(projectId) as Array<{ id: string }>;
+    return new Set(rows.map((row) => row.id));
   }
 
   getEventEvidenceByEventIds(eventIds: string[]): Record<string, EventEvidence> {
@@ -1003,6 +1086,59 @@ function parseSkills(value: string | null): TimelineEvent["skills"] {
   } catch {
     return [];
   }
+}
+
+function taskJourneyFromEvents(projectId: string, sourcePath: string, events: TimelineEvent[]): TaskJourney | null {
+  const first = events[0];
+  const last = events.at(-1);
+  if (!first || !last) return null;
+  return {
+    id: `subthread:${projectId}:${sourcePath}`,
+    projectId,
+    sessionId: first.sessionId,
+    promptEventId: first.id,
+    startedAt: first.timestamp,
+    endedAt: last.timestamp,
+    durationMs: durationBetween(first.timestamp, last.timestamp),
+    title: first.detail ?? first.title,
+    summary: `Subagent thread with ${events.length} event(s).`,
+    status: events.some((event) => event.status === "failed") ? "failed" : events.some((event) => event.status === "success") ? "success" : "unknown",
+    exitType: "session_end",
+    eventIds: events.map((event) => event.id),
+    tokenUsage: aggregateEventTokenUsage(events),
+    skills: [],
+    stageCounts: {},
+    stages: []
+  };
+}
+
+function aggregateEventTokenUsage(events: TimelineEvent[]): TokenUsage {
+  return events.reduce<TokenUsage>(
+    (total, event) => ({
+      input: total.input + (event.tokenUsage?.input ?? 0),
+      output: total.output + (event.tokenUsage?.output ?? 0),
+      reasoning: total.reasoning + (event.tokenUsage?.reasoning ?? 0),
+      cachedInput: total.cachedInput + (event.tokenUsage?.cachedInput ?? 0),
+      total: total.total + (event.tokenUsage?.total ?? 0)
+    }),
+    emptyTokenUsage()
+  );
+}
+
+function durationBetween(start: string, end: string): number {
+  const startMs = Date.parse(start);
+  const endMs = Date.parse(end);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return 0;
+  return Math.max(0, endMs - startMs);
+}
+
+function stripProviderPrefix(sessionId: string): string {
+  const index = sessionId.indexOf(":");
+  return index >= 0 ? sessionId.slice(index + 1) : sessionId;
+}
+
+function escapeSqlLike(value: string): string {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
 const ALL_AGENT_PROVIDERS: AgentProvider[] = ["codex", "claude-code", "opencode"];

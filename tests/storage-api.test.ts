@@ -205,6 +205,31 @@ describe("CC Flight API", () => {
     }
   });
 
+  it("attaches nested subagent logs to the parent task journey instead of listing them as separate user inputs", async () => {
+    const claudeSubagentHome = createClaudeSubagentHome();
+    try {
+      const app = createServer();
+      const job = await runIngestSources(app, [{ provider: "claude-code", root: claudeSubagentHome }]);
+      expect(job.status).toBe("completed");
+
+      const projects = await request(app).get("/api/projects");
+      const project = projects.body.projects.find((candidate: { name: string }) => candidate.name === "subthread-project");
+      expect(project).toBeTruthy();
+
+      const timeline = await request(app).get(`/api/projects/${project.id}/timeline`).query({ limit: 100 });
+      expect(timeline.status).toBe(200);
+      expect(timeline.body.taskJourneys).toHaveLength(1);
+      expect(timeline.body.taskJourneys[0].title).toContain("Build weather card");
+
+      const detail = await request(app).get(`/api/task-journeys/${timeline.body.taskJourneys[0].id}`).query({ projectId: project.id });
+      expect(detail.status).toBe(200);
+      expect(detail.body.subThreads).toHaveLength(1);
+      expect(detail.body.subThreads[0].events.some((event: { detail?: string }) => event.detail?.includes("forecast parsing bug"))).toBe(true);
+    } finally {
+      rmSync(claudeSubagentHome, { recursive: true, force: true });
+    }
+  });
+
   it("reprocesses unchanged files when their stored processor version is stale", async () => {
     const app = createServer();
 
@@ -681,6 +706,59 @@ function createSingleSessionTimelineCodexHome(eventCount: number) {
   }
 
   writeFileSync(path.join(sessionsDir, "rollout-full-timeline.jsonl"), lines.join("\n"));
+  return fixtureHome;
+}
+
+function createClaudeSubagentHome() {
+  const fixtureHome = mkdtempSync(path.join(tmpdir(), "superview-claude-subagent-home-"));
+  const projectDir = path.join(fixtureHome, "projects", "-tmp-subthread-project");
+  const subagentDir = path.join(projectDir, "parent-session", "subagents");
+  mkdirSync(subagentDir, { recursive: true });
+
+  writeFileSync(
+    path.join(projectDir, "parent-session.jsonl"),
+    [
+      JSON.stringify({
+        cwd: "/tmp/subthread-project",
+        sessionId: "parent-session",
+        version: "1.2.3",
+        type: "user",
+        message: { role: "user", content: "Build weather card" },
+        timestamp: "2026-05-29T00:00:00.000Z"
+      }),
+      JSON.stringify({
+        cwd: "/tmp/subthread-project",
+        sessionId: "parent-session",
+        version: "1.2.3",
+        type: "assistant",
+        message: { role: "assistant", content: "I will ask a subagent to inspect the weather parser." },
+        timestamp: "2026-05-29T00:00:01.000Z"
+      })
+    ].join("\n")
+  );
+
+  writeFileSync(
+    path.join(subagentDir, "agent-worker.jsonl"),
+    [
+      JSON.stringify({
+        cwd: "/tmp/subthread-project",
+        sessionId: "worker-session",
+        version: "1.2.3",
+        type: "user",
+        message: { role: "user", content: "Inspect the weather API parser" },
+        timestamp: "2026-05-29T00:00:02.000Z"
+      }),
+      JSON.stringify({
+        cwd: "/tmp/subthread-project",
+        sessionId: "worker-session",
+        version: "1.2.3",
+        type: "assistant",
+        message: { role: "assistant", content: "The subagent found a forecast parsing bug." },
+        timestamp: "2026-05-29T00:00:03.000Z"
+      })
+    ].join("\n")
+  );
+
   return fixtureHome;
 }
 

@@ -99,6 +99,9 @@ export type AppCopy = {
     subagentActivityTitle: string;
     subagentActivityCount: (count: number) => string;
     subagentActivityClose: string;
+    subThreadTitle: string;
+    subThreadCount: (count: number) => string;
+    subThreadSource: string;
     runLedgerTitle: string;
     runLedgerCount: (count: number) => string;
     runLedgerEmpty: string;
@@ -409,6 +412,9 @@ export const COPY: Record<Language, AppCopy> = {
       subagentActivityTitle: "Subagent Activity",
       subagentActivityCount: (count: number) => `${count} subagent session${count !== 1 ? "s" : ""}`,
       subagentActivityClose: "Close subagent session",
+      subThreadTitle: "Subagent sub-thread",
+      subThreadCount: (count: number) => `${count} sub-thread${count !== 1 ? "s" : ""}`,
+      subThreadSource: "Source",
       runLedgerTitle: "Run Ledger",
       runLedgerCount: (count: number) => `${count} session${count !== 1 ? "s" : ""}`,
       runLedgerEmpty: "No sessions captured for this project.",
@@ -809,6 +815,9 @@ export const COPY: Record<Language, AppCopy> = {
       subagentActivityTitle: "Subagent Activity",
       subagentActivityCount: (count: number) => `${count} 个 subagent session`,
       subagentActivityClose: "关闭 subagent session",
+      subThreadTitle: "Subagent 子线程",
+      subThreadCount: (count: number) => `${count} 个子线程`,
+      subThreadSource: "来源",
       runLedgerTitle: "Run Ledger",
       runLedgerCount: (count: number) => `${count} 个 session`,
       runLedgerEmpty: "该项目暂无已捕获 session。",

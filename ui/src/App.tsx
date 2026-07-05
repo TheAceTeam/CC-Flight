@@ -73,7 +73,7 @@ import {
 import { DailyTokenUsagePanel } from "./DailyTokenUsagePanel";
 import { resolveAutoSelectId } from "./autoSelect";
 import { AppCopy, COPY, IngestCopy, Language, TourCopy, normalizeLanguage } from "./i18n";
-import { buildJourneyInsights, scoreJourneys } from "./insights";
+import { buildJourneyInsights } from "./insights";
 import type { InsightSignalKind, JourneyInsight } from "./insights";
 import { formatMillionTokens } from "./tokenFormat";
 import {
@@ -88,7 +88,7 @@ import {
 type Theme = "light" | "dark" | "forest" | "plasma" | "morandi";
 type ProjectProviderFilter = AgentProvider | "all";
 type MetricKey = "projects" | "events" | "tasks" | "tokens";
-type ThreadDetailTab = "conversation" | "context";
+type ThreadDetailTab = "conversation" | "context" | "subagent";
 
 const PROJECT_TIMELINE_LIMIT = 100000;
 
@@ -1751,16 +1751,6 @@ function ConversationThread({
     () => buildJourneyInsights(orderedJourneys, timelineEventsById),
     [orderedJourneys, timelineEventsById],
   );
-  const journeyHealthById = useMemo(
-    () =>
-      new Map(
-        scoreJourneys(orderedJourneys, timelineEventsById).map((insight) => [
-          insight.journeyId,
-          insight,
-        ]),
-      ),
-    [orderedJourneys, timelineEventsById],
-  );
   const [selectedJourneyId, setSelectedJourneyId] = useState<string | null>(
     null,
   );
@@ -1940,7 +1930,6 @@ function ConversationThread({
               }
               active={journey.id === selectedJourney?.id}
               loading={Boolean(loadingJourneyIds[journey.id])}
-              health={journeyHealthById.get(journey.id) ?? null}
               timelineEventsById={timelineEventsById}
               onSelect={() => setSelectedJourneyId(journey.id)}
             />
@@ -1983,6 +1972,15 @@ function ConversationThread({
           >
             {copy.conversationTab}
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={detailTab === "subagent"}
+            className={detailTab === "subagent" ? "active" : ""}
+            onClick={() => setDetailTab("subagent")}
+          >
+            {copy.subagentTab}
+          </button>
         </div>
         {selectedJourney ? (
           detailTab === "context" ? (
@@ -1991,6 +1989,14 @@ function ConversationThread({
               replay={contextReplaysByJourneyId[selectedJourney.id] ?? null}
               loading={Boolean(loadingContextReplayIds[selectedJourney.id])}
               selectedProjectName={selectedProjectName}
+            />
+          ) : detailTab === "subagent" ? (
+            <SubThreadPanel
+              copy={copy}
+              detail={detailsByJourneyId[selectedJourney.id] ?? null}
+              loading={Boolean(loadingJourneyIds[selectedJourney.id])}
+              selectedEventId={selectedEventId}
+              onSelectEvent={onSelectEvent}
             />
           ) : (
             <CausalSpine
@@ -2162,7 +2168,6 @@ function ConversationMasterItem({
   fallbackPrompt,
   active,
   loading,
-  health,
   timelineEventsById,
   onSelect,
 }: {
@@ -2171,12 +2176,11 @@ function ConversationMasterItem({
   fallbackPrompt: TimelineEvent | null;
   active: boolean;
   loading: boolean;
-  health: JourneyInsight | null;
   timelineEventsById: Map<string, TimelineEvent>;
   onSelect: () => void;
 }) {
   const promptText = fallbackPrompt?.detail ?? journey.title;
-  const healthSeverity = health ? healthSeverityClass(health.score) : "green";
+  const subThreadCount = journey.subThreadCount ?? 0;
   return (
     <button
       type="button"
@@ -2187,12 +2191,12 @@ function ConversationMasterItem({
     >
       <span className="conversation-master-meta">
         <span>{formatDate(journey.startedAt, copy)}</span>
-        {health ? (
+        {subThreadCount > 0 ? (
           <span
-            className={`journey-health-badge ${healthSeverity}`}
-            aria-label={`${copy.insightScore} ${Math.round(health.score)}`}
+            className="journey-subagent-badge"
+            aria-label={copy.subThreadCount(subThreadCount)}
           >
-            {Math.round(health.score)}
+            {copy.subagentTab} {subThreadCount}
           </span>
         ) : null}
       </span>
@@ -2211,12 +2215,6 @@ function ConversationMasterItem({
       {loading ? <small>{copy.loadingDetails}</small> : null}
     </button>
   );
-}
-
-function healthSeverityClass(score: number) {
-  if (score < 60) return "red";
-  if (score <= 80) return "yellow";
-  return "green";
 }
 
 export function ContextReplayPanel({
@@ -3964,19 +3962,6 @@ function CausalSpine({
   const [cur, setCur] = useState(-1);
   const [playing, setPlaying] = useState(false);
   const moveRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const subThreads = detail?.subThreads ?? [];
-  const subThreadSummaries = useMemo(
-    () =>
-      subThreads.map((thread) => ({
-        thread,
-        moves: buildSpineMoves(thread.events),
-      })),
-    [subThreads],
-  );
-  const subThreadIds = subThreads.map((thread) => thread.id).join("|");
-  const [selectedSubThreadId, setSelectedSubThreadId] = useState<string | null>(
-    null,
-  );
 
   const lastIndex = moves.length - 1;
 
@@ -4002,14 +3987,6 @@ function CausalSpine({
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
   }, [cur]);
-
-  useEffect(() => {
-    setSelectedSubThreadId((current) =>
-      current && subThreads.some((thread) => thread.id === current)
-        ? current
-        : subThreads[0]?.id ?? null,
-    );
-  }, [subThreadIds]);
 
   const togglePlay = () => {
     if (playing) {
@@ -4080,10 +4057,6 @@ function CausalSpine({
   const toolCalls = moves.reduce((n, m) => n + m.actions.length, 0);
   const corrections = moves.filter((m) => m.isRedirect).length;
   const pct = moves.length ? ((cur + 1) / moves.length) * 100 : 0;
-  const selectedSubThread =
-    subThreadSummaries.find(({ thread }) => thread.id === selectedSubThreadId) ??
-    subThreadSummaries[0] ??
-    null;
 
   return (
     <div className="causal-spine" aria-label={copy.spineAria}>
@@ -4284,44 +4257,6 @@ function CausalSpine({
         </nav>
       </div>
 
-      {subThreads.length > 0 ? (
-        <section className="subthread-group" aria-label={copy.subThreadTitle}>
-          <div className="subthread-group-heading">
-            <span>{copy.subThreadTitle}</span>
-            <strong>{copy.subThreadCount(subThreads.length)}</strong>
-          </div>
-          <div className="subthread-layout">
-            <div className="subthread-index" role="list">
-              {subThreadSummaries.map(({ thread, moves }, index) => (
-                <button
-                  key={thread.id}
-                  type="button"
-                  className={`subthread-index-item${thread.id === selectedSubThread?.thread.id ? " active" : ""}`}
-                  aria-pressed={thread.id === selectedSubThread?.thread.id}
-                  onClick={() => setSelectedSubThreadId(thread.id)}
-                >
-                  <span className={`subthread-status ${thread.journey.status}`} />
-                  <strong>{subThreadTitle(thread)}</strong>
-                  <em>
-                    #{index + 1} · {moves.length} {copy.spineMoves} ·{" "}
-                    {thread.events.length} {copy.runLedgerEvents}
-                  </em>
-                </button>
-              ))}
-            </div>
-            {selectedSubThread ? (
-              <SubThreadSpine
-                copy={copy}
-                thread={selectedSubThread.thread}
-                moves={selectedSubThread.moves}
-                selectedEventId={selectedEventId}
-                onSelectEvent={onSelectEvent}
-              />
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-
       <div className="spine-transport" role="group" aria-label={copy.spineAria}>
         <button
           type="button"
@@ -4387,6 +4322,105 @@ function subThreadTitle(thread: TaskSubThread) {
   return (
     thread.events.find((event) => event.kind === "user_prompt")?.detail ??
     thread.journey.title
+  );
+}
+
+function SubThreadPanel({
+  copy,
+  detail,
+  loading,
+  selectedEventId,
+  onSelectEvent,
+}: {
+  copy: AppCopy["timeline"];
+  detail: TaskJourneyDetail | null;
+  loading: boolean;
+  selectedEventId: string | null;
+  onSelectEvent: (event: TimelineEvent) => void;
+}) {
+  const subThreads = detail?.subThreads ?? [];
+  const subThreadSummaries = useMemo(
+    () =>
+      subThreads.map((thread) => ({
+        thread,
+        moves: buildSpineMoves(thread.events),
+      })),
+    [subThreads],
+  );
+  const subThreadIds = subThreads.map((thread) => thread.id).join("|");
+  const [selectedSubThreadId, setSelectedSubThreadId] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setSelectedSubThreadId((current) =>
+      current && subThreads.some((thread) => thread.id === current)
+        ? current
+        : subThreads[0]?.id ?? null,
+    );
+  }, [subThreadIds]);
+
+  const selectedSubThread =
+    subThreadSummaries.find(({ thread }) => thread.id === selectedSubThreadId) ??
+    subThreadSummaries[0] ??
+    null;
+
+  if (loading && subThreads.length === 0) {
+    return (
+      <div className="spine-state" role="status" aria-live="polite">
+        <span className="spine-loader" aria-hidden="true" />
+        <p className="spine-state-title">{copy.loadingDetails}</p>
+      </div>
+    );
+  }
+
+  if (subThreads.length === 0) {
+    return (
+      <div className="spine-state spine-state-empty">
+        <span className="spine-state-icon" aria-hidden="true">
+          <ArchiveX size={26} />
+        </span>
+        <p className="spine-state-title">{copy.noBackground}</p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="subthread-group subthread-tab-panel" aria-label={copy.subThreadTitle}>
+      <div className="subthread-group-heading">
+        <span>{copy.subThreadTitle}</span>
+        <strong>{copy.subThreadCount(subThreads.length)}</strong>
+      </div>
+      <div className="subthread-layout">
+        <div className="subthread-index" role="list">
+          {subThreadSummaries.map(({ thread, moves }, index) => (
+            <button
+              key={thread.id}
+              type="button"
+              className={`subthread-index-item${thread.id === selectedSubThread?.thread.id ? " active" : ""}`}
+              aria-pressed={thread.id === selectedSubThread?.thread.id}
+              onClick={() => setSelectedSubThreadId(thread.id)}
+            >
+              <span className={`subthread-status ${thread.journey.status}`} />
+              <strong>{subThreadTitle(thread)}</strong>
+              <em>
+                #{index + 1} · {moves.length} {copy.spineMoves} ·{" "}
+                {thread.events.length} {copy.runLedgerEvents}
+              </em>
+            </button>
+          ))}
+        </div>
+        {selectedSubThread ? (
+          <SubThreadSpine
+            copy={copy}
+            thread={selectedSubThread.thread}
+            moves={selectedSubThread.moves}
+            selectedEventId={selectedEventId}
+            onSelectEvent={onSelectEvent}
+          />
+        ) : null}
+      </div>
+    </section>
   );
 }
 

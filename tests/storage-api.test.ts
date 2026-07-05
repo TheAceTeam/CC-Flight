@@ -220,6 +220,7 @@ describe("CC Flight API", () => {
       expect(timeline.status).toBe(200);
       expect(timeline.body.taskJourneys).toHaveLength(1);
       expect(timeline.body.taskJourneys[0].title).toContain("Build weather card");
+      expect(timeline.body.taskJourneys[0].subThreadCount).toBe(1);
 
       const detail = await request(app).get(`/api/task-journeys/${timeline.body.taskJourneys[0].id}`).query({ projectId: project.id });
       expect(detail.status).toBe(200);

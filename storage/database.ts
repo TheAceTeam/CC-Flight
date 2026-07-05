@@ -657,9 +657,13 @@ export class CCFlightDatabase {
     const events = this.listEvents(projectId, query);
     const timeline = buildProjectTimeline(project, events);
     const subagentEventIds = this.subagentEventIds(projectId);
+    const taskJourneys = this.withSubThreadCounts(
+      timeline.taskJourneys.filter((journey) => !subagentEventIds.has(journey.promptEventId)),
+      projectId,
+    );
     return {
       ...timeline,
-      taskJourneys: timeline.taskJourneys.filter((journey) => !subagentEventIds.has(journey.promptEventId)),
+      taskJourneys,
       episodes: this.listEpisodes(projectId),
       tokenUsage: this.getProjectTokenUsage(projectId),
       totalEvents: this.countEvents(projectId, query),
@@ -732,8 +736,11 @@ export class CCFlightDatabase {
       const events = this.listEvents(project.id);
       const timeline = buildProjectTimeline(project, events);
       const subagentEventIds = this.subagentEventIds(project.id);
-      const journey = timeline.taskJourneys
-        .filter((candidate) => !subagentEventIds.has(candidate.promptEventId))
+      const taskJourneys = this.withSubThreadCounts(
+        timeline.taskJourneys.filter((candidate) => !subagentEventIds.has(candidate.promptEventId)),
+        project.id,
+      );
+      const journey = taskJourneys
         .find((candidate) => candidate.id === journeyId);
       if (!journey) continue;
       const eventIds = new Set(journey.eventIds);
@@ -792,6 +799,35 @@ export class CCFlightDatabase {
         }
       ];
     });
+  }
+
+  private withSubThreadCounts(journeys: TaskJourney[], projectId: string): TaskJourney[] {
+    if (journeys.length === 0) return journeys;
+    const sessionsById = new Map(this.listSessions(projectId).map((session) => [session.id, session]));
+    const subagentSources = this.listSubagentSourceSummaries(projectId);
+    if (subagentSources.length === 0) return journeys.map((journey) => ({ ...journey, subThreadCount: 0 }));
+    return journeys.map((journey) => {
+      const parentSession = sessionsById.get(journey.sessionId);
+      const parentKey = parentSession?.externalSessionId || stripProviderPrefix(journey.sessionId);
+      const subThreadCount = parentKey
+        ? subagentSources.filter((source) => isSourceForParentSession(source.sourcePath, parentKey) && isSourceInJourneyWindow(source.startedAt, journey)).length
+        : 0;
+      return { ...journey, subThreadCount };
+    });
+  }
+
+  private listSubagentSourceSummaries(projectId: string): Array<{ sourcePath: string; startedAt: string }> {
+    return this.db
+      .prepare(
+        `SELECT r.source_path as sourcePath, MIN(e.timestamp) as startedAt
+         FROM raw_event_refs r
+         JOIN events e ON e.raw_event_ref_id = r.id
+         WHERE e.project_id = ?
+           AND (r.source_path LIKE '%/subagents/%' OR r.source_path LIKE '%\\subagents\\%')
+         GROUP BY r.source_path
+         ORDER BY MIN(e.timestamp) ASC`
+      )
+      .all(projectId) as Array<{ sourcePath: string; startedAt: string }>;
   }
 
   private listEventsForSourcePath(sourcePath: string): TimelineEvent[] {
@@ -1135,6 +1171,15 @@ function durationBetween(start: string, end: string): number {
 function stripProviderPrefix(sessionId: string): string {
   const index = sessionId.indexOf(":");
   return index >= 0 ? sessionId.slice(index + 1) : sessionId;
+}
+
+function isSourceForParentSession(sourcePath: string, parentKey: string): boolean {
+  return sourcePath.includes(`/${parentKey}/subagents/`) || sourcePath.includes(`\\${parentKey}\\subagents\\`);
+}
+
+function isSourceInJourneyWindow(startedAt: string, journey: TaskJourney): boolean {
+  if (startedAt < journey.startedAt) return false;
+  return journey.exitType !== "next_prompt" || startedAt <= journey.endedAt;
 }
 
 function escapeSqlLike(value: string): string {

@@ -142,14 +142,19 @@ describe("Subagent session view", () => {
     ).not.toBeInTheDocument();
   });
 
-  test("renders nested subagent work as a sub-thread in conversation details", async () => {
+  test("renders nested subagent work in the subagent details tab", async () => {
     const timeline = fixtureTimelineWithParentJourney();
     fetchTimelineMock.mockImplementation(async () => timeline);
     fetchTaskJourneyDetailMock.mockImplementation(async () => fixtureJourneyDetailWithSubThread());
 
     const { container } = render(<App />);
 
-    fireEvent.click(await screen.findByRole("tab", { name: "Conversation" }));
+    const parentThread = await screen.findByRole("button", {
+      name: /Build weather card/,
+    });
+    expect(parentThread).toHaveTextContent("Subagent 1");
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Subagent" }));
 
     expect(await screen.findByText("Subagent sub-thread")).toBeInTheDocument();
     expect(screen.getByText("1 sub-thread")).toBeInTheDocument();
@@ -241,6 +246,7 @@ function fixtureTimelineWithParentJourney() {
         exitType: "session_end",
         eventIds: events.map((event) => event.id),
         tokenUsage: zeroTokens(),
+        subThreadCount: 1,
         skills: [],
         stageCounts: {},
         stages: [],

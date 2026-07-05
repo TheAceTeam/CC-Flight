@@ -1708,32 +1708,19 @@ select {
   min-width: 0;
 }
 
-.journey-health-badge {
-  display: inline-grid;
-  min-width: 28px;
-  height: 20px;
-  place-items: center;
-  border: 1px solid var(--line);
+.journey-subagent-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 20px;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--blue) 42%, var(--line));
   border-radius: 999px;
-  font: 900 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-.journey-health-badge.green {
-  border-color: color-mix(in srgb, var(--success) 45%, var(--line));
-  background: color-mix(in srgb, var(--success) 12%, var(--surface));
-  color: var(--success);
-}
-
-.journey-health-badge.yellow {
-  border-color: color-mix(in srgb, var(--warning) 50%, var(--line));
-  background: color-mix(in srgb, var(--warning) 14%, var(--surface));
-  color: color-mix(in srgb, var(--warning) 72%, var(--ink));
-}
-
-.journey-health-badge.red {
-  border-color: color-mix(in srgb, var(--danger) 50%, var(--line));
-  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
-  color: var(--danger);
+  background: color-mix(in srgb, var(--blue-soft) 64%, var(--surface-2));
+  color: color-mix(in srgb, var(--blue) 78%, var(--ink));
+  font: 900 10px/1.1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .conversation-detail-pane {
@@ -6161,11 +6148,15 @@ pre {
 .subthread-group {
   display: grid;
   gap: 12px;
-  margin: 18px 0 0 48px;
+  margin: 8px 12px 4px;
   padding: 14px;
   border: 1px solid color-mix(in srgb, var(--orange) 28%, var(--line));
-  border-radius: 12px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--orange-soft) 34%, var(--surface-2));
+}
+
+.subthread-tab-panel {
+  min-height: min(72vh, 680px);
 }
 
 .subthread-layout {

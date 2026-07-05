@@ -144,6 +144,7 @@ export type AppCopy = {
     insightReasonContextChurn: (count: number) => string;
     conversationTab: string;
     contextReplayTab: string;
+    subagentTab: string;
     contextReplayLedgerAria: string;
     contextReplayLoading: string;
     contextReplayEmpty: string;
@@ -465,6 +466,7 @@ export const COPY: Record<Language, AppCopy> = {
       insightReasonContextChurn: (count: number) => `${count} context events`,
       conversationTab: "Conversation",
       contextReplayTab: "Context Replay",
+      subagentTab: "Subagent",
       contextReplayLedgerAria: "Context Replay ledger",
       contextReplayLoading: "Loading observable context...",
       contextReplayEmpty: "Open this task after details are indexed to inspect observable context.",
@@ -868,6 +870,7 @@ export const COPY: Record<Language, AppCopy> = {
       insightReasonContextChurn: (count: number) => `${count} 个上下文事件`,
       conversationTab: "Conversation",
       contextReplayTab: "Context Replay",
+      subagentTab: "Subagent",
       contextReplayLedgerAria: "Context Replay ledger",
       contextReplayLoading: "正在加载可观察上下文...",
       contextReplayEmpty: "打开这轮任务后，可查看日志中可观察到的上下文。",

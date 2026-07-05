@@ -216,6 +216,7 @@ export interface TaskJourney {
   eventIds: string[];
   tokenUsage: TokenUsage;
   skills: SkillUsage[];
+  subThreadCount?: number;
   stageCounts: Partial<Record<TimelineLane, number>>;
   stages: TaskJourneyStage[];
 }

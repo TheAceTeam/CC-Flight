@@ -15,6 +15,7 @@ function parseArgs(argv) {
   const parsed = {
     shouldPublish: false,
     skipBuild: false,
+    skipLogin: false,
     access: "public",
     tag: "latest",
     otp: null,
@@ -30,6 +31,8 @@ function parseArgs(argv) {
       parsed.shouldPublish = false;
     } else if (arg === "--skip-build") {
       parsed.skipBuild = true;
+    } else if (arg === "--skip-login") {
+      parsed.skipLogin = true;
     } else if (arg === "--restricted") {
       parsed.access = "restricted";
     } else if (arg === "--tag") {
@@ -72,6 +75,7 @@ Options:
   --otp <code>    npm one-time password for accounts with 2FA enabled.
   --restricted    Publish with --access restricted. Defaults to public.
   --skip-build    Skip pnpm build before packing.
+  --skip-login    Skip the npm whoami/login preflight.
 `);
 }
 
@@ -84,6 +88,38 @@ function run(command, commandArgs, options = {}) {
   if (result.status !== 0) {
     throw new Error(`${command} ${commandArgs.join(" ")} failed`);
   }
+}
+
+function runCapture(command, commandArgs, options = {}) {
+  return spawnSync(command, commandArgs, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: false,
+    ...options,
+  });
+}
+
+function ensureNpmLogin() {
+  if (!options.shouldPublish || options.skipLogin) return;
+
+  const whoami = runCapture("npm", ["whoami"]);
+  if (whoami.status === 0) {
+    console.log(`\n==> npm authenticated as ${whoami.stdout.trim()}`);
+    return;
+  }
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error("npm is not logged in. Run `npm login` first, or run this publish script from an interactive terminal.");
+  }
+
+  console.log("\n==> npm login required");
+  run("npm", ["login"], { stdio: "inherit" });
+
+  const afterLogin = runCapture("npm", ["whoami"]);
+  if (afterLogin.status !== 0) {
+    throw new Error("npm login did not complete successfully.");
+  }
+  console.log(`\n==> npm authenticated as ${afterLogin.stdout.trim()}`);
 }
 
 async function assertPackedFile(packageDir, relativePath) {
@@ -161,6 +197,8 @@ async function publishPackage(packageDir, packageName) {
 if (!options.skipBuild) {
   run("pnpm", ["build"]);
 }
+
+ensureNpmLogin();
 
 await withPackedPackage(async (packageDir) => {
   const packageJsonPath = path.join(packageDir, "package.json");

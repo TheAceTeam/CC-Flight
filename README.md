@@ -2,6 +2,10 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
+<p align="center">
+  <img src="docs/assets/cc-flight-poster-16x9.png" alt="CC Flight hero image" width="100%" />
+</p>
+
 ## Quick Start
 
 ```bash
@@ -68,14 +72,18 @@ For future updates, switch scripts and docs to `cc-flight` or `ccflight`.
 
 ## Features
 
-### New in 0.6.0: Subagent Threads
+### New in 0.6.1: Subagent Threads and Scan Controls
 
 Subagent work is now attached to the user-input journey that launched it:
 
 - User-input rows show a `Subagent N` marker when nested workers are detected.
 - The task detail pane has a dedicated **Subagent** tab beside **Context Replay** and **Conversation**.
 - Subagent sessions are shown as a compact thread index plus a focused replay, so multi-worker activity can be scanned without scrolling through one long nested feed.
+- Subagent entries show the launch prompt from the main agent, not the worker's first reply.
 - Claude Code subagents are matched by parent session source path and time window, including workers whose `cwd` falls into a child project directory.
+- **Scan Agent Logs** uses checkboxes so Codex, Claude Code, and OpenCode can be ingested together.
+- The scan menu includes **Clear database and reingest** for rebuilding a stale local index in one step.
+- The top bar shows the running CC Flight version.
 - Codex ingest includes archived sessions from `~/.codex/archived_sessions`.
 
 ### Session Recap
@@ -202,7 +210,7 @@ pnpm publish:dual       # Build, pack, and dry-run both npm packages
 pnpm publish:dual:live  # Build, pack, and publish cc-flight + @seanxdo/superview
 ```
 
-Use `pnpm publish:dual -- --tag next` to dry-run with a non-`latest` npm dist-tag. The live command publishes `cc-flight` first, then republishes the same packed artifact as the legacy `@seanxdo/superview` compatibility package.
+Use `pnpm publish:dual -- --tag next` to dry-run with a non-`latest` npm dist-tag. The live command checks `npm whoami`, runs interactive `npm login` when needed, publishes `cc-flight` first, then republishes the same packed artifact as the legacy `@seanxdo/superview` compatibility package.
 If npm requires two-factor authentication, run `pnpm publish:dual:live -- --otp <code>`.
 
 ## API Reference
@@ -220,6 +228,7 @@ If npm requires two-factor authentication, run `pnpm publish:dual:live -- --otp 
 | `/api/events/:id/evidence` | GET | Event evidence |
 | `/api/runs/:id` | GET | Run replay |
 | `/api/reset` | POST | Reset database |
+| `/api/reset-and-ingest` | POST | Reset database and start a fresh ingest job |
 
 ## Architecture
 

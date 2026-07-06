@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CC Flight 16:9 Project Poster</title>
+    <style>
+      :root {
+        --paper: #f7f4ef;
+        --surface: #fffaf2;
+        --surface-2: #ffffff;
+        --ink: #2f2c28;
+        --muted: #766d62;
+        --line: #ddd4c8;
+        --orange: #fe6e00;
+        --orange-soft: #fff0df;
+        --blue: #2277e8;
+        --blue-soft: #e0efff;
+        --green: #0aa86f;
+        --green-soft: #dff8ed;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        margin: 0;
+        overflow: hidden;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+      }
+
+      .poster {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 10% 8%, rgba(254, 110, 0, .15), transparent 28%),
+          radial-gradient(circle at 92% 18%, rgba(34, 119, 232, .14), transparent 30%),
+          linear-gradient(135deg, #fffdfa 0%, #f1ece5 50%, #fff7ee 100%);
+      }
+
+      .grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(47, 44, 40, .055) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(47, 44, 40, .055) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, .65), transparent 82%);
+      }
+
+      .topbar {
+        position: absolute;
+        top: 54px;
+        left: 78px;
+        right: 78px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 32px;
+        z-index: 4;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-weight: 900;
+        font-size: 26px;
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .mark {
+        display: grid;
+        width: 52px;
+        height: 52px;
+        place-items: center;
+        border-radius: 14px;
+        background: var(--orange);
+        color: white;
+        box-shadow: 0 18px 42px rgba(254, 110, 0, .25);
+      }
+
+      .mark svg {
+        width: 31px;
+        height: 31px;
+      }
+
+      .content {
+        position: absolute;
+        inset: 150px 78px 76px;
+        display: grid;
+        grid-template-columns: 700px 1fr;
+        gap: 58px;
+        z-index: 3;
+      }
+
+      .copy {
+        align-self: center;
+        display: grid;
+        gap: 30px;
+        min-width: 0;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        gap: 10px;
+        min-height: 38px;
+        padding: 0 14px;
+        border: 1px solid rgba(254, 110, 0, .3);
+        border-radius: 999px;
+        background: rgba(255, 240, 223, .82);
+        color: #a84700;
+        font-size: 14px;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 690px;
+        font-size: 96px;
+        line-height: .94;
+        font-weight: 950;
+        letter-spacing: 0;
+      }
+
+      h1 span {
+        color: var(--orange);
+      }
+
+      .dek {
+        margin: 0;
+        max-width: 620px;
+        color: var(--muted);
+        font-size: 27px;
+        font-weight: 650;
+        line-height: 1.24;
+      }
+
+      .pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        max-width: 660px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 42px;
+        padding: 0 14px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .7);
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 850;
+      }
+
+      .pill i {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: var(--orange);
+      }
+
+      .pill.blue i {
+        background: var(--blue);
+      }
+
+      .pill.green i {
+        background: var(--green);
+      }
+
+      .pill.slate i {
+        background: #6f7785;
+      }
+
+      .visual {
+        position: relative;
+        align-self: center;
+        height: 760px;
+        min-width: 0;
+      }
+
+      .browser {
+        position: absolute;
+        top: 26px;
+        right: 8px;
+        width: 950px;
+        height: 632px;
+        overflow: hidden;
+        border: 1px solid rgba(47, 44, 40, .18);
+        border-radius: 24px;
+        background: var(--surface-2);
+        box-shadow:
+          0 34px 90px rgba(47, 44, 40, .2),
+          0 10px 26px rgba(254, 110, 0, .12);
+      }
+
+      .browser-bar {
+        height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 18px;
+        border-bottom: 1px solid var(--line);
+        background: #fffdf9;
+      }
+
+      .dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 999px;
+        background: #ff6259;
+      }
+
+      .dot:nth-child(2) {
+        background: #ffbd2e;
+      }
+
+      .dot:nth-child(3) {
+        background: #28c840;
+      }
+
+      .url {
+        margin-left: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .browser img {
+        width: 100%;
+        height: calc(100% - 48px);
+        object-fit: cover;
+        object-position: 52% 12%;
+        display: block;
+      }
+
+      .browser::after,
+      .shot-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(135deg, rgba(255, 255, 255, .16), transparent 34%);
+      }
+
+      .shot-card {
+        position: absolute;
+        overflow: hidden;
+        border: 1px solid rgba(47, 44, 40, .14);
+        border-radius: 20px;
+        background: #fff;
+        box-shadow:
+          0 26px 64px rgba(47, 44, 40, .22),
+          0 8px 18px rgba(47, 44, 40, .08);
+        transform-origin: center;
+      }
+
+      .shot-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .shot-card span {
+        position: absolute;
+        left: 14px;
+        bottom: 12px;
+        display: inline-flex;
+        min-height: 28px;
+        align-items: center;
+        padding: 0 10px;
+        border: 1px solid rgba(255, 255, 255, .45);
+        border-radius: 999px;
+        background: rgba(22, 19, 16, .72);
+        color: #fff8ef;
+        font-size: 12px;
+        font-weight: 900;
+        backdrop-filter: blur(8px);
+      }
+
+      .shot-overview {
+        left: 0;
+        bottom: 16px;
+        width: 260px;
+        height: 150px;
+        transform: rotate(-6deg);
+      }
+
+      .shot-context {
+        right: 44px;
+        bottom: 18px;
+        width: 340px;
+        height: 190px;
+        transform: rotate(5deg);
+      }
+
+      .shot-tokens {
+        left: 292px;
+        bottom: 12px;
+        width: 306px;
+        height: 170px;
+        transform: rotate(2deg);
+      }
+
+      .shot-tape {
+        right: 2px;
+        top: 562px;
+        width: 246px;
+        height: 126px;
+        transform: rotate(7deg);
+      }
+
+      .shot-recap {
+        left: 0;
+        top: 330px;
+        width: 270px;
+        height: 206px;
+        transform: rotate(-4deg);
+      }
+
+      .preview-note {
+        position: absolute;
+        right: 68px;
+        bottom: 292px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 42px;
+        padding: 0 14px;
+        border: 1px solid rgba(254, 110, 0, .28);
+        border-radius: 999px;
+        background: rgba(255, 250, 242, .82);
+        color: #a84700;
+        font-size: 14px;
+        font-weight: 950;
+        box-shadow: 0 18px 42px rgba(47, 44, 40, .12);
+        backdrop-filter: blur(8px);
+      }
+
+      .preview-note i {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--orange);
+      }
+
+    </style>
+  </head>
+  <body>
+    <main class="poster" aria-label="CC Flight project poster">
+      <div class="grid" aria-hidden="true"></div>
+      <header class="topbar">
+        <div class="brand">
+          <span class="mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M3.5 11.5 20.5 3.5 14 20.5l-3.7-7.2-6.8-1.8Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" />
+              <path d="M10.3 13.3 20.5 3.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+            </svg>
+          </span>
+          CC Flight
+        </div>
+      </header>
+
+      <section class="content">
+        <div class="copy">
+          <div class="eyebrow">Trace every agent run</div>
+          <h1>Flight recorder for <span>coding agents</span></h1>
+          <p class="dek">
+            Reconstruct every task journey across Codex, Claude Code, and OpenCode:
+            context, cost, tools, errors, and subagent threads.
+          </p>
+          <div class="pills">
+            <span class="pill"><i></i>Conversation Replay</span>
+            <span class="pill blue"><i></i>Context Replay</span>
+            <span class="pill green"><i></i>Subagent Threads</span>
+            <span class="pill slate"><i></i>Token Timeline</span>
+          </div>
+        </div>
+
+        <div class="visual" aria-hidden="true">
+          <div class="browser">
+            <div class="browser-bar">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="url">127.0.0.1:5174</span>
+            </div>
+            <img src="../docs/assets/02.png" alt="" />
+          </div>
+          <div class="shot-card shot-overview">
+            <img src="../docs/assets/03.png" alt="" />
+            <span>Project timeline</span>
+          </div>
+          <div class="shot-card shot-context">
+            <img src="../docs/assets/04.png" alt="" />
+            <span>Context replay</span>
+          </div>
+          <div class="shot-card shot-tokens">
+            <img src="../docs/assets/05.png" alt="" />
+            <span>Token timeline</span>
+          </div>
+          <div class="shot-card shot-tape">
+            <img src="../docs/assets/07.png" alt="" />
+            <span>Event tape</span>
+          </div>
+          <div class="shot-card shot-recap">
+            <img src="../docs/assets/08.png" alt="" />
+            <span>Flight recap</span>
+          </div>
+          <div class="preview-note">
+            <i></i>
+            Built from real CC Flight screens
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </body>
+</html>

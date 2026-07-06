@@ -2,6 +2,10 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
+<p align="center">
+  <img src="docs/assets/cc-flight-poster-16x9.png" alt="CC Flight hero image" width="100%" />
+</p>
+
 ## 快速开始
 
 ```bash
@@ -68,14 +72,18 @@ superview
 
 ## 功能
 
-### 0.6.0 新增：Subagent Threads
+### 0.6.1 新增：Subagent Threads 与扫描控制
 
 Subagent 工作现在会关联到发起它的 user-input journey：
 
 - 左侧 user-input 行在检测到嵌套 worker 时显示 `Subagent N` 标记。
 - 任务详情面板中，**Subagent** 与 **Context Replay**、**Conversation** 并列为独立 tab。
 - Subagent 会话以紧凑线程索引 + 聚焦回放展示，多个 worker 的全局情况不再需要在长列表里反复滚动。
+- Subagent 入口显示主 agent 发给 worker 的启动 prompt，而不是 worker 的第一句回复。
 - Claude Code subagent 会按父 session source path 和时间窗口关联，包括 `cwd` 落在子项目目录里的 worker。
+- **扫描 Agent 日志** 使用 checkbox，可同时导入 Codex、Claude Code 和 OpenCode。
+- 扫描菜单提供 **清除数据库并重新导入**，可一步重建过期的本地索引。
+- 顶栏显示当前运行的 CC Flight 版本。
 - Codex 导入会包含 `~/.codex/archived_sessions` 中的归档 session。
 
 ### 会话概览
@@ -202,7 +210,7 @@ pnpm publish:dual       # 构建、打包，并 dry-run 两个 npm 包
 pnpm publish:dual:live  # 构建、打包，并正式发布 cc-flight + @seanxdo/superview
 ```
 
-如需 dry-run 到非 `latest` 标签，可运行 `pnpm publish:dual -- --tag next`。正式发布会先发布 `cc-flight`，再将同一个打包产物改写为旧包名 `@seanxdo/superview` 兼容包后发布。
+如需 dry-run 到非 `latest` 标签，可运行 `pnpm publish:dual -- --tag next`。正式发布会先检查 `npm whoami`，需要时自动进入交互式 `npm login`，再先发布 `cc-flight`，并将同一个打包产物改写为旧包名 `@seanxdo/superview` 兼容包后发布。
 如果 npm 要求双因素认证，可运行 `pnpm publish:dual:live -- --otp <code>`。
 
 ## API Reference
@@ -220,6 +228,7 @@ pnpm publish:dual:live  # 构建、打包，并正式发布 cc-flight + @seanxdo
 | `/api/events/:id/evidence` | GET | 事件证据 |
 | `/api/runs/:id` | GET | 运行回放 |
 | `/api/reset` | POST | 重置数据库 |
+| `/api/reset-and-ingest` | POST | 重置数据库并启动一次全新导入 |
 
 ## 架构
 

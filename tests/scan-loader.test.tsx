@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { App } from "../ui/src/App";
 
@@ -7,7 +7,7 @@ const { startIngestMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("../ui/src/api", () => ({
-  fetchConfig: vi.fn(async () => ({ projectDir: null })),
+  fetchConfig: vi.fn(async () => ({ projectDir: null, version: "0.6.1" })),
   fetchProjects: vi.fn(async () => [
     {
       id: "project-scan",
@@ -47,7 +47,7 @@ vi.mock("../ui/src/api", () => ({
     limit: 100000,
     offset: 0,
   })),
-  resetDatabase: vi.fn(),
+  resetDatabaseAndIngest: vi.fn(),
   startIngest: startIngestMock,
 }));
 
@@ -67,6 +67,8 @@ describe("Scan loader", () => {
     startIngestMock.mockReturnValue(new Promise(() => {}));
     render(<App />);
 
+    expect(await screen.findByText("v0.6.1")).toBeInTheDocument();
+
     fireEvent.click(await screen.findByRole("button", { name: /Scan Agent Logs/ }));
     const panel = screen.getByRole("region", { name: "Scan Agent Logs" });
     fireEvent.click(within(panel).getByRole("button", { name: "Scan Agent Logs" }));
@@ -76,6 +78,22 @@ describe("Scan loader", () => {
     });
     expect(loader).toHaveTextContent("Scanning agent logs");
     expect(screen.getByRole("button", { name: /Scan Agent Logs/ })).toBeDisabled();
+  });
+
+  test("scans every checked agent log source", async () => {
+    startIngestMock.mockResolvedValue("job-scan");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Scan Agent Logs/ }));
+    const panel = screen.getByRole("region", { name: "Scan Agent Logs" });
+    fireEvent.click(within(panel).getByRole("checkbox", { name: "Claude Code" }));
+    fireEvent.click(within(panel).getByRole("button", { name: "Scan Agent Logs" }));
+
+    await waitFor(() =>
+      expect(startIngestMock).toHaveBeenCalledWith({
+        sources: [{ provider: "codex" }, { provider: "claude-code" }],
+      }),
+    );
   });
 });
 

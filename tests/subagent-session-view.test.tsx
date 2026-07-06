@@ -8,7 +8,7 @@ const { fetchTaskJourneyDetailMock, fetchTimelineMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("../ui/src/api", () => ({
-  fetchConfig: vi.fn(async () => ({ projectDir: null })),
+  fetchConfig: vi.fn(async () => ({ projectDir: null, version: "0.6.1" })),
   fetchProjects: vi.fn(async () => {
     const sessions = fixtureSessions();
     return [
@@ -34,7 +34,7 @@ vi.mock("../ui/src/api", () => ({
   fetchRun: vi.fn(),
   fetchTaskJourneyDetail: fetchTaskJourneyDetailMock,
   fetchTimeline: fetchTimelineMock,
-  resetDatabase: vi.fn(),
+  resetDatabaseAndIngest: vi.fn(),
   startIngest: vi.fn(),
 }));
 
@@ -91,6 +91,12 @@ describe("Subagent session view", () => {
     expect(await screen.findByText("Subagent sub-thread")).toBeInTheDocument();
     expect(screen.getByText("1 sub-thread")).toBeInTheDocument();
     expect(screen.getByText("The subagent found a forecast parsing bug.")).toBeInTheDocument();
+    const subThreadTrack = container.querySelector<HTMLElement>(".subthread-spine-track");
+    expect(subThreadTrack).toBeTruthy();
+    const subThreadNodes = Array.from(subThreadTrack!.querySelectorAll<HTMLElement>(".spine-node"));
+    expect(subThreadNodes[0]).toHaveTextContent("Agent input");
+    expect(subThreadNodes[0]).toHaveTextContent("Inspect the weather parser");
+    expect(subThreadNodes[1]).toHaveTextContent("The subagent found a forecast parsing bug.");
     expect(
       Array.from(container.querySelectorAll<HTMLElement>(".conversation-master-item")).filter((item) =>
         item.textContent?.includes("Build weather card"),

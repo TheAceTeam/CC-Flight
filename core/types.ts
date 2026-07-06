@@ -224,6 +224,7 @@ export interface TaskJourney {
 export interface TaskSubThread {
   id: string;
   sourcePath: string;
+  launchPrompt?: string | null;
   session: SessionRecord | null;
   journey: TaskJourney;
   events: TimelineEvent[];

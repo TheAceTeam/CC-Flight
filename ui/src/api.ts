@@ -81,12 +81,23 @@ export async function fetchRun(sessionId: string): Promise<RunReplay & { artifac
   return (await response.json()) as RunReplay & { artifacts: Artifact[] };
 }
 
-export async function fetchConfig(): Promise<{ projectDir: string | null }> {
+export async function fetchConfig(): Promise<{ projectDir: string | null; version?: string }> {
   const response = await fetch("/api/config");
   if (!response.ok) throw new Error("Failed to load config");
-  return (await response.json()) as { projectDir: string | null };
+  return (await response.json()) as { projectDir: string | null; version?: string };
 }
 
 export async function resetDatabase(): Promise<void> {
   await fetch("/api/reset", { method: "POST" });
+}
+
+export async function resetDatabaseAndIngest(options: { codexHome?: string; sources?: AgentSourceConfig[] } = {}): Promise<string> {
+  const response = await fetch("/api/reset-and-ingest", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options)
+  });
+  if (!response.ok) throw new Error("Failed to reset and start ingest");
+  const data = (await response.json()) as { jobId: string };
+  return data.jobId;
 }

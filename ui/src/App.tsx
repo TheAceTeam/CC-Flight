@@ -65,7 +65,7 @@ import {
   fetchTaskJourneyDetail,
   fetchTimeline,
   ProjectWithSessions,
-  resetDatabase,
+  resetDatabaseAndIngest,
   startIngest,
 } from "./api";
 import { DailyTokenUsagePanel } from "./DailyTokenUsagePanel";
@@ -87,6 +87,11 @@ type Theme = "light" | "dark" | "forest" | "plasma" | "morandi";
 type ProjectProviderFilter = AgentProvider | "all";
 type MetricKey = "projects" | "events" | "tasks" | "tokens";
 type ThreadDetailTab = "conversation" | "context" | "subagent";
+const AGENT_PROVIDER_OPTIONS: Array<{ value: AgentProvider; label: string }> = [
+  { value: "codex", label: "Codex" },
+  { value: "claude-code", label: "Claude Code" },
+  { value: "opencode", label: "OpenCode" },
+];
 
 const PROJECT_TIMELINE_LIMIT = 100000;
 
@@ -136,6 +141,7 @@ export function App() {
   );
   // Server --project-dir (launch dir). Drives auto-select once that project is ingested.
   const [serverProjectDir, setServerProjectDir] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
   // ?project= captured once at mount, before effects rewrite the URL from the selection.
   const initialUrlProject = useRef<string | null>(
     new URLSearchParams(window.location.search).get("project"),
@@ -173,7 +179,7 @@ export function App() {
   const jobRef = useRef(job);
   jobRef.current = job;
   const jobClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [agentProvider, setAgentProvider] = useState<AgentProvider>("codex");
+  const [agentProviders, setAgentProviders] = useState<AgentProvider[]>(["codex"]);
   const [projectProviderFilter, setProjectProviderFilter] =
     useState<ProjectProviderFilter>("all");
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
@@ -402,7 +408,7 @@ export function App() {
           ),
         );
         const jobId = await startIngest({
-          sources: (providers.length > 0 ? providers : [agentProvider]).map(
+          sources: (providers.length > 0 ? providers : agentProviders).map(
             (provider) => ({ provider }),
           ),
         });
@@ -415,7 +421,7 @@ export function App() {
       window.clearInterval(uiTimer);
       window.clearInterval(dbTimer);
     };
-  }, [selectedProjectId, projects, agentProvider, autoUpdateEnabled]);
+  }, [selectedProjectId, projects, agentProviders, autoUpdateEnabled]);
 
   // Drag-and-drop JSONL import
   useEffect(() => {
@@ -491,6 +497,7 @@ export function App() {
       try {
         const config = await fetchConfig();
         setServerProjectDir(config.projectDir ?? null);
+        setAppVersion(config.version ?? null);
       } catch { /* best-effort */ }
       setError(null);
     } catch (loadError) {
@@ -538,11 +545,31 @@ export function App() {
     }
   }
 
-  async function handleReset() {
+  function currentIngestOptions() {
+    const root = agentLogRoot.trim();
+    const providers = agentProviders.length > 0 ? agentProviders : ["codex" as AgentProvider];
+    return {
+      sources: providers.map((provider) =>
+        root ? { provider, root, path: root } : { provider },
+      ),
+    };
+  }
+
+  function toggleAgentProvider(provider: AgentProvider) {
+    setAgentProviders((current) => {
+      if (current.includes(provider)) {
+        return current.length > 1 ? current.filter((item) => item !== provider) : current;
+      }
+      return [...current, provider];
+    });
+  }
+
+  async function handleResetAndIngest() {
     if (!confirm(copy.timeline.resetDatabaseConfirm)) return;
     setScanPanelOpen(false);
+    setError(null);
+    setScanStarting(true);
     try {
-      await resetDatabase();
       setJob(null);
       setTimeline(null);
       setSelectedEvent(null);
@@ -555,10 +582,14 @@ export function App() {
       setCollapsedJourneyIds({});
       setJourneyDetails({});
       setContextReplays({});
-      setError(null);
-      await loadProjects();
-    } catch {
-      // silent
+      const jobId = await resetDatabaseAndIngest(currentIngestOptions());
+      setJob(await fetchIngestJob(jobId));
+    } catch (resetError) {
+      setError(
+        resetError instanceof Error ? resetError.message : String(resetError),
+      );
+    } finally {
+      setScanStarting(false);
     }
   }
 
@@ -568,12 +599,7 @@ export function App() {
     setError(null);
     setScanStarting(true);
     try {
-      const root = agentLogRoot.trim();
-      const jobId = await startIngest(
-        root
-          ? { sources: [{ provider: agentProvider, root, path: root }] }
-          : { sources: [{ provider: agentProvider }] },
-      );
+      const jobId = await startIngest(currentIngestOptions());
       setJob(await fetchIngestJob(jobId));
     } catch (scanError) {
       setError(
@@ -757,6 +783,11 @@ export function App() {
         <div className="brand">
           <strong>CC Flight</strong>
           <span>{copy.brandSubtitle}</span>
+          {appVersion ? (
+            <span className="version-badge" title={copy.topbar.version}>
+              v{appVersion}
+            </span>
+          ) : null}
         </div>
         <div className="topbar-actions">
           <a
@@ -788,21 +819,22 @@ export function App() {
                 role="region"
                 aria-label={copy.topbar.scan}
               >
-                <label className="agent-provider-control">
+                <div className="agent-provider-control" role="group" aria-label={copy.topbar.sourceAria}>
                   <span>{copy.topbar.source}</span>
-                  <select
-                    aria-label={copy.topbar.sourceAria}
-                    value={agentProvider}
-                    onChange={(event) =>
-                      setAgentProvider(event.target.value as AgentProvider)
-                    }
-                    disabled={scanBusy}
-                  >
-                    <option value="codex">Codex</option>
-                    <option value="claude-code">Claude Code</option>
-                    <option value="opencode">OpenCode</option>
-                  </select>
-                </label>
+                  <div className="agent-provider-checkboxes">
+                    {AGENT_PROVIDER_OPTIONS.map((provider) => (
+                      <label className="agent-provider-checkbox" key={provider.value}>
+                        <input
+                          type="checkbox"
+                          checked={agentProviders.includes(provider.value)}
+                          onChange={() => toggleAgentProvider(provider.value)}
+                          disabled={scanBusy}
+                        />
+                        <span>{provider.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <label className="agent-root-control">
                   <span>{copy.topbar.agentLogRoot}</span>
                   <input
@@ -823,14 +855,15 @@ export function App() {
                 </button>
                 <button
                   className="shell-button"
-                  onClick={handleReset}
+                  onClick={handleResetAndIngest}
+                  disabled={scanBusy}
                   style={{
                     marginTop: 4,
                     fontSize: 11,
                     color: "rgba(255,120,120,.8)",
                   }}
                 >
-                  {copy.timeline.resetDatabase}
+                  {copy.timeline.resetAndReingest}
                 </button>
               </div>
             ) : null}
@@ -1077,8 +1110,8 @@ export function App() {
             copy={copy.empty}
             title={copy.empty.loadingTitle}
             detail={copy.empty.loadingDetail}
-            agentProvider={agentProvider}
-            onAgentProviderChange={setAgentProvider}
+            agentProviders={agentProviders}
+            onAgentProviderToggle={toggleAgentProvider}
             agentLogRoot={agentLogRoot}
             onAgentLogRootChange={setAgentLogRoot}
             onScan={handleScan}
@@ -1091,8 +1124,8 @@ export function App() {
             copy={copy.empty}
             title={copy.empty.noRunsTitle}
             detail={copy.empty.noRunsDetail}
-            agentProvider={agentProvider}
-            onAgentProviderChange={setAgentProvider}
+            agentProviders={agentProviders}
+            onAgentProviderToggle={toggleAgentProvider}
             agentLogRoot={agentLogRoot}
             onAgentLogRootChange={setAgentLogRoot}
             onScan={handleScan}
@@ -1105,8 +1138,8 @@ export function App() {
             copy={copy.empty}
             title={copy.empty.noProviderTitle}
             detail={copy.empty.noProviderDetail}
-            agentProvider={agentProvider}
-            onAgentProviderChange={setAgentProvider}
+            agentProviders={agentProviders}
+            onAgentProviderToggle={toggleAgentProvider}
             agentLogRoot={agentLogRoot}
             onAgentLogRootChange={setAgentLogRoot}
             onScan={handleScan}
@@ -4148,9 +4181,19 @@ function CausalSpine({
 
 function subThreadTitle(thread: TaskSubThread) {
   return (
+    thread.launchPrompt ??
     thread.events.find((event) => event.kind === "user_prompt")?.detail ??
     thread.journey.title
   );
+}
+
+function subThreadPrompt(thread: TaskSubThread) {
+  return thread.events.find((event) => event.kind === "user_prompt") ?? null;
+}
+
+function subThreadPromptText(thread: TaskSubThread) {
+  const prompt = subThreadPrompt(thread);
+  return thread.launchPrompt ?? prompt?.detail ?? prompt?.title ?? null;
 }
 
 function SubThreadPanel({
@@ -4221,22 +4264,26 @@ function SubThreadPanel({
       </div>
       <div className="subthread-layout">
         <div className="subthread-index" role="list">
-          {subThreadSummaries.map(({ thread, moves }, index) => (
-            <button
-              key={thread.id}
-              type="button"
-              className={`subthread-index-item${thread.id === selectedSubThread?.thread.id ? " active" : ""}`}
-              aria-pressed={thread.id === selectedSubThread?.thread.id}
-              onClick={() => setSelectedSubThreadId(thread.id)}
-            >
-              <span className={`subthread-status ${thread.journey.status}`} />
-              <strong>{subThreadTitle(thread)}</strong>
-              <em>
-                #{index + 1} · {moves.length} {copy.spineMoves} ·{" "}
-                {thread.events.length} {copy.runLedgerEvents}
-              </em>
-            </button>
-          ))}
+          {subThreadSummaries.map(({ thread, moves }, index) => {
+            const title = subThreadTitle(thread);
+            return (
+              <button
+                key={thread.id}
+                type="button"
+                className={`subthread-index-item${thread.id === selectedSubThread?.thread.id ? " active" : ""}`}
+                aria-pressed={thread.id === selectedSubThread?.thread.id}
+                onClick={() => setSelectedSubThreadId(thread.id)}
+                title={title}
+              >
+                <span className={`subthread-status ${thread.journey.status}`} />
+                <strong>{title}</strong>
+                <em>
+                  #{index + 1} · {moves.length} {copy.spineMoves} ·{" "}
+                  {thread.events.length} {copy.runLedgerEvents}
+                </em>
+              </button>
+            );
+          })}
         </div>
         {selectedSubThread ? (
           <SubThreadSpine
@@ -4267,6 +4314,8 @@ function SubThreadSpine({
 }) {
   const provider = thread.session?.provider ?? providerFromSessionId(thread.journey.sessionId);
   const sourceName = thread.sourcePath.split(/[\\/]/).at(-1) ?? thread.sourcePath;
+  const prompt = subThreadPrompt(thread);
+  const promptText = subThreadPromptText(thread);
 
   return (
     <article className="subthread-card">
@@ -4279,8 +4328,32 @@ function SubThreadSpine({
           {copy.subThreadSource}: {sourceName}
         </em>
       </header>
-      {moves.length > 0 ? (
+      {promptText || moves.length > 0 ? (
         <div className="subthread-spine-track">
+          {promptText ? (
+            <div className="spine-move subthread-move subthread-prompt-move played">
+              <div className="spine-rail">
+                <span className="spine-station" />
+                <span className="spine-connector" />
+              </div>
+              <div className="spine-nodes">
+                <button
+                  type="button"
+                  className={`spine-node prompt${
+                    prompt?.id === selectedEventId ? " selected" : ""
+                  }`}
+                  onClick={() => {
+                    if (prompt) onSelectEvent(prompt);
+                  }}
+                >
+                  <span className="spine-role">
+                    <FileText size={13} /> {copy.spineInput}
+                  </span>
+                  <div className="spine-body">{promptText}</div>
+                </button>
+              </div>
+            </div>
+          ) : null}
           {moves.map((move) => (
             <div
               key={move.id}
@@ -4850,8 +4923,8 @@ function EmptyState({
   copy,
   title,
   detail,
-  agentProvider,
-  onAgentProviderChange,
+  agentProviders,
+  onAgentProviderToggle,
   agentLogRoot,
   onAgentLogRootChange,
   onScan,
@@ -4862,8 +4935,8 @@ function EmptyState({
   copy: AppCopy["empty"];
   title: string;
   detail: string;
-  agentProvider: AgentProvider;
-  onAgentProviderChange: (value: AgentProvider) => void;
+  agentProviders: AgentProvider[];
+  onAgentProviderToggle: (value: AgentProvider) => void;
   agentLogRoot: string;
   onAgentLogRootChange: (value: string) => void;
   onScan: () => void;
@@ -4876,21 +4949,22 @@ function EmptyState({
       <Search size={34} />
       <h2>{title}</h2>
       <p>{detail}</p>
-      <label className="empty-agent-provider">
+      <div className="empty-agent-provider" role="group" aria-label={copy.sourceAria}>
         <span>{copy.source}</span>
-        <select
-          aria-label={copy.sourceAria}
-          value={agentProvider}
-          onChange={(event) =>
-            onAgentProviderChange(event.target.value as AgentProvider)
-          }
-          disabled={disabled}
-        >
-          <option value="codex">Codex</option>
-          <option value="claude-code">Claude Code</option>
-          <option value="opencode">OpenCode</option>
-        </select>
-      </label>
+        <div className="agent-provider-checkboxes empty-agent-provider-checkboxes">
+          {AGENT_PROVIDER_OPTIONS.map((provider) => (
+            <label className="agent-provider-checkbox" key={provider.value}>
+              <input
+                type="checkbox"
+                checked={agentProviders.includes(provider.value)}
+                onChange={() => onAgentProviderToggle(provider.value)}
+                disabled={disabled}
+              />
+              <span>{provider.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
       <label className="empty-agent-root">
         <span>{copy.root}</span>
         <input

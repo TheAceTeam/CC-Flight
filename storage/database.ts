@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { dirname } from "node:path";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import {
   AgentProvider,
   Artifact,
@@ -53,6 +53,7 @@ export class CCFlightDatabase {
 
   reset() {
     this.db.exec(`
+      PRAGMA foreign_keys = OFF;
       DROP TABLE IF EXISTS task_journey_skills;
       DROP TABLE IF EXISTS causal_edges;
       DROP TABLE IF EXISTS episodes;
@@ -69,6 +70,7 @@ export class CCFlightDatabase {
       DROP TABLE IF EXISTS ingest_jobs;
       DROP TABLE IF EXISTS projects;
       DROP TABLE IF EXISTS schema_meta;
+      PRAGMA foreign_keys = ON;
     `);
     this.migrate();
   }
@@ -792,6 +794,7 @@ export class CCFlightDatabase {
         {
           id: `${journey.id}:subthread:${index}`,
           sourcePath: row.sourcePath,
+          launchPrompt: subThreadLaunchPrompt(row.sourcePath, events),
           session: this.getSession(events[0].sessionId),
           journey: subJourney,
           events
@@ -1144,6 +1147,46 @@ function taskJourneyFromEvents(projectId: string, sourcePath: string, events: Ti
     stageCounts: {},
     stages: []
   };
+}
+
+function subThreadLaunchPrompt(sourcePath: string, events: TimelineEvent[]): string | null {
+  const eventPrompt = events.find((event) => event.kind === "user_prompt");
+  if (eventPrompt) return eventPrompt.detail ?? eventPrompt.title ?? null;
+  return launchPromptFromClaudeJsonl(sourcePath);
+}
+
+function launchPromptFromClaudeJsonl(sourcePath: string): string | null {
+  if (!sourcePath.endsWith(".jsonl")) return null;
+  try {
+    const firstLine = readFileSync(sourcePath, "utf8")
+      .split(/\r?\n/)
+      .find((line) => line.trim().length > 0);
+    if (!firstLine) return null;
+    const record = JSON.parse(firstLine) as unknown;
+    const root = record && typeof record === "object" && !Array.isArray(record) ? record as Record<string, unknown> : {};
+    const message = root.message && typeof root.message === "object" && !Array.isArray(root.message) ? root.message as Record<string, unknown> : {};
+    const role = typeof message.role === "string" ? message.role : typeof root.type === "string" ? root.type : null;
+    if (role !== "user") return null;
+    return textFromClaudeContent(message.content);
+  } catch {
+    return null;
+  }
+}
+
+function textFromClaudeContent(content: unknown): string | null {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return null;
+  const text = content
+    .map((item) => {
+      if (typeof item === "string") return item;
+      if (!item || typeof item !== "object" || Array.isArray(item)) return "";
+      const record = item as Record<string, unknown>;
+      if (record.type === "text" && typeof record.text === "string") return record.text;
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+  return text || null;
 }
 
 function aggregateEventTokenUsage(events: TimelineEvent[]): TokenUsage {

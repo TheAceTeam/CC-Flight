@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { App } from "../ui/src/App";
 
 vi.mock("../ui/src/api", () => ({
+  fetchConfig: vi.fn(async () => ({ projectDir: null, version: "0.6.1" })),
   fetchProjects: vi.fn(async () => []),
   fetchDailyTokenUsage: vi.fn(),
   fetchEventEvidence: vi.fn(),
   fetchIngestJob: vi.fn(),
   fetchTaskJourneyDetail: vi.fn(),
   fetchTimeline: vi.fn(),
+  resetDatabaseAndIngest: vi.fn(),
   startIngest: vi.fn()
 }));
 

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { App } from "../ui/src/App";
 
 vi.mock("../ui/src/api", () => ({
-  fetchConfig: vi.fn(async () => ({ projectDir: null })),
+  fetchConfig: vi.fn(async () => ({ projectDir: null, version: "0.6.1" })),
   fetchProjects: vi.fn(async () => [
     project("project-alpha", "Alpha Dashboard", "codex"),
     project("project-beta", "Beta Context Lab", "claude-code"),
@@ -35,6 +35,7 @@ vi.mock("../ui/src/api", () => ({
     limit: 100000,
     offset: 0,
   })),
+  resetDatabaseAndIngest: vi.fn(),
   startIngest: vi.fn(),
 }));
 

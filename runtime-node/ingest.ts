@@ -10,7 +10,7 @@ import { adapterForProvider, defaultAdapters } from "./adapters";
 import { getCommits, getRepoRoot } from "./git-provider";
 import { parseCodexHistoryJsonlFile } from "./history";
 
-export const INGEST_PROCESSOR_VERSION = "2026-06-14-project-by-provider-v1";
+export const INGEST_PROCESSOR_VERSION = "2026-07-06-claude-sidechain-prompts-v1";
 
 export interface IngestStartResult {
   job: IngestJob;

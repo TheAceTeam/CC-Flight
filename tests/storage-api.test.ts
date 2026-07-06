@@ -42,11 +42,36 @@ describe("CC Flight API", () => {
     expect(health.status).toBe(200);
     expect(health.body.ok).toBe(true);
 
+    const config = await request(app).get("/api/config");
+    expect(config.status).toBe(200);
+    expect(config.body.version).toBe("0.6.1");
+
     const ingest = await request(app).post("/api/ingest").send({ codexHome });
     expect(ingest.status).toBe(202);
     expect(ingest.body.jobId).toBeTruthy();
     const job = await waitForJob(app, ingest.body.jobId);
     expect(job.status).toBe("completed");
+  });
+
+  it("clears the database and starts a fresh ingest job", async () => {
+    const app = createServer();
+    const firstJob = await runIngest(app, codexHome);
+    expect(firstJob.status).toBe("completed");
+
+    const reset = await request(app)
+      .post("/api/reset-and-ingest")
+      .send({ sources: [{ provider: "codex", root: codexHome }] });
+    expect(reset.status).toBe(202);
+    expect(reset.body.jobId).toBeTruthy();
+
+    const resetJob = await waitForJob(app, reset.body.jobId);
+    expect(resetJob.status).toBe("completed");
+    expect(resetJob.processedFiles).toBe(1);
+    expect(resetJob.skippedFiles).toBe(0);
+
+    const projects = await request(app).get("/api/projects");
+    expect(projects.status).toBe(200);
+    expect(projects.body.projects).toHaveLength(1);
   });
 
   it("ingests multiple agent providers into the same API surface", async () => {
@@ -225,7 +250,17 @@ describe("CC Flight API", () => {
       const detail = await request(app).get(`/api/task-journeys/${timeline.body.taskJourneys[0].id}`).query({ projectId: project.id });
       expect(detail.status).toBe(200);
       expect(detail.body.subThreads).toHaveLength(1);
-      expect(detail.body.subThreads[0].events.some((event: { detail?: string }) => event.detail?.includes("forecast parsing bug"))).toBe(true);
+      expect(detail.body.subThreads[0].launchPrompt).toBe("Inspect the weather API parser");
+      const subThreadEvents = detail.body.subThreads[0].events as Array<{ kind: string; detail?: string }>;
+      const promptIndex = subThreadEvents.findIndex((event) => event.kind === "user_prompt");
+      const assistantIndex = subThreadEvents.findIndex((event) => event.kind === "assistant_message");
+      expect(promptIndex).toBeGreaterThanOrEqual(0);
+      expect(assistantIndex).toBeGreaterThan(promptIndex);
+      expect(subThreadEvents[promptIndex]).toMatchObject({
+        kind: "user_prompt",
+        detail: "Inspect the weather API parser"
+      });
+      expect(subThreadEvents.some((event) => event.detail?.includes("forecast parsing bug"))).toBe(true);
     } finally {
       rmSync(claudeSubagentHome, { recursive: true, force: true });
     }

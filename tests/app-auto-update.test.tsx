@@ -9,7 +9,7 @@ import {
 } from "../ui/src/api";
 
 vi.mock("../ui/src/api", () => ({
-  fetchConfig: vi.fn(async () => ({ projectDir: null })),
+  fetchConfig: vi.fn(async () => ({ projectDir: null, version: "0.6.1" })),
   fetchProjects: vi.fn(async () => [
     {
       id: "project-auto",
@@ -58,6 +58,7 @@ vi.mock("../ui/src/api", () => ({
     limit: 100000,
     offset: 0,
   })),
+  resetDatabaseAndIngest: vi.fn(),
   startIngest: vi.fn(async () => "job-auto"),
 }));
 

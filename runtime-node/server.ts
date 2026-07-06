@@ -1,10 +1,15 @@
 import express from "express";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Request } from "express";
 import { AgentProvider, AgentSourceConfig, TimelineLane, TimelineQuery } from "../core/types";
 import { buildContextReplay } from "../core/contextReplay";
 import { CCFlightDatabase } from "../storage/database";
 import { IngestService } from "./ingest";
 import { buildChromeDevToolsConfig, CHROME_DEVTOOLS_CONFIG_PATH } from "./chrome-devtools";
+
+const PACKAGE_VERSION = readPackageVersion();
 
 export function createServer(opts?: { projectDir?: string }) {
   const db = new CCFlightDatabase();
@@ -38,7 +43,7 @@ export function createServer(opts?: { projectDir?: string }) {
   });
 
   app.get("/api/config", (_req, res) => {
-    res.json({ projectDir: opts?.projectDir ?? null });
+    res.json({ projectDir: opts?.projectDir ?? null, version: PACKAGE_VERSION });
   });
 
   app.post("/api/ingest", (req, res) => {
@@ -147,7 +152,24 @@ export function createServer(opts?: { projectDir?: string }) {
     res.json({ ok: true });
   });
 
+  app.post("/api/reset-and-ingest", (req, res) => {
+    db.reset();
+    const result = ingest.start(parseIngestBody(req.body));
+    res.status(202).json({ ok: true, jobId: result.job.id, alreadyRunning: result.alreadyRunning, job: result.job });
+  });
+
   return app;
+}
+
+function readPackageVersion() {
+  try {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const packageJsonPath = path.resolve(__dirname, "..", "package.json");
+    const parsed = JSON.parse(readFileSync(packageJsonPath, "utf8")) as { version?: unknown };
+    return typeof parsed.version === "string" ? parsed.version : "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 const AGENT_PROVIDERS: AgentProvider[] = ["codex", "claude-code", "opencode"];

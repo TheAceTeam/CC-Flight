@@ -77,6 +77,7 @@ export type AppCopy = {
     source: string;
     sourceAria: string;
     scan: string;
+    version: string;
   };
   title: { eyebrow: string; emptyProject: string; lead: string; share: string; shareCopied: string; shareCardTitle: string; shareCopy: string; shareCopyMarkdown: string; shareDownloadPng: string; shareClose: string; sharePngSaved: string; shareUsageByDay: string };
   projectControls: { provider: string; providerAria: string; project: string; projectAria: string; all: string; noProvider: string; search: string; noSearchResults: string };
@@ -197,6 +198,7 @@ export type AppCopy = {
     expand: string;
     collapse: string;
     skills: string;
+    spineInput: string;
     spineThought: string;
     spineAction: string;
     spineObserved: string;
@@ -216,6 +218,7 @@ export type AppCopy = {
     spineRedirectedRun: string;
     hotkeyHint: string;
     resetDatabase: string;
+    resetAndReingest: string;
     resetDatabaseConfirm: string;
     share: string;
     shareCopied: string;
@@ -351,7 +354,8 @@ export const COPY: Record<Language, AppCopy> = {
       autoUpdateOn: "Auto update on",
       source: "Source",
       sourceAria: "Agent log source",
-      scan: "Scan Agent Logs"
+      scan: "Scan Agent Logs",
+      version: "Version"
     },
     title: {
       eyebrow: "Project Flight Recorder",
@@ -519,6 +523,7 @@ export const COPY: Record<Language, AppCopy> = {
       expand: "Expand",
       collapse: "Collapse",
       skills: "Skills",
+      spineInput: "Agent input",
       spineThought: "Thought",
       spineAction: "Action",
       spineObserved: "Observed",
@@ -538,7 +543,8 @@ export const COPY: Record<Language, AppCopy> = {
       spineRedirectedRun: "redirected mid-run",
       hotkeyHint: "↑↓ switch journey · ←→ switch step · W S A D switch block",
       resetDatabase: "Reset database",
-      resetDatabaseConfirm: "This will permanently delete all indexed data. Scan again to rebuild. Continue?",
+      resetAndReingest: "Clear database and reingest",
+      resetDatabaseConfirm: "This will permanently delete all indexed data and immediately scan the selected agent logs again. Continue?",
       share: "Share",
       shareCopied: "Copied to clipboard!",
       shareCardTitle: "Context Replay Summary",
@@ -755,7 +761,8 @@ export const COPY: Record<Language, AppCopy> = {
       autoUpdateOn: "自动更新已开启",
       source: "来源",
       sourceAria: "Agent 日志来源",
-      scan: "扫描 Agent 日志"
+      scan: "扫描 Agent 日志",
+      version: "版本"
     },
     title: {
       eyebrow: "Project Flight Recorder",
@@ -923,6 +930,7 @@ export const COPY: Record<Language, AppCopy> = {
       expand: "展开",
       collapse: "收起",
       skills: "Skills",
+      spineInput: "主 Agent 输入",
       spineThought: "想法",
       spineAction: "动作",
       spineObserved: "观察",
@@ -942,7 +950,8 @@ export const COPY: Record<Language, AppCopy> = {
       spineRedirectedRun: "中途修正",
       hotkeyHint: "↑↓ 切换对话 · ←→ 切换步骤 · W S A D 切换上下文块",
       resetDatabase: "重置数据库",
-      resetDatabaseConfirm: "此操作将永久删除所有已索引数据。重新扫描后可重建。继续？",
+      resetAndReingest: "清除数据库并重新导入",
+      resetDatabaseConfirm: "此操作将永久删除所有已索引数据，并立即重新扫描当前选择的 agent 日志。继续？",
       share: "分享",
       shareCopied: "已复制到剪贴板！",
       shareCardTitle: "Context Replay 摘要",

@@ -74,6 +74,8 @@ describe("Codex parser and normalizer", () => {
       cachedInput: 2,
       total: 20
     });
+    expect(reasoning?.title).toBe("Private reasoning segment");
+    expect(reasoning?.detail).toBe("Reasoning summary is not available in this log.");
     expect(timeline.tokenUsage).toEqual({
       input: 125,
       output: 37,
@@ -90,6 +92,27 @@ describe("Codex parser and normalizer", () => {
         cachedInput: 42,
         total: 180
       }
+    });
+  });
+
+  it("shows public reasoning summaries without exposing private reasoning content", () => {
+    const content = [
+      JSON.stringify({ timestamp: "2026-05-25T05:00:00.000Z", type: "session_meta", payload: { id: "reasoning-summary-session", timestamp: "2026-05-25T05:00:00.000Z", cwd: "/tmp/superview-fixture" } }),
+      JSON.stringify({ timestamp: "2026-05-25T05:00:01.000Z", type: "response_item", payload: { type: "reasoning", summary: [{ text: "Checked the failing test and narrowed the likely issue to token parsing." }] } }),
+      JSON.stringify({ timestamp: "2026-05-25T05:00:02.000Z", type: "response_item", payload: { type: "reasoning", summary: [] } })
+    ].join("\n");
+    const lines = parseCodexJsonlContent(content, "reasoning-summary.jsonl");
+    const bundle = normalizeCodexLines(lines, { repoRoot: "/tmp/superview-fixture" });
+    expect(bundle).toBeTruthy();
+
+    const reasoningEvents = bundle!.events.filter((event) => event.kind === "reasoning_marker");
+    expect(reasoningEvents[0]).toMatchObject({
+      title: "Reasoning summary",
+      detail: "Checked the failing test and narrowed the likely issue to token parsing."
+    });
+    expect(reasoningEvents[1]).toMatchObject({
+      title: "Private reasoning segment",
+      detail: "Reasoning summary is not available in this log."
     });
   });
 

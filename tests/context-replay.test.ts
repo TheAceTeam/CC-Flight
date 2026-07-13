@@ -134,6 +134,43 @@ describe("context replay model", () => {
     expect(JSON.stringify(replay)).toContain("[REDACTED]");
     expect(JSON.stringify(replay)).not.toContain("sk-live-secret");
   });
+
+  it("keeps unavailable private reasoning placeholders out of context replay", () => {
+    const events = [
+      event("prompt", "user_prompt", "Product", "Inspect subagent reasoning", {
+        detail: "Inspect subagent reasoning summaries."
+      }),
+      event("old-reasoning", "reasoning_marker", "Agent Runs", "Private reasoning segment", {
+        detail: "Reasoning content is not displayed."
+      }),
+      event("new-reasoning", "reasoning_marker", "Agent Runs", "Private reasoning segment", {
+        detail: "Reasoning summary is not available in this log."
+      }),
+      event("summary-reasoning", "reasoning_marker", "Agent Runs", "Reasoning summary", {
+        detail: "Checked logs and narrowed the issue to a missing launch prompt."
+      }),
+      event("final", "assistant_message", "Agent Runs", "Done", {
+        detail: "Summary inspected."
+      })
+    ];
+    const replay = buildContextReplay({
+      detail: makeDetail(events),
+      evidenceByEventId: {},
+      historyPrompts: []
+    });
+
+    const replayJson = JSON.stringify(replay);
+    expect(replayJson).not.toContain("Reasoning content is not displayed.");
+    expect(replayJson).not.toContain("Reasoning summary is not available in this log.");
+    expect(replay.blocks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "reasoning_summary",
+          excerpt: "Checked logs and narrowed the issue to a missing launch prompt."
+        })
+      ])
+    );
+  });
 });
 
 function makeDetail(events: TimelineEvent[]): TaskJourneyDetail {

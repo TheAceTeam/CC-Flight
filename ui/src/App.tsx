@@ -16,8 +16,9 @@ import {
   Languages,
   Leaf,
   Map as MapIcon,
-  Maximize2,
+  Menu,
   Moon,
+  PanelLeftClose,
   Pause,
   Play,
   RotateCw,
@@ -71,8 +72,6 @@ import {
 import { DailyTokenUsagePanel } from "./DailyTokenUsagePanel";
 import { resolveAutoSelectId } from "./autoSelect";
 import { AppCopy, COPY, IngestCopy, Language, TourCopy, normalizeLanguage } from "./i18n";
-import { buildJourneyInsights } from "./insights";
-import type { InsightSignalKind, JourneyInsight } from "./insights";
 import { formatMillionTokens } from "./tokenFormat";
 import {
   aggregateCostByModel,
@@ -87,6 +86,27 @@ type Theme = "light" | "dark" | "forest" | "plasma" | "morandi";
 type ProjectProviderFilter = AgentProvider | "all";
 type MetricKey = "projects" | "events" | "tasks" | "tokens";
 type ThreadDetailTab = "conversation" | "context" | "subagent";
+type DiagnosticSeverity = "critical" | "high" | "medium" | "low";
+type DiagnosticFindingType =
+  | "failed_run"
+  | "missing_verification"
+  | "tool_errors"
+  | "high_cost"
+  | "long_run"
+  | "subagent_review";
+
+interface DiagnosticFinding {
+  id: string;
+  severity: DiagnosticSeverity;
+  type: DiagnosticFindingType;
+  journeyId: string;
+  journeyTitle: string;
+  summary: string;
+  evidence: string[];
+  recommendation: string;
+  sortValue: number;
+}
+
 const AGENT_PROVIDER_OPTIONS: Array<{ value: AgentProvider; label: string }> = [
   { value: "codex", label: "Codex" },
   { value: "claude-code", label: "Claude Code" },
@@ -96,7 +116,6 @@ const AGENT_PROVIDER_OPTIONS: Array<{ value: AgentProvider; label: string }> = [
 const PROJECT_TIMELINE_LIMIT = 100000;
 
 const THEME_OPTIONS: Theme[] = ["light", "dark", "forest", "plasma", "morandi"];
-const INSIGHT_BOARD_MODE_KEY = "superview-insight-board-mode";
 const AUTO_UPDATE_KEY = "superview-auto-update";
 
 function getAutoUpdateUiIntervalMs() {
@@ -155,6 +174,9 @@ export function App() {
   const [dailyTokenUsageLoading, setDailyTokenUsageLoading] = useState(false);
   const [tokenChartExpanded, setTokenChartExpanded] = useState(false);
   const [tokenTimelineOpen, setTokenTimelineOpen] = useState(false);
+  const [selectedJourneyId, setSelectedJourneyId] = useState<string | null>(
+    null,
+  );
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(
     null,
   );
@@ -679,6 +701,10 @@ export function App() {
     () => new Map((timeline?.events ?? []).map((event) => [event.id, event])),
     [timeline],
   );
+  const diagnosticFindings = useMemo(
+    () => buildDiagnosticFindings(journeys, timelineEventsById, pricing),
+    [journeys, timelineEventsById, pricing],
+  );
   const sessionMap = useMemo(() => {
     const map = new Map<string, SessionRecord>();
     for (const s of selectedProject?.sessions ?? []) {
@@ -1089,6 +1115,14 @@ export function App() {
             onPricingChange={setPricing}
           />
         ) : null}
+        {selectedProject ? (
+          <DiagnosticsPanel
+            copy={copy.timeline}
+            findings={diagnosticFindings}
+            activeJourneyId={selectedJourneyId}
+            onSelectJourney={setSelectedJourneyId}
+          />
+        ) : null}
 
         {error ? (
           <div className="alert">
@@ -1161,6 +1195,8 @@ export function App() {
                 loadingJourneyIds={journeyLoadingIds}
                 loadingContextReplayIds={contextReplayLoadingIds}
                 selectedEventId={selectedEvent?.id ?? null}
+                selectedJourneyId={selectedJourneyId}
+                onSelectJourney={setSelectedJourneyId}
                 selectedProjectName={selectedProject?.name ?? ""}
                 onLoadJourneyDetail={(journeyId) =>
                   loadJourneyDetail(journeyId)
@@ -1555,6 +1591,351 @@ function buildBlockOriginSteps(snapshots: ContextSnapshot[]) {
   return steps;
 }
 
+function percentile(values: number[], ratio: number) {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.min(
+    sorted.length - 1,
+    Math.max(0, Math.ceil(sorted.length * ratio) - 1),
+  );
+  return sorted[index];
+}
+
+function eventLabel(event: TimelineEvent) {
+  return event.toolName
+    ? `${event.toolName}: ${event.title}`
+    : `${event.kind}: ${event.title}`;
+}
+
+export function buildDiagnosticFindings(
+  journeys: TaskJourney[],
+  timelineEventsById: Map<string, TimelineEvent>,
+  pricing: ModelPricing[],
+): DiagnosticFinding[] {
+  const costs = journeys.map((j) =>
+    estimateProjectCost(j.tokenUsage, undefined, pricing),
+  );
+  const tokenCounts = journeys.map((j) => j.tokenUsage.total ?? 0);
+  const durations = journeys.map((j) => j.durationMs ?? 0);
+  const eventCounts = journeys.map((j) => j.eventIds.length);
+  const p90Cost = percentile(costs, 0.9);
+  const p90Tokens = percentile(tokenCounts, 0.9);
+  const p90Duration = percentile(durations, 0.9);
+  const p90Events = percentile(eventCounts, 0.9);
+  const findings: DiagnosticFinding[] = [];
+
+  for (const journey of journeys) {
+    const events = journey.eventIds
+      .map((eventId) => timelineEventsById.get(eventId))
+      .filter((event): event is TimelineEvent => Boolean(event));
+    const failedEvents = events.filter(
+      (event) => event.status === "failed" || event.kind === "error",
+    );
+    const fileEvents = events.filter(
+      (event) => event.kind === "file_change" || event.files.length > 0,
+    );
+    const verificationEvents = events.filter(
+      (event) => event.kind === "verification" || event.lane === "Verification",
+    );
+    const hasSuccessfulVerification = verificationEvents.some(
+      (event) => event.status === "success",
+    );
+    const cost = estimateProjectCost(journey.tokenUsage, undefined, pricing);
+    const tokens = journey.tokenUsage.total ?? 0;
+    const subThreadCount = journey.subThreadCount ?? 0;
+
+    if (hasUnrecoveredTerminalFailure(journey, events)) {
+      findings.push({
+        id: `failed_run:${journey.id}`,
+        severity: "critical",
+        type: "failed_run",
+        journeyId: journey.id,
+        journeyTitle: journey.title,
+        summary: "The user input ended in a failed state.",
+        evidence:
+          failedEvents.slice(0, 3).map(eventLabel).length > 0
+            ? failedEvents.slice(0, 3).map(eventLabel)
+            : [`Journey status: ${journey.status}`],
+        recommendation:
+          "Open the journey, inspect the failed event, and rerun with an explicit recovery step.",
+        sortValue: 100000 + failedEvents.length,
+      });
+    }
+
+    if (fileEvents.length > 0 && !hasSuccessfulVerification) {
+      findings.push({
+        id: `missing_verification:${journey.id}`,
+        severity: "high",
+        type: "missing_verification",
+        journeyId: journey.id,
+        journeyTitle: journey.title,
+        summary: "Code or file changes were captured without a successful verification event.",
+        evidence: [
+          `${fileEvents.length} file-change signal${fileEvents.length === 1 ? "" : "s"}`,
+          verificationEvents.length > 0
+            ? `${verificationEvents.length} verification event${verificationEvents.length === 1 ? "" : "s"}, none successful`
+            : "No verification event captured",
+        ],
+        recommendation:
+          "Ask the agent to run the relevant build, test, typecheck, or smoke verification.",
+        sortValue: 80000 + fileEvents.length,
+      });
+    }
+
+    if (failedEvents.length >= 2) {
+      findings.push({
+        id: `tool_errors:${journey.id}`,
+        severity: failedEvents.length >= 5 ? "high" : "medium",
+        type: "tool_errors",
+        journeyId: journey.id,
+        journeyTitle: journey.title,
+        summary: "Multiple tool or error events clustered in this journey.",
+        evidence: failedEvents.slice(0, 4).map(eventLabel),
+        recommendation:
+          "Review the failing tool pattern before continuing the same implementation path.",
+        sortValue: 70000 + failedEvents.length,
+      });
+    }
+
+    if (
+      journeys.length >= 5 &&
+      cost > 0 &&
+      cost >= p90Cost &&
+      tokens >= p90Tokens
+    ) {
+      findings.push({
+        id: `high_cost:${journey.id}`,
+        severity: "medium",
+        type: "high_cost",
+        journeyId: journey.id,
+        journeyTitle: journey.title,
+        summary: "This journey sits in the top cost band for the loaded project.",
+        evidence: [
+          `Estimated cost ${formatCost(cost)}`,
+          `${formatMillionTokens(tokens)} tokens`,
+        ],
+        recommendation:
+          "Inspect whether repeated context, retries, or broad subagent fan-out drove the cost.",
+        sortValue: 50000 + cost,
+      });
+    }
+
+    if (
+      journeys.length >= 5 &&
+      ((journey.durationMs >= p90Duration && journey.durationMs > 15 * 60_000) ||
+        (journey.eventIds.length >= p90Events && journey.eventIds.length >= 80))
+    ) {
+      findings.push({
+        id: `long_run:${journey.id}`,
+        severity: "low",
+        type: "long_run",
+        journeyId: journey.id,
+        journeyTitle: journey.title,
+        summary: "This journey is unusually long or event-heavy compared with the project.",
+        evidence: [
+          `Duration ${formatDuration(journey.durationMs)}`,
+          `${journey.eventIds.length} events`,
+        ],
+        recommendation:
+          "Consider splitting future work into smaller user inputs with clearer completion checks.",
+        sortValue: 30000 + journey.eventIds.length,
+      });
+    }
+
+    if (subThreadCount >= 2 || (subThreadCount > 0 && journey.status === "failed")) {
+      findings.push({
+        id: `subagent_review:${journey.id}`,
+        severity: journey.status === "failed" ? "high" : "medium",
+        type: "subagent_review",
+        journeyId: journey.id,
+        journeyTitle: journey.title,
+        summary: "This journey launched subagents and should be reviewed as a threaded workflow.",
+        evidence: [`${subThreadCount} subagent sub-thread${subThreadCount === 1 ? "" : "s"}`],
+        recommendation:
+          "Open the Subagent tab and compare launch prompts with each subagent outcome.",
+        sortValue: 60000 + subThreadCount,
+      });
+    }
+  }
+
+  return findings.sort((a, b) => b.sortValue - a.sortValue).slice(0, 40);
+}
+
+function hasUnrecoveredTerminalFailure(
+  journey: TaskJourney,
+  events: TimelineEvent[],
+) {
+  const lastFailureIndex = findLastIndex(
+    events,
+    (event) => event.status === "failed" || event.kind === "error",
+  );
+  if (lastFailureIndex < 0) return false;
+  if (events.length === 0) return journey.status === "failed";
+
+  const eventsAfterFailure = events.slice(lastFailureIndex + 1);
+  const recovered = eventsAfterFailure.some(
+    (event) =>
+      event.kind === "assistant_message" ||
+      (event.kind === "verification" && event.status === "success") ||
+      (event.kind === "tool_result" && event.status === "success"),
+  );
+  if (recovered) return false;
+
+  const last = events.at(-1);
+  return (
+    journey.status === "failed" ||
+    last?.kind === "error" ||
+    last?.status === "failed"
+  );
+}
+
+function findLastIndex<T>(items: T[], predicate: (item: T) => boolean) {
+  for (let index = items.length - 1; index >= 0; index--) {
+    if (predicate(items[index])) return index;
+  }
+  return -1;
+}
+
+function DiagnosticsPanel({
+  copy,
+  findings,
+  activeJourneyId,
+  onSelectJourney,
+}: {
+  copy: AppCopy["timeline"];
+  findings: DiagnosticFinding[];
+  activeJourneyId: string | null;
+  onSelectJourney: (journeyId: string | null) => void;
+}) {
+  const [filter, setFilter] = useState<DiagnosticFindingType | "all">("all");
+  const [expanded, setExpanded] = useState(false);
+  const criticalFindings = findings.filter(
+    (finding) => finding.severity === "critical",
+  );
+  const filteredFindings =
+    filter === "all"
+      ? criticalFindings
+      : criticalFindings.filter((finding) => finding.type === filter);
+  const visibleFindings = expanded
+    ? filteredFindings
+    : criticalFindings.slice(0, 3);
+  const types = Array.from(new Set(criticalFindings.map((finding) => finding.type)));
+  const typeCounts = criticalFindings.reduce(
+    (acc, finding) => {
+      acc[finding.type] = (acc[finding.type] ?? 0) + 1;
+      return acc;
+    },
+    {} as Partial<Record<DiagnosticFindingType, number>>,
+  );
+  const criticalCount = criticalFindings.length;
+
+  return (
+    <section
+      className={`diagnostics-panel ${expanded ? "expanded" : "compact"}`}
+      aria-label={copy.diagnosticsTitle}
+    >
+      <div className="diagnostics-heading">
+        <div>
+          <span>
+            <AlertTriangle size={13} />
+            {copy.diagnosticsTitle}
+          </span>
+          <strong>{copy.diagnosticsSubtitle}</strong>
+        </div>
+        <div className="diagnostics-summary" aria-label={copy.diagnosticsCount(criticalCount)}>
+          <span className="diagnostics-severity critical">
+            <b>{criticalCount}</b>
+            {copy.diagnosticsSeverity.critical}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="diagnostics-toggle"
+          aria-label={expanded ? copy.collapse : copy.expand}
+          aria-expanded={expanded}
+          title={expanded ? copy.collapse : copy.expand}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        </button>
+      </div>
+
+      {criticalFindings.length === 0 ? (
+        <p className="diagnostics-empty">{copy.diagnosticsEmpty}</p>
+      ) : expanded ? (
+        <>
+          <div className="diagnostics-filters">
+            <button
+              type="button"
+              className={filter === "all" ? "active" : ""}
+              aria-pressed={filter === "all"}
+              onClick={() => setFilter("all")}
+            >
+              {copy.diagnosticsAll}
+              <b>{criticalFindings.length}</b>
+            </button>
+            {types.map((type) => (
+              <button
+                key={type}
+                type="button"
+                className={filter === type ? "active" : ""}
+                aria-pressed={filter === type}
+                onClick={() => setFilter(type)}
+              >
+                {copy.diagnosticsTypes[type]}
+                <b>{typeCounts[type] ?? 0}</b>
+              </button>
+            ))}
+          </div>
+          <div className="diagnostics-list">
+            {visibleFindings.map((finding) => (
+              <button
+                key={finding.id}
+                type="button"
+                className={`diagnostics-card ${finding.severity} ${finding.journeyId === activeJourneyId ? "active" : ""}`}
+                aria-current={finding.journeyId === activeJourneyId ? "true" : undefined}
+                onClick={() => onSelectJourney(finding.journeyId)}
+              >
+                <span className="diagnostics-card-topline">
+                  <b>{copy.diagnosticsSeverity[finding.severity]}</b>
+                  <em>{copy.diagnosticsTypes[finding.type]}</em>
+                  <small>{copy.diagnosticsOpenJourney}</small>
+                </span>
+                <strong>{finding.summary}</strong>
+                <span className="diagnostics-journey">{finding.journeyTitle}</span>
+                <span className="diagnostics-evidence">
+                  <b>{copy.diagnosticsEvidence}</b>
+                  {finding.evidence.slice(0, 3).join(" / ")}
+                </span>
+                <span className="diagnostics-recommendation">
+                  <b>{copy.diagnosticsRecommendation}</b>
+                  {finding.recommendation}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="diagnostics-compact-list">
+          {visibleFindings.map((finding) => (
+            <button
+              key={finding.id}
+              type="button"
+              className={`diagnostics-compact-item ${finding.severity} ${finding.journeyId === activeJourneyId ? "active" : ""}`}
+              aria-current={finding.journeyId === activeJourneyId ? "true" : undefined}
+              onClick={() => onSelectJourney(finding.journeyId)}
+            >
+              <b>{copy.diagnosticsSeverity[finding.severity]}</b>
+              <span>{copy.diagnosticsTypes[finding.type]}</span>
+              <strong>{finding.journeyTitle}</strong>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ConversationThread({
   copy,
   journeys,
@@ -1566,6 +1947,8 @@ function ConversationThread({
   loadingJourneyIds,
   loadingContextReplayIds,
   selectedEventId,
+  selectedJourneyId,
+  onSelectJourney,
   selectedProjectName,
   onLoadJourneyDetail,
   onLoadContextReplay,
@@ -1584,6 +1967,8 @@ function ConversationThread({
   loadingJourneyIds: Record<string, boolean>;
   loadingContextReplayIds: Record<string, boolean>;
   selectedEventId: string | null;
+  selectedJourneyId: string | null;
+  onSelectJourney: (journeyId: string | null) => void;
   selectedProjectName: string;
   onLoadJourneyDetail: (journeyId: string) => void;
   onLoadContextReplay: (journeyId: string) => void;
@@ -1598,15 +1983,9 @@ function ConversationThread({
     () => applySearchAndSort(journeys, searchQuery, sortKey, pricing),
     [journeys, searchQuery, sortKey, pricing],
   );
-  const insights = useMemo(
-    () => buildJourneyInsights(orderedJourneys, timelineEventsById),
-    [orderedJourneys, timelineEventsById],
-  );
-  const [selectedJourneyId, setSelectedJourneyId] = useState<string | null>(
-    null,
-  );
   const masterListRef = useRef<HTMLDivElement>(null);
   const [detailTab, setDetailTab] = useState<ThreadDetailTab>("context");
+  const [masterMinimized, setMasterMinimized] = useState(false);
   const selectedJourney =
     orderedJourneys.find((journey) => journey.id === selectedJourneyId) ??
     orderedJourneys[0] ??
@@ -1614,15 +1993,13 @@ function ConversationThread({
 
   useEffect(() => {
     if (orderedJourneys.length === 0) {
-      setSelectedJourneyId(null);
+      onSelectJourney(null);
       return;
     }
-    setSelectedJourneyId((current) =>
-      current && orderedJourneys.some((journey) => journey.id === current)
-        ? current
-        : orderedJourneys[0].id,
-    );
-  }, [orderedJourneys]);
+    if (!selectedJourneyId || !orderedJourneys.some((journey) => journey.id === selectedJourneyId)) {
+      onSelectJourney(orderedJourneys[0].id);
+    }
+  }, [orderedJourneys, onSelectJourney, selectedJourneyId]);
 
   // Scroll selected journey into view in the master list
   useEffect(() => {
@@ -1682,12 +2059,16 @@ function ConversationThread({
         return;
       }
       event.preventDefault();
-      setSelectedJourneyId(orderedJourneys[nextIndex].id);
+      onSelectJourney(orderedJourneys[nextIndex].id);
     }
 
     document.addEventListener("keydown", handleJourneyKeyDown);
     return () => document.removeEventListener("keydown", handleJourneyKeyDown);
-  }, [orderedJourneys, selectedJourney]);
+  }, [orderedJourneys, onSelectJourney, selectedJourney]);
+
+  function handleSelectJourney(journeyId: string) {
+    onSelectJourney(journeyId);
+  }
 
   if (journeys.length === 0) {
     const recentEvents = [...timelineEventsById.values()]
@@ -1708,10 +2089,25 @@ function ConversationThread({
 
   return (
     <div
-      className="conversation-thread conversation-master-detail"
+      className={`conversation-thread conversation-master-detail ${masterMinimized ? "master-minimized" : ""}`}
       aria-label={copy.aria}
     >
-      <aside className="conversation-master" aria-label={copy.masterAria}>
+      <aside
+        className="conversation-master"
+        aria-label={copy.masterAria}
+      >
+        {masterMinimized ? (
+          <button
+            type="button"
+            className="conversation-master-rail"
+            aria-label={copy.masterTitle}
+            title={copy.masterTitle}
+            onClick={() => setMasterMinimized(false)}
+          >
+            <Menu size={16} />
+            <b>{orderedJourneys.length}</b>
+          </button>
+        ) : null}
         <div className="conversation-master-heading">
           <span>{copy.masterTitle}</span>
           <ul
@@ -1764,12 +2160,6 @@ function ConversationThread({
             <option value="errors">{copy.sortErrors}</option>
           </select>
         </div>
-        <InsightBoard
-          copy={copy}
-          insights={insights}
-          activeJourneyId={selectedJourney?.id ?? null}
-          onSelectJourney={setSelectedJourneyId}
-        />
         <div className="conversation-master-list" ref={masterListRef}>
           {orderedJourneys.map((journey) => (
             <ConversationMasterItem
@@ -1782,7 +2172,7 @@ function ConversationThread({
               active={journey.id === selectedJourney?.id}
               loading={Boolean(loadingJourneyIds[journey.id])}
               timelineEventsById={timelineEventsById}
-              onSelect={() => setSelectedJourneyId(journey.id)}
+              onSelect={() => handleSelectJourney(journey.id)}
             />
           ))}
         </div>
@@ -1793,6 +2183,19 @@ function ConversationThread({
         aria-label={copy.detailsAria}
       >
         <div className="conversation-detail-heading">
+          {!masterMinimized ? (
+            <button
+              type="button"
+              className="conversation-master-float-toggle"
+              aria-label={copy.masterTitle}
+              title={copy.masterTitle}
+              aria-pressed={masterMinimized}
+              onClick={() => setMasterMinimized((value) => !value)}
+            >
+              <PanelLeftClose size={15} />
+              <b>{orderedJourneys.length}</b>
+            </button>
+          ) : null}
           <span>{copy.detailsTitle}</span>
           <strong>{selectedJourney?.title ?? copy.emptySelection}</strong>
         </div>
@@ -1891,7 +2294,7 @@ function ConversationThread({
               journeys={orderedJourneys}
               selectedProjectName={selectedProjectName}
               selectedJourneyId={selectedJourneyId}
-              onSelectJourney={setSelectedJourneyId}
+              onSelectJourney={onSelectJourney}
               onClose={() => setTokenTimelineOpen(false)}
             />
           </div>
@@ -1899,118 +2302,6 @@ function ConversationThread({
       ) : null}
     </div>
   );
-}
-
-export function InsightBoard({
-  copy,
-  insights,
-  activeJourneyId,
-  onSelectJourney,
-}: {
-  copy: AppCopy["timeline"];
-  insights: JourneyInsight[];
-  activeJourneyId: string | null;
-  onSelectJourney: (journeyId: string) => void;
-}) {
-  const [closed, setClosed] = useState(
-    () => localStorage.getItem(INSIGHT_BOARD_MODE_KEY) !== "maximized",
-  );
-  const modeLabel = closed ? copy.insightBoardMaximize : copy.insightBoardClose;
-  const toggleMode = () => {
-    setClosed((value) => {
-      const next = !value;
-      localStorage.setItem(INSIGHT_BOARD_MODE_KEY, next ? "closed" : "maximized");
-      return next;
-    });
-  };
-
-  return (
-    <section
-      className={`insight-board${closed ? " closed" : ""}`}
-      aria-label={copy.insightBoardAria}
-    >
-      <div className="insight-board-heading">
-        <span>
-          <Zap size={13} />
-          {copy.insightBoardTitle}
-        </span>
-        <div className="insight-board-actions">
-          <button
-            type="button"
-            className="insight-mode-toggle"
-            aria-label={modeLabel}
-            title={modeLabel}
-            aria-expanded={!closed}
-            onClick={toggleMode}
-          >
-            {closed ? <Maximize2 size={13} /> : <X size={13} />}
-          </button>
-        </div>
-      </div>
-      {closed ? null : insights.length === 0 ? (
-        <p>{copy.insightBoardEmpty}</p>
-      ) : (
-        <div className="insight-list">
-          {insights.map((insight) => (
-            <button
-              key={insight.id}
-              type="button"
-              className={`insight-card ${insight.severity} ${insight.journeyId === activeJourneyId ? "active" : ""}`}
-              onClick={() => onSelectJourney(insight.journeyId)}
-              aria-current={insight.journeyId === activeJourneyId ? "true" : undefined}
-            >
-              <span className="insight-score">
-                {copy.insightScore}
-                <strong>{Math.round(insight.score)}</strong>
-              </span>
-              <span className="insight-copy">
-                <strong>{copy.insightSignals[insight.primaryKind]}</strong>
-                <em>{insight.title}</em>
-              </span>
-              <span className="insight-metrics">
-                <span>{formatMillionTokens(insight.metrics.tokens)} {copy.tokens}</span>
-                <span>{insight.metrics.toolCalls} {copy.insightTools}</span>
-                <span>{insight.metrics.files} {copy.insightFiles}</span>
-              </span>
-              <span className="insight-reasons">
-                {insight.signals
-                  .filter((signal) => signal.kind !== "high_cost")
-                  .slice(0, 3)
-                  .map((signal) => (
-                    <b key={signal.kind}>
-                      {formatInsightSignal(copy, signal.kind, signal.metric)}
-                    </b>
-                  ))}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function formatInsightSignal(
-  copy: AppCopy["timeline"],
-  kind: InsightSignalKind,
-  metric: number,
-) {
-  switch (kind) {
-    case "missing_verification":
-      return copy.insightReasonMissingVerification;
-    case "failed_run":
-      return copy.insightReasonFailedRun;
-    case "tool_loop":
-      return copy.insightReasonToolLoop(metric);
-    case "high_cost":
-      return copy.insightReasonHighCost(formatMillionTokens(metric));
-    case "file_blast":
-      return copy.insightReasonFileBlast(metric);
-    case "error_pressure":
-      return copy.insightReasonErrorPressure(metric);
-    case "context_churn":
-      return copy.insightReasonContextChurn(metric);
-  }
 }
 
 function ConversationMasterItem({
@@ -3712,6 +4003,18 @@ type SpineMove = {
   eventIds: string[];
 };
 
+const UNAVAILABLE_REASONING_DETAILS = new Set([
+  "Reasoning summary is not available in this log.",
+  "Reasoning content is not displayed.",
+]);
+
+function visibleReasoningSummary(event: TimelineEvent): string | null {
+  if (event.kind !== "reasoning_marker") return null;
+  const detail = event.detail?.trim();
+  if (!detail || UNAVAILABLE_REASONING_DETAILS.has(detail)) return null;
+  return detail;
+}
+
 // Group the ordered event stream into think -> act -> observe "moves". A new
 // move opens on each stated thought (assistant_message, or a redacted
 // reasoning_marker when no message covers the span); tool calls and their
@@ -3730,7 +4033,11 @@ function buildSpineMoves(events: TimelineEvent[]): SpineMove[] {
       index: moves.length,
       thoughtEvent: withThought ? event : null,
       thoughtText:
-        withThought && !redacted ? event.detail ?? event.title ?? null : null,
+        withThought && redacted
+          ? visibleReasoningSummary(event)
+          : withThought
+            ? event.detail ?? event.title ?? null
+            : null,
       redacted,
       actions: [],
       observeEvent: null,
@@ -3995,16 +4302,25 @@ function CausalSpine({
                         <Brain size={13} /> {copy.spineThought}
                       </span>
                       {move.redacted ? (
-                        <div className="spine-effort">
-                          <span className="spine-beats">
-                            <i className="spine-beat hot" />
-                            <i className="spine-beat hot" />
-                            <i className="spine-beat hot" />
-                          </span>
-                          <span className="spine-effort-lbl">
-                            {copy.spineRedacted}
-                          </span>
-                        </div>
+                        move.thoughtText ? (
+                          <>
+                            <span className="spine-effort-lbl">
+                              {copy.spineReasoningSummary}
+                            </span>
+                            <div className="spine-body">{move.thoughtText}</div>
+                          </>
+                        ) : (
+                          <div className="spine-effort">
+                            <span className="spine-beats">
+                              <i className="spine-beat hot" />
+                              <i className="spine-beat hot" />
+                              <i className="spine-beat hot" />
+                            </span>
+                            <span className="spine-effort-lbl">
+                              {copy.spineRedacted}
+                            </span>
+                          </div>
+                        )
                       ) : (
                         <div className="spine-body">{move.thoughtText}</div>
                       )}
@@ -4378,14 +4694,23 @@ function SubThreadSpine({
                       <Brain size={13} /> {copy.spineThought}
                     </span>
                     {move.redacted ? (
-                      <div className="spine-effort">
-                        <span className="spine-beats">
-                          <i className="spine-beat hot" />
-                          <i className="spine-beat hot" />
-                          <i className="spine-beat hot" />
-                        </span>
-                        <span className="spine-effort-lbl">{copy.spineRedacted}</span>
-                      </div>
+                      move.thoughtText ? (
+                        <>
+                          <span className="spine-effort-lbl">
+                            {copy.spineReasoningSummary}
+                          </span>
+                          <div className="spine-body">{move.thoughtText}</div>
+                        </>
+                      ) : (
+                        <div className="spine-effort">
+                          <span className="spine-beats">
+                            <i className="spine-beat hot" />
+                            <i className="spine-beat hot" />
+                            <i className="spine-beat hot" />
+                          </span>
+                          <span className="spine-effort-lbl">{copy.spineRedacted}</span>
+                        </div>
+                      )
                     ) : (
                       <div className="spine-body">{move.thoughtText}</div>
                     )}

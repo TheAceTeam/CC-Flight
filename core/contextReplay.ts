@@ -12,6 +12,11 @@ import type {
   TaskJourneyDetail
 } from "./types";
 
+const UNAVAILABLE_REASONING_DETAILS = new Set([
+  "Reasoning summary is not available in this log.",
+  "Reasoning content is not displayed."
+]);
+
 export function buildContextReplay({
   detail,
   evidenceByEventId,
@@ -257,7 +262,10 @@ function blocksForEvent(event: TimelineEvent, evidence: EventEvidence | undefine
   } else if (event.kind === "assistant_message") {
     blocks.push(contextBlock(event, base, "final_response", event.title, event.detail ?? event.title, "Assistant response is the visible result of this task journey."));
   } else if (event.kind === "reasoning_marker") {
-    blocks.push(contextBlock(event, base, "reasoning_summary", event.title, event.detail ?? event.title, "Reasoning summary marker was visible in the log."));
+    const summary = visibleReasoningSummary(event);
+    if (summary) {
+      blocks.push(contextBlock(event, base, "reasoning_summary", event.title, summary, "Reasoning summary marker was visible in the log."));
+    }
   } else if (event.kind === "error") {
     blocks.push(contextBlock(event, base, "error_output", event.title, event.detail ?? event.title, "Error output contradicted or interrupted the active path."));
   }
@@ -277,6 +285,12 @@ function blocksForEvent(event: TimelineEvent, evidence: EventEvidence | undefine
   }
 
   return blocks.filter((block) => block.excerpt.trim().length > 0);
+}
+
+function visibleReasoningSummary(event: TimelineEvent): string | null {
+  const detail = event.detail?.trim();
+  if (!detail || UNAVAILABLE_REASONING_DETAILS.has(detail)) return null;
+  return detail;
 }
 
 function contextBlock(

@@ -1,5 +1,3 @@
-import type { InsightSignalKind } from "./insights";
-
 export type Language = "en" | "zh-CN";
 export type TokenChartCopy = {
   defaultTitle: string;
@@ -127,22 +125,16 @@ export type AppCopy = {
     statusLegendSuccess: string;
     statusLegendFailed: string;
     detailTabsAria: string;
-    insightBoardAria: string;
-    insightBoardTitle: string;
-    insightBoardEmpty: string;
-    insightBoardClose: string;
-    insightBoardMaximize: string;
-    insightScore: string;
-    insightTools: string;
-    insightFiles: string;
-    insightSignals: Record<InsightSignalKind, string>;
-    insightReasonMissingVerification: string;
-    insightReasonFailedRun: string;
-    insightReasonToolLoop: (count: number) => string;
-    insightReasonHighCost: (tokens: string) => string;
-    insightReasonFileBlast: (count: number) => string;
-    insightReasonErrorPressure: (count: number) => string;
-    insightReasonContextChurn: (count: number) => string;
+    diagnosticsTitle: string;
+    diagnosticsSubtitle: string;
+    diagnosticsEmpty: string;
+    diagnosticsAll: string;
+    diagnosticsCount: (count: number) => string;
+    diagnosticsSeverity: Record<"critical" | "high" | "medium" | "low", string>;
+    diagnosticsTypes: Record<"failed_run" | "missing_verification" | "tool_errors" | "high_cost" | "long_run" | "subagent_review", string>;
+    diagnosticsEvidence: string;
+    diagnosticsRecommendation: string;
+    diagnosticsOpenJourney: string;
     conversationTab: string;
     contextReplayTab: string;
     subagentTab: string;
@@ -204,6 +196,7 @@ export type AppCopy = {
     spineObserved: string;
     spineResponse: string;
     spineRedacted: string;
+    spineReasoningSummary: string;
     spineCourseCorrected: string;
     spineMoves: string;
     spineToolCalls: string;
@@ -436,38 +429,36 @@ export const COPY: Record<Language, AppCopy> = {
       projectActivityCount: (count: number) => `${count} recent event${count !== 1 ? "s" : ""}`,
       aria: "Task conversation thread",
       masterAria: "User input index",
-      detailsAria: "Conversation details",
+      detailsAria: "Selected user input details",
       masterTitle: "User inputs",
-      detailsTitle: "Conversation details",
+      detailsTitle: "Selected input details",
       statusLegendAria: "Run status legend",
       statusLegendRunning: "Running",
       statusLegendSuccess: "Success",
       statusLegendFailed: "Failed",
       detailTabsAria: "Thread detail tabs",
-      insightBoardAria: "Sessions needing attention",
-      insightBoardTitle: "Attention Board",
-      insightBoardEmpty: "No red or yellow sessions detected.",
-      insightBoardClose: "Close insight board",
-      insightBoardMaximize: "Maximize insight board",
-      insightScore: "health",
-      insightTools: "tools",
-      insightFiles: "files",
-      insightSignals: {
-        missing_verification: "Patch lacks verification",
-        failed_run: "Failed run",
-        tool_loop: "Tool loop pressure",
-        high_cost: "High token burn",
-        file_blast: "Wide file impact",
-        error_pressure: "Error pressure",
-        context_churn: "Context churn",
+      diagnosticsTitle: "Project Diagnostics",
+      diagnosticsSubtitle: "Demo rules running on loaded conversations",
+      diagnosticsEmpty: "No critical project-level issues detected in the loaded journeys.",
+      diagnosticsAll: "All",
+      diagnosticsCount: (count: number) => `${count} finding${count === 1 ? "" : "s"}`,
+      diagnosticsSeverity: {
+        critical: "Critical",
+        high: "High",
+        medium: "Medium",
+        low: "Low",
       },
-      insightReasonMissingVerification: "no verification after patch",
-      insightReasonFailedRun: "run ended failed",
-      insightReasonToolLoop: (count: number) => `${count} repeated tool calls`,
-      insightReasonHighCost: (tokens: string) => `${tokens} tokens`,
-      insightReasonFileBlast: (count: number) => `${count} files touched`,
-      insightReasonErrorPressure: (count: number) => `${count} error signals`,
-      insightReasonContextChurn: (count: number) => `${count} context events`,
+      diagnosticsTypes: {
+        failed_run: "Failed run",
+        missing_verification: "Missing verification",
+        tool_errors: "Tool errors",
+        high_cost: "High cost",
+        long_run: "Long run",
+        subagent_review: "Subagent review",
+      },
+      diagnosticsEvidence: "Evidence",
+      diagnosticsRecommendation: "Recommendation",
+      diagnosticsOpenJourney: "Open user input",
       conversationTab: "Conversation",
       contextReplayTab: "Context Replay",
       subagentTab: "Subagent",
@@ -528,7 +519,8 @@ export const COPY: Record<Language, AppCopy> = {
       spineAction: "Action",
       spineObserved: "Observed",
       spineResponse: "Response",
-      spineRedacted: "private reasoning · redacted",
+      spineRedacted: "private reasoning summary unavailable",
+      spineReasoningSummary: "reasoning summary",
       spineCourseCorrected: "course-corrected the next thought",
       spineMoves: "moves",
       spineToolCalls: "tool calls",
@@ -843,38 +835,36 @@ export const COPY: Record<Language, AppCopy> = {
       projectActivityCount: (count: number) => `${count} 条最近事件`,
       aria: "任务对话 thread",
       masterAria: "用户输入索引",
-      detailsAria: "对话详情",
+      detailsAria: "所选用户输入详情",
       masterTitle: "用户输入",
-      detailsTitle: "对话详情",
+      detailsTitle: "所选输入详情",
       statusLegendAria: "运行状态图例",
       statusLegendRunning: "进行中",
       statusLegendSuccess: "成功",
       statusLegendFailed: "失败",
       detailTabsAria: "Thread 详情标签",
-      insightBoardAria: "需要关注的 Session",
-      insightBoardTitle: "关注面板",
-      insightBoardEmpty: "未检测到红色或黄色 Session。",
-      insightBoardClose: "关闭关注面板",
-      insightBoardMaximize: "最大化关注面板",
-      insightScore: "健康分",
-      insightTools: "工具",
-      insightFiles: "文件",
-      insightSignals: {
-        missing_verification: "代码变更缺少验证",
-        failed_run: "运行失败",
-        tool_loop: "工具循环压力",
-        high_cost: "Token 消耗偏高",
-        file_blast: "文件影响面较广",
-        error_pressure: "错误压力",
-        context_churn: "上下文 churn",
+      diagnosticsTitle: "工程诊断",
+      diagnosticsSubtitle: "Demo：基于已加载对话运行规则检查",
+      diagnosticsEmpty: "已加载的 journey 中暂未检测到 Critical 级工程问题。",
+      diagnosticsAll: "全部",
+      diagnosticsCount: (count: number) => `${count} 条发现`,
+      diagnosticsSeverity: {
+        critical: "严重",
+        high: "高",
+        medium: "中",
+        low: "低",
       },
-      insightReasonMissingVerification: "patch 后没有验证",
-      insightReasonFailedRun: "运行以失败结束",
-      insightReasonToolLoop: (count: number) => `${count} 次重复工具调用`,
-      insightReasonHighCost: (tokens: string) => `${tokens} tokens`,
-      insightReasonFileBlast: (count: number) => `影响 ${count} 个文件`,
-      insightReasonErrorPressure: (count: number) => `${count} 条错误信号`,
-      insightReasonContextChurn: (count: number) => `${count} 个上下文事件`,
+      diagnosticsTypes: {
+        failed_run: "运行失败",
+        missing_verification: "缺少验证",
+        tool_errors: "工具错误",
+        high_cost: "费用偏高",
+        long_run: "运行过长",
+        subagent_review: "Subagent 复盘",
+      },
+      diagnosticsEvidence: "证据",
+      diagnosticsRecommendation: "建议",
+      diagnosticsOpenJourney: "打开用户输入",
       conversationTab: "Conversation",
       contextReplayTab: "Context Replay",
       subagentTab: "Subagent",
@@ -935,7 +925,8 @@ export const COPY: Record<Language, AppCopy> = {
       spineAction: "动作",
       spineObserved: "观察",
       spineResponse: "回复",
-      spineRedacted: "私有推理 · 已隐去",
+      spineRedacted: "私有推理摘要不可用",
+      spineReasoningSummary: "推理摘要",
       spineCourseCorrected: "修正了下一步想法",
       spineMoves: "回合",
       spineToolCalls: "工具调用",

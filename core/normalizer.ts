@@ -224,7 +224,21 @@ function normalizeResponseItem(input: {
   }
 
   if (payloadType === "reasoning") {
-    return makeEvent({ line, rawRef, projectId, sessionId, turnId, kind: "reasoning_marker", lane: "Agent Runs", title: "Reasoning segment", detail: "Reasoning content is not displayed.", status: "success", tokenUsage, skills });
+    const reasoningSummary = extractReasoningSummary(payload);
+    return makeEvent({
+      line,
+      rawRef,
+      projectId,
+      sessionId,
+      turnId,
+      kind: "reasoning_marker",
+      lane: "Agent Runs",
+      title: reasoningSummary ? "Reasoning summary" : "Private reasoning segment",
+      detail: reasoningSummary ?? "Reasoning summary is not available in this log.",
+      status: "success",
+      tokenUsage,
+      skills
+    });
   }
 
   return makeEvent({ line, rawRef, projectId, sessionId, turnId, kind: "status", lane: "Agent Runs", title: payloadType ?? "Response item", detail: safeExcerpt(payload, 900), tokenUsage, skills });
@@ -419,6 +433,31 @@ function extractMessageText(payload: Record<string, unknown>): string {
       .join("\n");
   }
   return safeExcerpt(payload, 500);
+}
+
+function extractReasoningSummary(payload: Record<string, unknown>): string | null {
+  const direct = stringValue(payload.text) ?? stringValue(payload.content);
+  if (direct?.trim()) return direct.trim();
+
+  const summary = payload.summary;
+  if (typeof summary === "string" && summary.trim()) return summary.trim();
+  if (!Array.isArray(summary)) return null;
+
+  const parts = summary
+    .map((item) => {
+      if (typeof item === "string") return item;
+      const record = asRecord(item);
+      return (
+        stringValue(record.text) ??
+        stringValue(record.content) ??
+        stringValue(record.summary) ??
+        ""
+      );
+    })
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return parts.length > 0 ? safeExcerpt(parts.join("\n"), 1200) : null;
 }
 
 function skillSourceForResponse(payloadType: string | null | undefined, role: string | null | undefined): SkillUsageSource {

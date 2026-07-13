@@ -1826,7 +1826,34 @@ select {
   background: color-mix(in srgb, var(--orange) 5%, var(--surface-2));
 }
 
+.conversation-master-heading {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.conversation-master-heading-top,
+.conversation-master-heading-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.conversation-master-heading-top {
+  gap: 10px;
+}
+
+.conversation-master-heading-meta {
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .conversation-detail-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   padding-left: 18px;
   background: color-mix(in srgb, var(--orange) 4%, var(--paper));
 }
@@ -1847,6 +1874,8 @@ select {
 }
 
 .conversation-detail-heading strong {
+  display: block;
+  margin-top: 6px;
   overflow-wrap: anywhere;
 }
 

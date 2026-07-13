@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PRICING } from "../core/cost";
 import type { TaskJourney, TimelineEvent } from "../core/types";
-import { buildDiagnosticFindings } from "../ui/src/App";
+import { buildDiagnosticFindings } from "../ui/src/diagnostics";
 
 const zeroTokens = { input: 0, output: 0, reasoning: 0, cachedInput: 0, total: 0 };
 

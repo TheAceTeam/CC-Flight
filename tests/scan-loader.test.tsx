@@ -7,7 +7,7 @@ const { startIngestMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("../ui/src/api", () => ({
-  fetchConfig: vi.fn(async () => ({ projectDir: null, version: "0.6.1" })),
+  fetchConfig: vi.fn(async () => ({ projectDir: null, version: "0.7.0" })),
   fetchProjects: vi.fn(async () => [
     {
       id: "project-scan",
@@ -67,7 +67,7 @@ describe("Scan loader", () => {
     startIngestMock.mockReturnValue(new Promise(() => {}));
     render(<App />);
 
-    expect(await screen.findByText("v0.6.1")).toBeInTheDocument();
+    expect(await screen.findByText("v0.7.0")).toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole("button", { name: /Scan Agent Logs/ }));
     const panel = screen.getByRole("region", { name: "Scan Agent Logs" });

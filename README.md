@@ -72,6 +72,16 @@ For future updates, switch scripts and docs to `cc-flight` or `ccflight`.
 
 ## Features
 
+### New in 0.7.0: Intent Route and Project Diagnostics
+
+The task detail view now makes the path from request to proof explicit:
+
+- **Intent Route** connects the user request, final agent outcome, and verification evidence in one focused route.
+- Route status distinguishes verified finishes, failed verification, outcomes without proof, and tasks still awaiting a response.
+- Route steps link back to the underlying timeline events so each conclusion remains inspectable.
+- **Project Diagnostics** surfaces evidence-backed findings for failed runs, missing verification, repeated tool errors, high-cost or unusually long journeys, and subagent workflows.
+- Diagnostic findings include severity, evidence, and a concrete recommendation, with a direct link back to the affected user input.
+
 ### New in 0.6.1: Subagent Threads and Scan Controls
 
 Subagent work is now attached to the user-input journey that launched it:
@@ -248,6 +258,9 @@ SUPERVIEW_DATA_DIR     # Data directory (default: ./.superview)
 SUPERVIEW_CODEX_HOME   # Codex log root (default: ~/.codex)
 SUPERVIEW_CLAUDE_HOME  # Claude Code log root (default: ~/.claude)
 SUPERVIEW_PORT         # Production server port (default: 5174)
+SUPERVIEW_API_PORT     # Development API port (default: 5174)
+SUPERVIEW_UI_PORT      # Quickstart UI port and API redirect target (default: 5173)
+SUPERVIEW_UI_URL       # Explicit API redirect target for development
 ```
 
 ## Privacy

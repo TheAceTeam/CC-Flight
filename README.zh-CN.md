@@ -72,6 +72,16 @@ superview
 
 ## 功能
 
+### 0.7.0 新增：意图路线与工程诊断
+
+任务详情现在会把从请求到证据的路径明确展示出来：
+
+- **意图路线** 将用户请求、agent 最终结果和验证证据串成一条聚焦路线。
+- 路线状态会区分已验证完成、验证失败、结果缺少证据，以及仍在等待响应的任务。
+- 路线中的每一步都可以回到对应的时间线事件，结论始终可检查。
+- **工程诊断** 会发现失败运行、缺少验证、重复工具错误、高成本或异常漫长的旅程，以及需要复查的 Subagent 工作流。
+- 每条诊断包含严重级别、证据和具体建议，并可直接打开相关 user-input。
+
 ### 0.6.1 新增：Subagent Threads 与扫描控制
 
 Subagent 工作现在会关联到发起它的 user-input journey：
@@ -248,6 +258,9 @@ SUPERVIEW_DATA_DIR     # 数据目录（默认：./.superview）
 SUPERVIEW_CODEX_HOME   # Codex 日志根目录（默认：~/.codex）
 SUPERVIEW_CLAUDE_HOME  # Claude Code 日志根目录（默认：~/.claude）
 SUPERVIEW_PORT         # 生产服务器端口（默认：5174）
+SUPERVIEW_API_PORT     # 开发 API 端口（默认：5174）
+SUPERVIEW_UI_PORT      # 快速启动 UI 端口及 API 重定向目标（默认：5173）
+SUPERVIEW_UI_URL       # 显式指定开发环境中的 API 重定向目标
 ```
 
 ## 隐私

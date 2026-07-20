@@ -2294,6 +2294,161 @@ select {
   color: #fff;
 }
 
+.intent-route-panel {
+  display: grid;
+  gap: 16px;
+  min-height: 0;
+  padding: 18px 20px 20px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.intent-route-header h2 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -.01em;
+}
+
+.intent-route-header p {
+  max-width: 66ch;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.intent-route button:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.intent-route { display: grid; gap: 14px; }
+
+.intent-route-status {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, .72fr);
+  gap: 24px;
+  padding: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface-soft);
+}
+
+.intent-route-status.clear { border-color: color-mix(in srgb, var(--success) 42%, var(--line)); }
+.intent-route-status.review { border-color: color-mix(in srgb, var(--warning) 48%, var(--line)); }
+
+.intent-route-status span,
+.intent-route-rail > li > div > span,
+.intent-route-evidence > span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.intent-route-status strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.intent-route-status p { max-width: 62ch; margin: 5px 0 0; color: var(--ink); font-size: 13px; line-height: 1.5; }
+
+.intent-route-evidence { display: grid; align-content: start; gap: 5px; }
+
+.intent-route-evidence button,
+.intent-route-rail button {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.intent-route-evidence button:not(:disabled):hover,
+.intent-route-rail button:not(:disabled):hover { color: var(--orange-strong); }
+.intent-route button:disabled { cursor: default; color: var(--muted); }
+
+.intent-route-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.intent-route-rail li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  min-height: 96px;
+  padding: 10px 14px 10px 0;
+}
+
+.intent-route-rail li:not(:last-child)::after {
+  position: absolute;
+  z-index: 0;
+  top: 28px;
+  left: 18px;
+  right: 0;
+  height: 1px;
+  background: var(--line-strong);
+  content: "";
+}
+
+.intent-route-marker {
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  margin-top: 13px;
+  border: 2px solid var(--surface-2);
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--orange) 58%, transparent);
+}
+
+.intent-route-rail li > div {
+  position: relative;
+  z-index: 1;
+}
+
+.intent-route-rail li.proof .intent-route-marker { background: var(--success); box-shadow: 0 0 0 1px color-mix(in srgb, var(--success) 58%, transparent); }
+.intent-route-rail li.missing .intent-route-marker { background: var(--warning); box-shadow: 0 0 0 1px color-mix(in srgb, var(--warning) 58%, transparent); }
+
+.intent-route-rail button { display: block; max-width: 100%; margin-top: 4px; font-weight: 700; }
+.intent-route-rail small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+
+.intent-route-state {
+  padding: 24px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+@media (max-width: 720px) {
+  .intent-route-header {
+    display: block;
+  }
+
+  .intent-route-status { grid-template-columns: 1fr; gap: 16px; }
+
+  .intent-route-rail { grid-template-columns: 1fr; }
+
+  .intent-route-rail li { min-height: 0; padding-right: 0; }
+
+  .intent-route-rail li:not(:last-child)::after { top: 28px; bottom: -3px; left: 5px; right: auto; width: 1px; height: auto; }
+
+}
+
 .context-replay-panel {
   display: grid;
   gap: 16px;

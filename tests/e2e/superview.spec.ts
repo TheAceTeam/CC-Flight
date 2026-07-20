@@ -793,6 +793,12 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
   await page.keyboard.press("ArrowRight");
   await expect(contextReplayLedger.getByRole("button", { name: /Step 2: Response/ })).toHaveClass(/active/);
   await expect(detailsPane.getByText("Unverified final response")).toBeVisible();
+  await detailsPane.getByRole("tab", { name: "Intent Route" }).click();
+  const intentRoute = detailsPane.getByRole("region", { name: "Task intent route" });
+  await expect(intentRoute).toContainText("Outcome needs proof");
+  await expect(intentRoute.getByText("No verification observed")).toBeVisible();
+  await intentRoute.getByRole("button", { name: "Codex completed task 0 in CLI output." }).click();
+  await expect(intentRoute.getByText("Codex completed task 0 in CLI output.")).toBeVisible();
   await detailsPane.getByRole("tab", { name: "Conversation" }).click();
   await page.locator(".conversation-master-item").filter({ hasText: "Build task journey from input 75" }).click();
   await expect(detailsPane.getByText("Build task journey from input 75")).toBeVisible();

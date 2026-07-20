@@ -137,7 +137,11 @@ export type AppCopy = {
     diagnosticsOpenJourney: string;
     conversationTab: string;
     contextReplayTab: string;
+    intentRouteTab: string;
     subagentTab: string;
+    intentRouteAria: string;
+    intentRouteLoading: string;
+    intentRouteEmpty: string;
     contextReplayLedgerAria: string;
     contextReplayLoading: string;
     contextReplayEmpty: string;
@@ -461,7 +465,11 @@ export const COPY: Record<Language, AppCopy> = {
       diagnosticsOpenJourney: "Open user input",
       conversationTab: "Conversation",
       contextReplayTab: "Context Replay",
+      intentRouteTab: "Intent Route",
       subagentTab: "Subagent",
+      intentRouteAria: "Task intent route",
+      intentRouteLoading: "Loading task route…",
+      intentRouteEmpty: "This task has no observable events to form a route.",
       contextReplayLedgerAria: "Context Replay ledger",
       contextReplayLoading: "Loading observable context...",
       contextReplayEmpty: "Open this task after details are indexed to inspect observable context.",
@@ -867,7 +875,11 @@ export const COPY: Record<Language, AppCopy> = {
       diagnosticsOpenJourney: "打开用户输入",
       conversationTab: "Conversation",
       contextReplayTab: "Context Replay",
+      intentRouteTab: "意图路线",
       subagentTab: "Subagent",
+      intentRouteAria: "任务意图路线",
+      intentRouteLoading: "正在加载任务路线…",
+      intentRouteEmpty: "本轮任务没有可形成路线的可观察事件。",
       contextReplayLedgerAria: "Context Replay ledger",
       contextReplayLoading: "正在加载可观察上下文...",
       contextReplayEmpty: "打开这轮任务后，可查看日志中可观察到的上下文。",

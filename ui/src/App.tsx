@@ -70,6 +70,7 @@ import {
   startIngest,
 } from "./api";
 import { DailyTokenUsagePanel } from "./DailyTokenUsagePanel";
+import { IntentRoutePanel } from "./IntentRoutePanel";
 import {
   buildDiagnosticFindings,
   type DiagnosticFinding,
@@ -90,7 +91,7 @@ import {
 type Theme = "light" | "dark" | "forest" | "plasma" | "morandi";
 type ProjectProviderFilter = AgentProvider | "all";
 type MetricKey = "projects" | "events" | "tasks" | "tokens";
-type ThreadDetailTab = "conversation" | "context" | "subagent";
+type ThreadDetailTab = "conversation" | "context" | "intent-route" | "subagent";
 const AGENT_PROVIDER_OPTIONS: Array<{ value: AgentProvider; label: string }> = [
   { value: "codex", label: "Codex" },
   { value: "claude-code", label: "Claude Code" },
@@ -1991,20 +1992,29 @@ function ConversationThread({
           <button
             type="button"
             role="tab"
-            aria-selected={detailTab === "context"}
-            className={detailTab === "context" ? "active" : ""}
-            onClick={() => setDetailTab("context")}
-          >
-            {copy.contextReplayTab}
-          </button>
-          <button
-            type="button"
-            role="tab"
             aria-selected={detailTab === "conversation"}
             className={detailTab === "conversation" ? "active" : ""}
             onClick={() => setDetailTab("conversation")}
           >
             {copy.conversationTab}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={detailTab === "intent-route"}
+            className={detailTab === "intent-route" ? "active" : ""}
+            onClick={() => setDetailTab("intent-route")}
+          >
+            {copy.intentRouteTab}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={detailTab === "context"}
+            className={detailTab === "context" ? "active" : ""}
+            onClick={() => setDetailTab("context")}
+          >
+            {copy.contextReplayTab}
           </button>
           <button
             type="button"
@@ -2023,6 +2033,13 @@ function ConversationThread({
               replay={contextReplaysByJourneyId[selectedJourney.id] ?? null}
               loading={Boolean(loadingContextReplayIds[selectedJourney.id])}
               selectedProjectName={selectedProjectName}
+            />
+          ) : detailTab === "intent-route" ? (
+            <IntentRoutePanel
+              copy={copy}
+              detail={detailsByJourneyId[selectedJourney.id] ?? null}
+              loading={Boolean(loadingJourneyIds[selectedJourney.id])}
+              onSelectEvent={onSelectEvent}
             />
           ) : detailTab === "subagent" ? (
             <SubThreadPanel

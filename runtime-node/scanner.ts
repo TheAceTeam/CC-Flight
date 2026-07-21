@@ -9,7 +9,7 @@ export async function scanRolloutFiles(codexHome = resolveCodexHome()): Promise<
   ];
   const files = await Promise.all(
     roots.map((root) =>
-      fg("**/rollout-*.jsonl", {
+      fg("**/*.jsonl", {
         cwd: root,
         absolute: true,
         onlyFiles: true,

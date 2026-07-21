@@ -661,7 +661,6 @@ export class CCFlightDatabase {
     const subagentEventIds = this.subagentEventIds(projectId);
     const taskJourneys = this.withSubThreadCounts(
       timeline.taskJourneys.filter((journey) => !subagentEventIds.has(journey.promptEventId)),
-      projectId,
     );
     return {
       ...timeline,
@@ -740,7 +739,6 @@ export class CCFlightDatabase {
       const subagentEventIds = this.subagentEventIds(project.id);
       const taskJourneys = this.withSubThreadCounts(
         timeline.taskJourneys.filter((candidate) => !subagentEventIds.has(candidate.promptEventId)),
-        project.id,
       );
       const journey = taskJourneys
         .find((candidate) => candidate.id === journeyId);
@@ -758,29 +756,11 @@ export class CCFlightDatabase {
   }
 
   private listSubThreadsForJourney(journey: TaskJourneyDetail["journey"]): TaskSubThread[] {
-    const parentSession = this.getSession(journey.sessionId);
-    const parentKey = parentSession?.externalSessionId || stripProviderPrefix(journey.sessionId);
-    if (!parentKey) return [];
-    const escapedLike = escapeSqlLike(parentKey);
-    const endClause = journey.exitType === "next_prompt" ? "AND e.timestamp <= ?" : "";
-    const params = [
-      `%/${escapedLike}/subagents/%`,
-      `%\\${escapedLike}\\subagents\\%`,
-      journey.startedAt,
-      ...(journey.exitType === "next_prompt" ? [journey.endedAt] : [])
-    ];
-    const sourceRows = this.db
-      .prepare(
-        `SELECT r.source_path as sourcePath
-         FROM raw_event_refs r
-         JOIN events e ON e.raw_event_ref_id = r.id
-         WHERE (r.source_path LIKE ? ESCAPE '\\' OR r.source_path LIKE ? ESCAPE '\\')
-           AND e.timestamp >= ?
-           ${endClause}
-         GROUP BY r.source_path
-         ORDER BY MIN(e.timestamp) ASC`
-      )
-      .all(...params) as Array<{ sourcePath: string }>;
+    const sourceRows = this.subagentSourcesForJourney(
+      journey,
+      this.listSubagentSourceSummaries(),
+      this.listIngestedSourcePaths(),
+    );
 
     return sourceRows.flatMap((row, index) => {
       const events = this.listEventsForSourcePath(row.sourcePath);
@@ -803,32 +783,60 @@ export class CCFlightDatabase {
     });
   }
 
-  private withSubThreadCounts(journeys: TaskJourney[], projectId: string): TaskJourney[] {
+  private withSubThreadCounts(journeys: TaskJourney[]): TaskJourney[] {
     if (journeys.length === 0) return journeys;
-    const sessionsById = new Map(this.listSessions(projectId).map((session) => [session.id, session]));
     const subagentSources = this.listSubagentSourceSummaries();
     if (subagentSources.length === 0) return journeys.map((journey) => ({ ...journey, subThreadCount: 0 }));
-    return journeys.map((journey) => {
-      const parentSession = sessionsById.get(journey.sessionId);
-      const parentKey = parentSession?.externalSessionId || stripProviderPrefix(journey.sessionId);
-      const subThreadCount = parentKey
-        ? subagentSources.filter((source) => isSourceForParentSession(source.sourcePath, parentKey) && isSourceInJourneyWindow(source.startedAt, journey)).length
-        : 0;
-      return { ...journey, subThreadCount };
-    });
+    const ingestedPaths = this.listIngestedSourcePaths();
+    return journeys.map((journey) => ({
+      ...journey,
+      subThreadCount: this.subagentSourcesForJourney(journey, subagentSources, ingestedPaths).length,
+    }));
+  }
+
+  private subagentSourcesForJourney(
+    journey: TaskJourney,
+    sources: Array<{ sourcePath: string; startedAt: string }>,
+    ingestedPaths: Set<string>,
+  ): Array<{ sourcePath: string; startedAt: string }> {
+    const parentSession = this.getSession(journey.sessionId);
+    const parentKey = parentSession?.externalSessionId || stripProviderPrefix(journey.sessionId);
+    const attached = sources.filter(
+      (source) =>
+        isSourceForParentSession(source.sourcePath, parentKey, parentSession?.path) &&
+        isSourceInJourneyWindow(source.startedAt, journey),
+    );
+    if (attached.length > 0) return attached;
+
+    const promptSourcePath = this.sourcePathForEvent(journey.promptEventId);
+    const missingParentPath = promptSourcePath ? parentSessionSourcePath(promptSourcePath) : null;
+    if (!promptSourcePath || !missingParentPath || ingestedPaths.has(missingParentPath)) return [];
+    return sources.filter(
+      (source) =>
+        source.sourcePath !== promptSourcePath &&
+        parentSessionSourcePath(source.sourcePath) === missingParentPath &&
+        isSourceInJourneyWindow(source.startedAt, journey),
+    );
   }
 
   private listSubagentSourceSummaries(): Array<{ sourcePath: string; startedAt: string }> {
-    return this.db
+    const sources = this.db
       .prepare(
-        `SELECT r.source_path as sourcePath, MIN(e.timestamp) as startedAt
-         FROM raw_event_refs r
-         JOIN events e ON e.raw_event_ref_id = r.id
-         WHERE r.source_path LIKE '%/subagents/%' OR r.source_path LIKE '%\\subagents\\%'
-         GROUP BY r.source_path
-         ORDER BY MIN(e.timestamp) ASC`
+        `SELECT f.path as sourceId
+         FROM ingested_files f
+         WHERE f.path LIKE '%/subagents/%' OR f.path LIKE '%\\subagents\\%'`
       )
-      .all() as Array<{ sourcePath: string; startedAt: string }>;
+      .all() as Array<{ sourceId: string }>;
+    const firstTimestamp = this.db.prepare(
+      "SELECT MIN(timestamp) as startedAt FROM raw_event_refs WHERE source_path = ?",
+    );
+    return sources
+      .flatMap(({ sourceId }) => {
+        const sourcePath = sourcePathFromIngestedId(sourceId);
+        const row = firstTimestamp.get(sourcePath) as { startedAt: string | null };
+        return row.startedAt ? [{ sourcePath, startedAt: row.startedAt }] : [];
+      })
+      .sort((left, right) => left.startedAt.localeCompare(right.startedAt));
   }
 
   private listEventsForSourcePath(sourcePath: string): TimelineEvent[] {
@@ -847,17 +855,45 @@ export class CCFlightDatabase {
     return rows.map(rowToTimelineEvent);
   }
 
+  private sourcePathForEvent(eventId: string): string | null {
+    const row = this.db
+      .prepare(
+        `SELECT r.source_path as sourcePath
+         FROM events e
+         JOIN raw_event_refs r ON r.id = e.raw_event_ref_id
+         WHERE e.id = ?`,
+      )
+      .get(eventId) as { sourcePath: string } | undefined;
+    return row?.sourcePath ?? null;
+  }
+
+  private listIngestedSourcePaths(): Set<string> {
+    return new Set(
+      (this.db.prepare("SELECT path FROM ingested_files").all() as Array<{ path: string }>).map(({ path }) =>
+        normalizeSourcePath(sourcePathFromIngestedId(path)),
+      ),
+    );
+  }
+
   private subagentEventIds(projectId: string): Set<string> {
     const rows = this.db
       .prepare(
-        `SELECT e.id
+        `SELECT e.id, r.source_path as sourcePath
          FROM events e
          JOIN raw_event_refs r ON r.id = e.raw_event_ref_id
          WHERE e.project_id = ?
            AND (r.source_path LIKE '%/subagents/%' OR r.source_path LIKE '%\\subagents\\%')`
       )
-      .all(projectId) as Array<{ id: string }>;
-    return new Set(rows.map((row) => row.id));
+      .all(projectId) as Array<{ id: string; sourcePath: string }>;
+    const ingestedPaths = this.listIngestedSourcePaths();
+    return new Set(
+      rows
+        .filter((row) => {
+          const parentPath = parentSessionSourcePath(row.sourcePath);
+          return parentPath !== null && ingestedPaths.has(parentPath);
+        })
+        .map((row) => row.id),
+    );
   }
 
   getEventEvidenceByEventIds(eventIds: string[]): Record<string, EventEvidence> {
@@ -1214,17 +1250,32 @@ function stripProviderPrefix(sessionId: string): string {
   return index >= 0 ? sessionId.slice(index + 1) : sessionId;
 }
 
-function isSourceForParentSession(sourcePath: string, parentKey: string): boolean {
-  return sourcePath.includes(`/${parentKey}/subagents/`) || sourcePath.includes(`\\${parentKey}\\subagents\\`);
+function isSourceForParentSession(sourcePath: string, parentKey: string, parentPath?: string | null): boolean {
+  const normalized = normalizeSourcePath(sourcePath);
+  if (parentPath) {
+    const normalizedParent = normalizeSourcePath(parentPath);
+    const parentBase = normalizedParent.replace(/\.jsonl$/i, "");
+    if (normalized.startsWith(`${parentBase}/subagents/`) || parentSessionSourcePath(normalized) === normalizedParent) {
+      return true;
+    }
+  }
+  return (parentKey ? normalized.includes(`/${parentKey}/subagents/`) || sourcePath.includes(`\\${parentKey}\\subagents\\`) : false);
+}
+
+function parentSessionSourcePath(sourcePath: string): string | null {
+  const normalized = normalizeSourcePath(sourcePath);
+  const marker = "/subagents/";
+  const markerIndex = normalized.lastIndexOf(marker);
+  return markerIndex >= 0 ? `${normalized.slice(0, markerIndex)}.jsonl` : null;
+}
+
+function normalizeSourcePath(sourcePath: string): string {
+  return sourcePath.replaceAll("\\", "/");
 }
 
 function isSourceInJourneyWindow(startedAt: string, journey: TaskJourney): boolean {
   if (startedAt < journey.startedAt) return false;
   return journey.exitType !== "next_prompt" || startedAt <= journey.endedAt;
-}
-
-function escapeSqlLike(value: string): string {
-  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
 const ALL_AGENT_PROVIDERS: AgentProvider[] = ["codex", "claude-code", "opencode"];

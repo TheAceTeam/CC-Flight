@@ -6435,6 +6435,23 @@ pre {
   padding: 0 0 24px;
 }
 
+.spine-move-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 11px/1.4 var(--spine-mono);
+  color: var(--muted);
+  margin-bottom: 8px;
+  letter-spacing: .3px;
+}
+.spine-move-step {
+  font-weight: 600;
+  color: var(--ink);
+}
+.spine-move-meta-sep {
+  opacity: 0.5;
+}
+
 .spine-node {
   display: block;
   width: 100%;

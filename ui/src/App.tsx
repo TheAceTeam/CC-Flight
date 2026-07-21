@@ -73,6 +73,7 @@ import { DailyTokenUsagePanel } from "./DailyTokenUsagePanel";
 import { IntentRoutePanel } from "./IntentRoutePanel";
 import {
   buildDiagnosticFindings,
+  formatDuration,
   type DiagnosticFinding,
   type DiagnosticFindingType,
 } from "./diagnostics";
@@ -895,7 +896,7 @@ export function App() {
                 <div
                   className="project-dropdown-chips"
                   role="group"
-                  aria-label={copy.projectControls.provider}
+                  aria-label={copy.projectControls.providerAria}
                 >
                   {(["all", "codex", "claude-code", "opencode"] as const).map(
                     (provider) => (
@@ -929,7 +930,7 @@ export function App() {
                 <div
                   className="project-dropdown-list"
                   role="listbox"
-                  aria-label={copy.projectControls.project}
+                  aria-label={copy.projectControls.projectAria}
                 >
                   {filteredProjects.length === 0 ? (
                     <div className="project-dropdown-empty">
@@ -1764,7 +1765,7 @@ function ConversationThread({
     [journeys, searchQuery, sortKey, pricing],
   );
   const masterListRef = useRef<HTMLDivElement>(null);
-  const [detailTab, setDetailTab] = useState<ThreadDetailTab>("context");
+  const [detailTab, setDetailTab] = useState<ThreadDetailTab>("conversation");
   const [masterMinimized, setMasterMinimized] = useState(false);
   const selectedJourney =
     orderedJourneys.find((journey) => journey.id === selectedJourneyId) ??
@@ -3787,6 +3788,8 @@ type SpineActionItem = {
 type SpineMove = {
   id: string;
   index: number;
+  timestamp: string;
+  durationMs: number;
   thoughtEvent: TimelineEvent | null;
   thoughtText: string | null;
   redacted: boolean;
@@ -3828,6 +3831,8 @@ function buildSpineMoves(events: TimelineEvent[]): SpineMove[] {
     const move: SpineMove = {
       id: event.id,
       index: moves.length,
+      timestamp: event.timestamp,
+      durationMs: 0,
       thoughtEvent: withThought ? event : null,
       thoughtText:
         withThought && redacted
@@ -3895,11 +3900,37 @@ function buildSpineMoves(events: TimelineEvent[]): SpineMove[] {
   // `failed_by`/`retried_by` signal is too noisy to corroborate here — those
   // edges fire from any step that precedes a later failure anywhere in the
   // session, so they light up on fully successful runs.
-  return moves.map((move, index) => ({
-    ...move,
-    index,
-    isRedirect: !move.observeOk && index < moves.length - 1,
-  }));
+  return moves.map((move, index) => {
+    const startMs = Date.parse(move.timestamp);
+    let durationMs = 0;
+    if (index < moves.length - 1) {
+      const nextMs = Date.parse(moves[index + 1].timestamp);
+      if (!Number.isNaN(startMs) && !Number.isNaN(nextMs) && nextMs >= startMs) {
+        durationMs = nextMs - startMs;
+      }
+    } else if (events.length > 0) {
+      const lastEvent = events[events.length - 1];
+      const lastEndMs = Date.parse(lastEvent.timestamp) + (lastEvent.durationMs ?? 0);
+      if (!Number.isNaN(startMs) && !Number.isNaN(lastEndMs) && lastEndMs >= startMs) {
+        durationMs = lastEndMs - startMs;
+      }
+    }
+    if (durationMs === 0) {
+      const fallbackDuration = Math.max(
+        0,
+        move.thoughtEvent?.durationMs ?? 0,
+        move.observeEvent?.durationMs ?? 0,
+        ...move.actions.map((a) => a.event.durationMs ?? 0),
+      );
+      durationMs = fallbackDuration;
+    }
+    return {
+      ...move,
+      index,
+      durationMs,
+      isRedirect: !move.observeOk && index < moves.length - 1,
+    };
+  });
 }
 
 function CausalSpine({
@@ -4081,6 +4112,19 @@ function CausalSpine({
                   <span className="spine-connector" />
                 </div>
                 <div className="spine-nodes">
+                  <div className="spine-move-header">
+                    <span className="spine-move-step">
+                      {copy.contextReplayStep} {move.index + 1}
+                    </span>
+                    <span className="spine-move-meta-sep">·</span>
+                    <span className="spine-move-time">
+                      {formatDate(move.timestamp)}
+                    </span>
+                    <span className="spine-move-meta-sep">·</span>
+                    <span className="spine-move-duration">
+                      {formatDuration(move.durationMs)}
+                    </span>
+                  </div>
                   {move.thoughtText || move.redacted ? (
                     <button
                       type="button"
@@ -4477,6 +4521,19 @@ function SubThreadSpine({
                 <span className="spine-connector" />
               </div>
               <div className="spine-nodes">
+                <div className="spine-move-header">
+                  <span className="spine-move-step">
+                    {copy.contextReplayStep} {move.index + 1}
+                  </span>
+                  <span className="spine-move-meta-sep">·</span>
+                  <span className="spine-move-time">
+                    {formatDate(move.timestamp)}
+                  </span>
+                  <span className="spine-move-meta-sep">·</span>
+                  <span className="spine-move-duration">
+                    {formatDuration(move.durationMs)}
+                  </span>
+                </div>
                 {move.thoughtText || move.redacted ? (
                   <button
                     type="button"
@@ -5019,7 +5076,11 @@ function BlockingLoader({
           </div>
         </div>
         {job ? (
-          <div className="blocking-loader-progress">
+          <div
+            className="blocking-loader-progress"
+            role="status"
+            aria-label={ingestCopy.aria(job.status, job.phase, job.processedFiles, job.totalFiles, percent)}
+          >
             <div className="blocking-loader-progress-bar">
               <i style={{ width: `${percent}%` }} />
             </div>
@@ -5165,16 +5226,6 @@ function formatDate(value: string, _copy?: unknown) {
   return date.toLocaleString();
 }
 
-function formatDuration(durationMs: number) {
-  if (durationMs < 1000) return `${durationMs}ms`;
-  const seconds = durationMs / 1000;
-  if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 1 : 0)}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.round(seconds % 60);
-  return remainingSeconds > 0
-    ? `${minutes}m ${remainingSeconds}s`
-    : `${minutes}m`;
-}
 
 function formatKvHitRate(usage: TokenUsage) {
   if (usage.input <= 0) return "0.0%";

@@ -228,12 +228,35 @@ function findLastIndex<T>(items: T[], predicate: (item: T) => boolean) {
   return -1;
 }
 
-function formatDuration(durationMs: number) {
+export function formatDuration(durationMs: number) {
   if (durationMs < 1000) return `${durationMs}ms`;
   const seconds = durationMs / 1000;
   if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 1 : 0)}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.round(seconds % 60);
+  if (seconds >= 3600) {
+    const totalMinutes = Math.round(seconds / 60);
+    if (totalMinutes >= 1440) {
+      const totalHours = Math.round(totalMinutes / 60);
+      const days = Math.floor(totalHours / 24);
+      const remainingHours = totalHours % 24;
+      return remainingHours > 0
+        ? `${days}d ${remainingHours}h`
+        : `${days}d`;
+    }
+    const hours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+    return remainingMinutes > 0
+      ? `${hours}h ${remainingMinutes}m`
+      : `${hours}h`;
+  }
+  let minutes = Math.floor(seconds / 60);
+  let remainingSeconds = Math.round(seconds % 60);
+  if (remainingSeconds === 60) {
+    minutes += 1;
+    remainingSeconds = 0;
+  }
+  if (minutes >= 60) {
+    return "1h";
+  }
   return remainingSeconds > 0
     ? `${minutes}m ${remainingSeconds}s`
     : `${minutes}m`;

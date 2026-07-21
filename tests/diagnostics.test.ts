@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PRICING } from "../core/cost";
 import type { TaskJourney, TimelineEvent } from "../core/types";
-import { buildDiagnosticFindings } from "../ui/src/diagnostics";
+import { buildDiagnosticFindings, formatDuration } from "../ui/src/diagnostics";
 
 const zeroTokens = { input: 0, output: 0, reasoning: 0, cachedInput: 0, total: 0 };
 
@@ -111,3 +111,36 @@ function event(
     ...overrides,
   };
 }
+
+describe("formatDuration", () => {
+  it("formats durations under 1000ms as milliseconds", () => {
+    expect(formatDuration(450)).toBe("450ms");
+  });
+
+  it("formats durations under 60 seconds as seconds", () => {
+    expect(formatDuration(5200)).toBe("5.2s");
+    expect(formatDuration(45_000)).toBe("45s");
+  });
+
+  it("formats durations under 60 minutes as minutes and seconds", () => {
+    expect(formatDuration(74_000)).toBe("1m 14s");
+    expect(formatDuration(300_000)).toBe("5m");
+  });
+
+  it("formats durations over 60 minutes using hours", () => {
+    expect(formatDuration(3600_000)).toBe("1h");
+    expect(formatDuration(3900_000)).toBe("1h 5m");
+    expect(formatDuration(7200_000)).toBe("2h");
+  });
+
+  it("formats durations over 24 hours using days", () => {
+    expect(formatDuration(86400_000)).toBe("1d");
+    expect(formatDuration(90000_000)).toBe("1d 1h");
+    expect(formatDuration(172800_000)).toBe("2d");
+    expect(formatDuration(216000_000)).toBe("2d 12h");
+  });
+
+  it("rounds up to hours when rounding seconds reaches 60 minutes", () => {
+    expect(formatDuration(3599_600)).toBe("1h");
+  });
+});

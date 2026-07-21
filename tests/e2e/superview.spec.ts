@@ -44,31 +44,36 @@ test("filters projects by agent provider", async ({ page }) => {
 
   await page.goto("/");
 
-  const projectFilter = page.getByLabel("Project provider", { exact: true });
-  const projectSelect = page.getByLabel("Project", { exact: true });
-  await expect(projectFilter).toHaveValue("all");
-  await expect(projectSelect).toContainText("CodexProject");
-  await expect(projectSelect).toContainText("ClaudeProject");
-  await expect(projectSelect).toContainText("OpenCodeProject");
+  const projectDropdown = page.locator(".project-dropdown-trigger");
+  await expect(projectDropdown).toBeVisible();
+  await projectDropdown.click();
 
-  await projectFilter.selectOption("claude-code");
-  await expect(projectSelect).toContainText("ClaudeProject");
-  await expect(projectSelect).not.toContainText("CodexProject");
-  await expect(projectSelect).not.toContainText("OpenCodeProject");
-  await expect(projectSelect).toHaveValue("project-claude");
+  const providerGroup = page.getByRole("group", { name: "Project provider" });
+  const projectListbox = page.getByRole("listbox", { name: "Project" });
 
-  await projectFilter.selectOption("opencode");
-  await expect(projectSelect).toContainText("OpenCodeProject");
-  await expect(projectSelect).not.toContainText("ClaudeProject");
-  await expect(projectSelect).toHaveValue("project-opencode");
+  await expect(providerGroup.getByRole("button", { name: "All" })).toHaveClass(/active/);
+  await expect(projectListbox).toContainText("CodexProject");
+  await expect(projectListbox).toContainText("ClaudeProject");
+  await expect(projectListbox).toContainText("OpenCodeProject");
 
-  await projectFilter.selectOption("all");
-  await expect(projectSelect).toContainText("CodexProject");
-  await expect(projectSelect).toContainText("ClaudeProject");
-  await expect(projectSelect).toContainText("OpenCodeProject");
+  await providerGroup.getByRole("button", { name: "Claude Code" }).click();
+  await expect(providerGroup.getByRole("button", { name: "Claude Code" })).toHaveClass(/active/);
+  await expect(projectListbox).toContainText("ClaudeProject");
+  await expect(projectListbox).not.toContainText("CodexProject");
+  await expect(projectListbox).not.toContainText("OpenCodeProject");
+
+  await providerGroup.getByRole("button", { name: "OpenCode" }).click();
+  await expect(providerGroup.getByRole("button", { name: "OpenCode" })).toHaveClass(/active/);
+  await expect(projectListbox).toContainText("OpenCodeProject");
+  await expect(projectListbox).not.toContainText("ClaudeProject");
+
+  await providerGroup.getByRole("button", { name: "All" }).click();
+  await expect(projectListbox).toContainText("CodexProject");
+  await expect(projectListbox).toContainText("ClaudeProject");
+  await expect(projectListbox).toContainText("OpenCodeProject");
 });
 
-test("shows the Mario loading game while the project index loads", async ({ page }) => {
+test("shows the blocking loader while the project index loads", async ({ page }) => {
   let releaseProjects!: () => void;
   const projectsReady = new Promise<void>((resolve) => {
     releaseProjects = resolve;
@@ -87,7 +92,6 @@ test("shows the Mario loading game while the project index loads", async ({ page
   const blockingLoader = page.getByRole("status", { name: "Blocking operation" });
   await expect(blockingLoader).toContainText("Loading CC Flight index");
   await expect(blockingLoader.getByRole("status", { name: /Ingest running, scanning, 3 of 12 files processed, 25 percent/ })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Pixel Mario running" })).toBeVisible();
 
   releaseProjects();
   await expect(blockingLoader).toHaveCount(0);
@@ -132,7 +136,8 @@ test("opens scan controls from the Scan Agent Logs dropdown", async ({ page }) =
 
   const scanPanel = page.getByRole("region", { name: "Scan Agent Logs" });
   await expect(scanPanel).toBeVisible();
-  await scanPanel.getByLabel("Agent log source", { exact: true }).selectOption("claude-code");
+  await scanPanel.getByLabel("Claude Code").check();
+  await scanPanel.getByLabel("Codex").uncheck();
   await scanPanel.getByRole("textbox", { name: "Agent log root path", exact: true }).fill("/tmp/claude-logs");
   await scanPanel.getByRole("button", { name: "Scan Agent Logs" }).click();
 
@@ -235,7 +240,26 @@ function contextReplayFixture(journeyId: string, offset: number) {
       exitType: "session_end",
       eventIds: [`event-${offset}`, `event-${offset + 2}`, `event-${offset + 3}`],
       tokenUsage,
-      skills: [],
+      skills: offset === 0 ? [
+        {
+          name: "abtest",
+          source: "user_prompt",
+          confidence: "inferred",
+          path: null,
+          command: "/abtest",
+          evidencePath: "rollout.jsonl",
+          excerpt: "/abtest"
+        },
+        {
+          name: "design-review",
+          source: "assistant_message",
+          confidence: "explicit",
+          path: "/Users/sean/.agents/skills/gstack/design-review/SKILL.md",
+          command: null,
+          evidencePath: "rollout.jsonl",
+          excerpt: "Using skill design-review"
+        }
+      ] : [],
       stageCounts: {},
       stages: []
     },
@@ -724,33 +748,27 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
   await scanPanel.getByRole("textbox", { name: "Agent log root path", exact: true }).fill("tests/fixtures/fake-codex-home");
   await scanPanel.getByRole("button", { name: "Scan Agent Logs" }).click();
 
-  await expect(page.getByRole("status", { name: /Ingest completed, completed, 1 of 1 files processed, 100 percent/ })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText("Castle clear")).toBeVisible();
-  await expect(page.getByText("Coins 1")).toBeVisible();
-  await expect(page.getByText("Cleared blocks 4")).toBeVisible();
-  await expect(page.getByText("CLI Conversation", { exact: true })).toBeVisible();
-  await expect(page.getByText("User Inputs", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".project-dropdown-trigger")).toContainText("superview-fixture", { timeout: 15_000 });
+  await expect(page.getByText("User inputs", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Run Ledger", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Subagent Activity", { exact: true })).toHaveCount(0);
-  await expect(page.getByLabel("Project", { exact: true })).toBeVisible();
-  await expect(page.locator(".status-cluster").getByText("Tokens", { exact: true })).toBeVisible();
-  await expect(page.locator(".status-cluster").getByText("0.006M", { exact: true })).toBeVisible();
-  await expect(page.locator(".status-cluster").getByText("KV hit", { exact: true })).toBeVisible();
-  await expect(page.locator(".status-cluster").getByText("21.1%", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Token usage by day" })).toHaveCount(0);
-  const tokensMetric = page.locator(".metric").filter({ hasText: "Tokens" });
-  await expect(tokensMetric.getByRole("button", { name: /Show daily token usage chart/ })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Daily token usage by date" })).toHaveCount(0);
-  await tokensMetric.getByRole("button", { name: /Show daily token usage chart/ }).click();
-  await expect(tokensMetric.getByText("Daily usage by day")).toBeVisible();
+
+  const projectDropdown = page.locator(".project-dropdown-trigger");
+  await expect(projectDropdown).toBeVisible();
+  await projectDropdown.click();
+  const projectListbox = page.getByRole("listbox", { name: "Project" });
+  await expect(projectListbox.getByRole("option", { name: /superview-fixture/ })).toHaveAttribute("aria-selected", "true");
+  await expect(projectListbox.getByRole("option", { name: /superview-fixture/ })).toContainText("0.006M / KV 21.1%");
+  await projectDropdown.click();
+
+  await expect(page.locator(".session-recap > summary")).toContainText("0.008M tokens");
   await expect(page.getByRole("img", { name: "Daily token usage by date" })).toBeVisible();
   await expect(page.getByLabel("Visible token usage breakdown").getByText("Input", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Visible token usage breakdown").getByText("Cached input", { exact: true })).toBeVisible();
-  await tokensMetric.getByRole("button", { name: /Hide daily token usage chart/ }).click();
+  await page.locator(".session-recap > summary").click();
   await expect(page.getByRole("img", { name: "Daily token usage by date" })).toHaveCount(0);
-  await expect(page.getByLabel("Project", { exact: true })).toHaveValue("project-fixture");
-  await expect(page.getByLabel("Project", { exact: true })).toContainText("0.006M tokens / KV 21.1%");
-  await expect(page.getByText("User", { exact: true }).first()).toBeVisible();
+  await page.locator(".session-recap > summary").click();
+  await expect(page.getByText("Thought → Action")).toBeVisible();
   await expect(page.getByText("Codex CLI", { exact: true }).first()).toBeVisible();
   const masterList = page.getByLabel("User input index");
   const detailsPane = page.getByLabel("Selected user input details");
@@ -767,93 +785,63 @@ test("scans fixture logs, renders an IM-style task thread, hides background deta
   await expect(page.locator(".conversation-master-item").nth(3)).toContainText("Build task journey from input 75");
   await expect(page.locator(".conversation-master-item").nth(4)).toContainText("Build task journey from input 0");
   await expect(detailsPane.getByText("Build task journey from input 300")).toBeVisible();
-  await expect(detailsPane.locator(".conversation-turn")).toHaveCount(1);
+  await expect(detailsPane.locator(".spine-move")).toHaveCount(26);
   await expect(detailsPane.getByText("Build task journey from input 0")).toHaveCount(0);
-  await page.locator(".conversation-master-item").filter({ hasText: "Build task journey from input 0" }).click();
+  const input0Item = page.locator(".conversation-master-item").filter({ hasText: "Build task journey from input 0" });
+  await input0Item.click();
   await expect(detailsPane.getByText("Build task journey from input 0")).toBeVisible();
   await expect(detailsPane.getByText("Build task journey from input 300")).toHaveCount(0);
-  await expect(detailsPane.getByText("1m 14s")).toBeVisible();
-  await expect(detailsPane.getByText("0.001M tokens")).toBeVisible();
-  await expect(detailsPane.getByText("KV hit 25.0%")).toBeVisible();
-  await expect(detailsPane.locator(".message-row.user").getByText("Build task journey from input 0")).toHaveCount(1);
-  await expect(detailsPane.locator(".message-row.user .skill-chip", { hasText: "abtest" })).toBeVisible();
-  await expect(detailsPane.locator(".message-row.codex .skill-chip", { hasText: "design-review" }).first()).toBeVisible();
+  await expect(input0Item.locator("em")).toContainText("1m 14s");
+  await expect(input0Item.locator("em")).toContainText("0.001M tokens");
+  await expect(input0Item.locator("em")).toContainText("KV hit 25.0%");
+  await expect(detailsPane.locator(".spine-title")).toContainText("Build task journey from input 0");
   await expect(contextReplayRequests).toEqual([]);
   await detailsPane.getByRole("tab", { name: "Context Replay" }).click();
   await expect.poll(() => contextReplayRequests.filter((id) => id === "task-0").length).toBe(1);
+  await expect(detailsPane.locator(".skill-chip", { hasText: "abtest" })).toBeVisible();
+  await expect(detailsPane.locator(".skill-chip", { hasText: "design-review" }).first()).toBeVisible();
   const contextReplayLedger = detailsPane.getByRole("region", { name: "Context Replay ledger" });
   await expect(contextReplayLedger).toContainText("Build task journey from input 0");
-  await expect(contextReplayLedger).toContainText("ui/src/App.tsx");
   await expect(contextReplayLedger.locator(".context-snapshot-index")).toHaveText(["1", "2"]);
   await expect(contextReplayLedger.getByText("from step 1")).toBeVisible();
-  await expect(contextReplayLedger.getByText("from step 2")).toBeVisible();
   await page.locator(".context-block-card").first().click();
   await page.keyboard.press("ArrowLeft");
   await expect(contextReplayLedger.getByRole("button", { name: /Step 1: Prompt/ })).toHaveClass(/active/);
   await page.keyboard.press("ArrowRight");
   await expect(contextReplayLedger.getByRole("button", { name: /Step 2: Response/ })).toHaveClass(/active/);
+  await expect(contextReplayLedger).toContainText("ui/src/App.tsx");
+  await expect(contextReplayLedger.getByText("from step 2")).toBeVisible();
   await expect(detailsPane.getByText("Unverified final response")).toBeVisible();
   await detailsPane.getByRole("tab", { name: "Intent Route" }).click();
   const intentRoute = detailsPane.getByRole("region", { name: "Task intent route" });
   await expect(intentRoute).toContainText("Outcome needs proof");
   await expect(intentRoute.getByText("No verification observed")).toBeVisible();
-  await intentRoute.getByRole("button", { name: "Codex completed task 0 in CLI output." }).click();
-  await expect(intentRoute.getByText("Codex completed task 0 in CLI output.")).toBeVisible();
+  await intentRoute.getByRole("button", { name: "Loaded task detail 299" }).click();
+  await expect(intentRoute.getByText("Loaded task detail 299")).toBeVisible();
   await detailsPane.getByRole("tab", { name: "Conversation" }).click();
   await page.locator(".conversation-master-item").filter({ hasText: "Build task journey from input 75" }).click();
-  await expect(detailsPane.getByText("Build task journey from input 75")).toBeVisible();
-  await expect(detailsPane.getByText("Build task journey from input 0")).toHaveCount(0);
+  await expect(detailsPane.locator(".spine-title")).toContainText("Build task journey from input 75");
+  await expect(detailsPane.locator(".spine-title")).not.toContainText("Build task journey from input 0");
   await page.locator(".conversation-master-item").filter({ hasText: "Build task journey from input 0" }).click();
-  await expect(detailsPane.getByRole("button", { name: /Agent work.*Hide process\.\.\./ })).toHaveCount(1);
-  await expect(detailsPane.locator(":scope .conversation-turn > .message-row.user .conversation-message.user")).toBeVisible();
-  await expect(detailsPane.locator(":scope .conversation-turn > .detail-message-row .conversation-message.codex.detail-toggle")).toBeVisible();
-  await expect(detailsPane.locator(":scope .conversation-turn > .message-row.codex .conversation-message.codex:not(.detail-toggle)")).toBeVisible();
-  await expect(page.getByText("Loaded task detail 2")).toHaveCount(0);
-  await expect(page.getByText("Agent Trace", { exact: true })).toHaveCount(0);
-  await expect(page.locator(".lane-label")).toHaveCount(0);
-  await expect(page.getByText("1-340 of 340")).toBeVisible();
-  await expect(page.getByText("5 task journeys loaded from 340 events")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Prev page" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Next page" })).toHaveCount(0);
+  await expect(detailsPane.locator(".spine-title")).toContainText("Build task journey from input 0");
   await expect.poll(() => journeyDetailRequests.filter((id) => id === "task-0").length).toBe(1);
-  await detailsPane.getByRole("button", { name: /Agent work.*Hide process\.\.\./ }).click();
-  await expect(detailsPane.getByRole("button", { name: /Agent work.*View process\.\.\./ })).toHaveCount(1);
-  await detailsPane.getByRole("button", { name: /Agent work.*View process\.\.\./ }).click();
-  await expect(detailsPane.getByRole("button", { name: /Agent work.*Hide process\.\.\./ })).toHaveCount(1);
   await expect(journeyDetailRequests).not.toContain("task-225");
   await page.locator(".conversation-master-item").filter({ hasText: "Build task journey from input 225" }).click();
   await expect.poll(() => journeyDetailRequests.filter((id) => id === "task-225").length).toBe(1);
-  await expect(detailsPane.getByRole("button", { name: /Agent work.*Hide process\.\.\./ })).toHaveCount(1);
-  await expect(detailsPane.getByText("Codex completed task 225 in CLI output.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Show causal paths" })).toHaveCount(0);
-  await expect(page.getByText("Causal path", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Causal Links" })).toHaveCount(0);
-  await expect(journeyDetailRequests).not.toContain("task-300");
+  await expect(detailsPane.locator(".spine-title")).toContainText("Build task journey from input 225");
   await page.locator(".conversation-master-item").filter({ hasText: "Build task journey from input 300" }).click();
   await expect.poll(() => journeyDetailRequests.filter((id) => id === "task-300").length).toBe(1);
-  await expect(detailsPane.getByRole("button", { name: /Agent work.*Hide process\.\.\./ })).toHaveCount(1);
-  await expect(page.getByText("Codex completed task 300 in CLI output.")).toBeVisible();
-  await expect(detailsPane.locator(".skill-chip", { hasText: "ui-ux-pro-max" }).first()).toBeVisible();
-  const task300CodexBody = detailsPane.locator(".message-row.codex .message-body");
-  await expect(task300CodexBody).toHaveAttribute("data-expanded", "false");
-  await expect.poll(async () => Math.round((await task300CodexBody.boundingBox())?.height ?? 0)).toBeLessThanOrEqual(250);
-  await detailsPane.locator(".message-expand-toggle").filter({ hasText: "Expand" }).click();
-  await expect(task300CodexBody).toHaveAttribute("data-expanded", "true");
-  await expect.poll(async () => Math.round((await task300CodexBody.boundingBox())?.height ?? 0)).toBeGreaterThan(250);
-  await detailsPane.locator(".message-expand-toggle").filter({ hasText: "Collapse" }).click();
-  await expect(task300CodexBody).toHaveAttribute("data-expanded", "false");
-  await expect(page.getByText("Background Work", { exact: true })).toBeVisible();
-  await expect(page.getByText("Log", { exact: true })).toBeVisible();
-  await expect(page.getByText("Loaded task detail 302")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Agent work.*Hide process\.\.\./ })).toBeVisible();
-  await page.getByRole("button", { name: /Codex CLI.*Codex completed task 300/ }).click({ force: true });
-  await expect(page.getByText(/causal links on this page/)).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Causal Links" })).toHaveCount(0);
+  await expect(detailsPane.locator(".spine-title")).toContainText("Build task journey from input 300");
+  await detailsPane.getByRole("tab", { name: "Subagent" }).click();
+  await expect(detailsPane.getByText("No background work captured for this task.", { exact: true })).toBeVisible();
+  await detailsPane.getByRole("tab", { name: "Conversation" }).click();
+  await detailsPane.locator(".spine-node.act").first().click();
   await expect(page.getByText("redacted command output")).toBeVisible();
   await expect(page.getByText("{\"token\":\"[REDACTED]\"}")).toBeVisible();
   expect(evidenceRequested).toBe(true);
 
   await page.getByLabel("Toggle theme").click();
+  await page.getByRole("menuitemradio", { name: "Dark" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 

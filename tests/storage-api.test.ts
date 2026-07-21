@@ -266,6 +266,41 @@ describe("CC Flight API", () => {
     }
   });
 
+  it("lists subagent journeys when their parent session log is unavailable", async () => {
+    const claudeSubagentHome = createClaudeSubagentHome(false);
+    try {
+      const app = createServer();
+      const job = await runIngestSources(app, [{ provider: "claude-code", root: claudeSubagentHome }]);
+      expect(job.status).toBe("completed");
+
+      const projects = await request(app).get("/api/projects");
+      const project = projects.body.projects.find((candidate: { cwd: string }) => candidate.cwd.endsWith("/packages/worker"));
+      expect(project).toBeTruthy();
+
+      const timeline = await request(app).get(`/api/projects/${project.id}/timeline`).query({ limit: 100 });
+      expect(timeline.status).toBe(200);
+      expect(timeline.body.taskJourneys).toHaveLength(1);
+      expect(timeline.body.taskJourneys[0]).toMatchObject({
+        title: "Inspect the weather API parser",
+        subThreadCount: 1
+      });
+
+      const detail = await request(app).get(`/api/task-journeys/${timeline.body.taskJourneys[0].id}`).query({ projectId: project.id });
+      expect(detail.status).toBe(200);
+      expect(detail.body.subThreads).toHaveLength(1);
+      expect(detail.body.subThreads[0].events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "assistant_message",
+            detail: "The nested worker verified the fallback path."
+          })
+        ])
+      );
+    } finally {
+      rmSync(claudeSubagentHome, { recursive: true, force: true });
+    }
+  });
+
   it("reprocesses unchanged files when their stored processor version is stale", async () => {
     const app = createServer();
 
@@ -672,11 +707,24 @@ function git(repoRoot: string, args: string[]) {
   });
 }
 
+function isProcessRunning(pid: number | null | undefined): boolean {
+  if (!pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
 async function waitForJob(app: express.Express, jobId: string) {
   for (let index = 0; index < 500; index += 1) {
     const response = await request(app).get(`/api/ingest/jobs/${jobId}`);
     expect(response.status).toBe(200);
     if (response.body.status === "completed" || response.body.status === "failed") {
+      while (isProcessRunning(response.body.workerPid)) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
       return response.body;
     }
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -745,33 +793,35 @@ function createSingleSessionTimelineCodexHome(eventCount: number) {
   return fixtureHome;
 }
 
-function createClaudeSubagentHome() {
+function createClaudeSubagentHome(includeParent = true) {
   const fixtureHome = mkdtempSync(path.join(tmpdir(), "superview-claude-subagent-home-"));
   const projectDir = path.join(fixtureHome, "projects", "-tmp-subthread-project");
   const subagentDir = path.join(projectDir, "parent-session", "subagents");
   mkdirSync(subagentDir, { recursive: true });
 
-  writeFileSync(
-    path.join(projectDir, "parent-session.jsonl"),
-    [
-      JSON.stringify({
-        cwd: "/tmp/subthread-project",
-        sessionId: "parent-session",
-        version: "1.2.3",
-        type: "user",
-        message: { role: "user", content: "Build weather card" },
-        timestamp: "2026-05-29T00:00:00.000Z"
-      }),
-      JSON.stringify({
-        cwd: "/tmp/subthread-project",
-        sessionId: "parent-session",
-        version: "1.2.3",
-        type: "assistant",
-        message: { role: "assistant", content: "I will ask a subagent to inspect the weather parser." },
-        timestamp: "2026-05-29T00:00:01.000Z"
-      })
-    ].join("\n")
-  );
+  if (includeParent) {
+    writeFileSync(
+      path.join(projectDir, "parent-session.jsonl"),
+      [
+        JSON.stringify({
+          cwd: "/tmp/subthread-project",
+          sessionId: "parent-session",
+          version: "1.2.3",
+          type: "user",
+          message: { role: "user", content: "Build weather card" },
+          timestamp: "2026-05-29T00:00:00.000Z"
+        }),
+        JSON.stringify({
+          cwd: "/tmp/subthread-project",
+          sessionId: "parent-session",
+          version: "1.2.3",
+          type: "assistant",
+          message: { role: "assistant", content: "I will ask a subagent to inspect the weather parser." },
+          timestamp: "2026-05-29T00:00:01.000Z"
+        })
+      ].join("\n")
+    );
+  }
 
   writeFileSync(
     path.join(subagentDir, "agent-worker.jsonl"),
@@ -794,6 +844,20 @@ function createClaudeSubagentHome() {
       })
     ].join("\n")
   );
+
+  if (!includeParent) {
+    writeFileSync(
+      path.join(subagentDir, "agent-nested-worker.jsonl"),
+      JSON.stringify({
+        cwd: "/tmp/subthread-project/packages/worker",
+        sessionId: "worker-session",
+        version: "1.2.3",
+        type: "assistant",
+        message: { role: "assistant", content: "The nested worker verified the fallback path." },
+        timestamp: "2026-05-29T00:00:04.000Z"
+      })
+    );
+  }
 
   return fixtureHome;
 }

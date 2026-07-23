@@ -6663,6 +6663,15 @@ pre {
   border-radius: 2px;
   background: var(--line-strong);
 }
+.spine-mbtn.has-subagent .spine-seg {
+  display: none;
+}
+.spine-mbtn.has-subagent svg {
+  color: var(--accent);
+}
+.spine-mbtn.has-subagent.current svg {
+  color: var(--orange);
+}
 .spine-mbtn.err .spine-seg {
   background: var(--danger);
 }

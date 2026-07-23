@@ -3965,6 +3965,22 @@ function CausalSpine({
     () => buildSpineMoves(events),
     [detail],
   );
+  const subagentMoveIndices = useMemo(() => {
+    const set = new Set<number>();
+    if (!detail?.subThreads) return set;
+    for (const st of detail.subThreads) {
+      const stStart = Date.parse(st.journey.startedAt);
+      const index = moves.findIndex((m, i) => {
+        const moveStart = Date.parse(m.timestamp);
+        const nextMove = moves[i + 1];
+        const nextStart = nextMove ? Date.parse(nextMove.timestamp) : Infinity;
+        return stStart >= moveStart && stStart < nextStart;
+      });
+      if (index !== -1) set.add(index);
+    }
+    return set;
+  }, [detail, moves]);
+
   const [cur, setCur] = useState(-1);
   const [playing, setPlaying] = useState(false);
   const moveRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -4288,14 +4304,20 @@ function CausalSpine({
                 type="button"
                 className={`spine-mbtn${move.observeOk ? "" : " err"}${
                   move.isRedirect ? " redirect" : ""
-                }${move.index === cur ? " current" : ""}`}
+                }${move.index === cur ? " current" : ""}${
+                  subagentMoveIndices.has(move.index) ? " has-subagent" : ""
+                }`}
                 title={`${copy.spineMoves} ${move.index + 1}`}
                 onClick={() => {
                   setPlaying(false);
                   setCur(move.index);
                 }}
               >
-                <span className="spine-seg" />
+                {subagentMoveIndices.has(move.index) ? (
+                  <GitMerge size={12} strokeWidth={2.5} />
+                ) : (
+                  <span className="spine-seg" />
+                )}
               </button>
             ))}
           </div>

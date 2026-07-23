@@ -6439,21 +6439,21 @@ pre {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
+  background: var(--blue-soft);
+  border: 1px solid var(--blue);
   border-radius: 6px;
   padding: 6px 10px;
   margin-top: 8px;
   font-size: 0.85rem;
-  color: var(--fg);
+  color: var(--blue);
   cursor: pointer;
   width: fit-content;
   transition: background 0.15s, border-color 0.15s;
 }
 
 .spine-subagent-link:hover {
-  background: var(--surface-hover);
-  border-color: var(--border-hover);
+  background: color-mix(in srgb, var(--blue) 15%, var(--blue-soft));
+  border-color: var(--blue);
 }
 
 .spine-subagent-link svg {

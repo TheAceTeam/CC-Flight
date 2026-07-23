@@ -6457,7 +6457,7 @@ pre {
 }
 
 .spine-subagent-link svg {
-  color: var(--accent);
+  color: var(--blue);
 }
 
 .spine-move-header {
@@ -6667,10 +6667,10 @@ pre {
   display: none;
 }
 .spine-mbtn.has-subagent svg {
-  color: var(--accent);
+  color: var(--blue);
 }
 .spine-mbtn.has-subagent.current svg {
-  color: var(--orange);
+  color: var(--blue);
 }
 .spine-mbtn.err .spine-seg {
   background: var(--danger);

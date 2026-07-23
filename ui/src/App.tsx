@@ -30,6 +30,7 @@ import {
   WifiOff,
   X,
   Zap,
+  GitMerge,
 } from "lucide-react";
 import {
   Fragment,
@@ -1767,6 +1768,7 @@ function ConversationThread({
   const masterListRef = useRef<HTMLDivElement>(null);
   const [detailTab, setDetailTab] = useState<ThreadDetailTab>("conversation");
   const [masterMinimized, setMasterMinimized] = useState(false);
+  const [selectedSubThreadId, setSelectedSubThreadId] = useState<string | null>(null);
   const selectedJourney =
     orderedJourneys.find((journey) => journey.id === selectedJourneyId) ??
     orderedJourneys[0] ??
@@ -2049,6 +2051,8 @@ function ConversationThread({
               loading={Boolean(loadingJourneyIds[selectedJourney.id])}
               selectedEventId={selectedEventId}
               onSelectEvent={onSelectEvent}
+              selectedSubThreadId={selectedSubThreadId}
+              onSelectSubThreadId={setSelectedSubThreadId}
             />
           ) : (
             <CausalSpine
@@ -2062,6 +2066,10 @@ function ConversationThread({
               loading={Boolean(loadingJourneyIds[selectedJourney.id])}
               selectedEventId={selectedEventId}
               onSelectEvent={onSelectEvent}
+              onSelectSubThread={(subThreadId) => {
+                setSelectedSubThreadId(subThreadId);
+                setDetailTab("subagent");
+              }}
             />
           )
         ) : (
@@ -3941,6 +3949,7 @@ function CausalSpine({
   loading,
   selectedEventId,
   onSelectEvent,
+  onSelectSubThread,
 }: {
   copy: AppCopy["timeline"];
   journey: TaskJourney;
@@ -3949,6 +3958,7 @@ function CausalSpine({
   loading: boolean;
   selectedEventId: string | null;
   onSelectEvent: (event: TimelineEvent) => void;
+  onSelectSubThread?: (subThreadId: string) => void;
 }) {
   const events = detail?.events ?? [];
   const moves = useMemo(
@@ -4168,6 +4178,23 @@ function CausalSpine({
                     </button>
                   ) : null}
 
+                  {detail?.subThreads?.filter(st => {
+                    const stStart = Date.parse(st.journey.startedAt);
+                    const moveStart = Date.parse(move.timestamp);
+                    const nextMove = moves[move.index + 1];
+                    const nextStart = nextMove ? Date.parse(nextMove.timestamp) : Infinity;
+                    return stStart >= moveStart && stStart < nextStart;
+                  }).map(st => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      className="spine-subagent-link"
+                      onClick={() => onSelectSubThread?.(st.id)}
+                    >
+                      <GitMerge size={13} /> {copy.subagentTab}: {subThreadTitle(st)}
+                    </button>
+                  ))}
+
                   {move.actions.length > 0 ? (
                     <button
                       type="button"
@@ -4359,12 +4386,16 @@ function SubThreadPanel({
   loading,
   selectedEventId,
   onSelectEvent,
+  selectedSubThreadId,
+  onSelectSubThreadId,
 }: {
   copy: AppCopy["timeline"];
   detail: TaskJourneyDetail | null;
   loading: boolean;
   selectedEventId: string | null;
   onSelectEvent: (event: TimelineEvent) => void;
+  selectedSubThreadId: string | null;
+  onSelectSubThreadId: (id: string | null) => void;
 }) {
   const subThreads = detail?.subThreads ?? [];
   const subThreadSummaries = useMemo(
@@ -4376,17 +4407,12 @@ function SubThreadPanel({
     [subThreads],
   );
   const subThreadIds = subThreads.map((thread) => thread.id).join("|");
-  const [selectedSubThreadId, setSelectedSubThreadId] = useState<string | null>(
-    null,
-  );
 
   useEffect(() => {
-    setSelectedSubThreadId((current) =>
-      current && subThreads.some((thread) => thread.id === current)
-        ? current
-        : subThreads[0]?.id ?? null,
-    );
-  }, [subThreadIds]);
+    if (!selectedSubThreadId || !subThreads.some((thread) => thread.id === selectedSubThreadId)) {
+      onSelectSubThreadId(subThreads[0]?.id ?? null);
+    }
+  }, [subThreadIds, selectedSubThreadId, onSelectSubThreadId]);
 
   const selectedSubThread =
     subThreadSummaries.find(({ thread }) => thread.id === selectedSubThreadId) ??
@@ -4429,7 +4455,7 @@ function SubThreadPanel({
                 type="button"
                 className={`subthread-index-item${thread.id === selectedSubThread?.thread.id ? " active" : ""}`}
                 aria-pressed={thread.id === selectedSubThread?.thread.id}
-                onClick={() => setSelectedSubThreadId(thread.id)}
+                onClick={() => onSelectSubThreadId(thread.id)}
                 title={title}
               >
                 <span className={`subthread-status ${thread.journey.status}`} />

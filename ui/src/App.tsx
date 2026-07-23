@@ -4542,6 +4542,19 @@ function SubThreadSpine({
                 <span className="spine-connector" />
               </div>
               <div className="spine-nodes">
+                <div className="spine-move-header">
+                  <span className="spine-move-step">
+                    {copy.contextReplayStep} 0
+                  </span>
+                  {prompt ? (
+                    <>
+                      <span className="spine-move-meta-sep">·</span>
+                      <span className="spine-move-time">
+                        {formatDate(prompt.timestamp)}
+                      </span>
+                    </>
+                  ) : null}
+                </div>
                 <button
                   type="button"
                   className={`spine-node prompt${

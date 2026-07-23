@@ -1765,6 +1765,12 @@ function ConversationThread({
     () => applySearchAndSort(journeys, searchQuery, sortKey, pricing),
     [journeys, searchQuery, sortKey, pricing],
   );
+  const journeyChronologicalMap = useMemo(() => {
+    const sorted = [...journeys].sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt));
+    const map = new Map<string, number>();
+    sorted.forEach((j, i) => map.set(j.id, i + 1));
+    return map;
+  }, [journeys]);
   const masterListRef = useRef<HTMLDivElement>(null);
   const [detailTab, setDetailTab] = useState<ThreadDetailTab>("conversation");
   const [masterMinimized, setMasterMinimized] = useState(false);
@@ -1963,6 +1969,7 @@ function ConversationThread({
               key={journey.id}
               copy={copy}
               journey={journey}
+              index={journeyChronologicalMap.get(journey.id) ?? 0}
               fallbackPrompt={
                 timelineEventsById.get(journey.promptEventId) ?? null
               }
@@ -2059,6 +2066,7 @@ function ConversationThread({
               key={selectedJourney.id}
               copy={copy}
               journey={selectedJourney}
+              index={journeyChronologicalMap.get(selectedJourney.id) ?? 0}
               detail={detailsByJourneyId[selectedJourney.id] ?? null}
               fallbackPrompt={
                 timelineEventsById.get(selectedJourney.promptEventId) ?? null
@@ -2113,6 +2121,7 @@ function ConversationThread({
 function ConversationMasterItem({
   copy,
   journey,
+  index,
   fallbackPrompt,
   active,
   loading,
@@ -2121,6 +2130,7 @@ function ConversationMasterItem({
 }: {
   copy: AppCopy["timeline"];
   journey: TaskJourney;
+  index: number;
   fallbackPrompt: TimelineEvent | null;
   active: boolean;
   loading: boolean;
@@ -2158,7 +2168,7 @@ function ConversationMasterItem({
           </span>
         ) : null}
       </span>
-      <strong>{promptText}</strong>
+      <strong>#{index} {promptText}</strong>
       {active ? (
         <EventTape
           eventIds={journey.eventIds}
@@ -3944,6 +3954,7 @@ function buildSpineMoves(events: TimelineEvent[]): SpineMove[] {
 function CausalSpine({
   copy,
   journey,
+  index,
   detail,
   fallbackPrompt,
   loading,
@@ -3953,6 +3964,7 @@ function CausalSpine({
 }: {
   copy: AppCopy["timeline"];
   journey: TaskJourney;
+  index: number;
   detail: TaskJourneyDetail | null;
   fallbackPrompt: TimelineEvent | null;
   loading: boolean;
@@ -4086,7 +4098,7 @@ function CausalSpine({
         <p className="spine-eyebrow">
           {copy.spineThought} → {copy.spineAction}
         </p>
-        <h2 className="spine-title">{promptText}</h2>
+        <h2 className="spine-title">#{index} {promptText}</h2>
         <div className="spine-runmeta">
           <div className="spine-m">
             <b>{moves.length}</b>

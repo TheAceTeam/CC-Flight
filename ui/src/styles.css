@@ -2308,6 +2308,14 @@ select {
     -webkit-line-clamp: 3;
 }
 
+.journey-serial {
+    font-size: 1.25em;
+    font-family: var(--spine-mono);
+    color: var(--orange);
+    margin-right: 2px;
+    font-weight: 800;
+}
+
 .conversation-master-meta {
     display: flex;
     align-items: center;

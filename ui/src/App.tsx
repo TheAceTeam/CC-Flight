@@ -2168,7 +2168,7 @@ function ConversationMasterItem({
           </span>
         ) : null}
       </span>
-      <strong>#{index} {promptText}</strong>
+      <strong><span className="journey-serial">#{index}</span> {promptText}</strong>
       {active ? (
         <EventTape
           eventIds={journey.eventIds}
@@ -4098,7 +4098,7 @@ function CausalSpine({
         <p className="spine-eyebrow">
           {copy.spineThought} → {copy.spineAction}
         </p>
-        <h2 className="spine-title">#{index} {promptText}</h2>
+        <h2 className="spine-title"><span className="journey-serial">#{index}</span> {promptText}</h2>
         <div className="spine-runmeta">
           <div className="spine-m">
             <b>{moves.length}</b>

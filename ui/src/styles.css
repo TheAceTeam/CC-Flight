@@ -2316,6 +2316,11 @@ select {
     font-weight: 800;
 }
 
+.conversation-master-item .journey-serial,
+.subthread-index-item .journey-serial {
+    font-size: 1.45em;
+}
+
 .conversation-master-meta {
     display: flex;
     align-items: center;

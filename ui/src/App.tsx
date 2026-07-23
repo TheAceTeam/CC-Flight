@@ -4493,9 +4493,9 @@ function SubThreadPanel({
                 title={title}
               >
                 <span className={`subthread-status ${thread.journey.status}`} />
-                <strong>{title}</strong>
+                <strong><span className="journey-serial">#{index + 1}</span> {title}</strong>
                 <em>
-                  #{index + 1} · {moves.length} {copy.spineMoves} ·{" "}
+                  {moves.length} {copy.spineMoves} ·{" "}
                   {thread.events.length} {copy.runLedgerEvents}
                 </em>
               </button>

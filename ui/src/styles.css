@@ -7321,6 +7321,9 @@ pre {
     top: 88px;
     align-self: start;
     height: max-content;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding-right: 4px;
 }
 .spine-mtrack {
     display: flex;
@@ -7503,6 +7506,7 @@ pre {
     align-content: start;
     gap: 8px;
     height: 100%;
+    min-height: 0;
     min-width: 0;
     overflow: auto;
     padding-right: 2px;
@@ -7574,6 +7578,7 @@ pre {
     align-content: start;
     gap: 12px;
     height: 100%;
+    min-height: 0;
     min-width: 0;
     padding: 12px;
     border: 1px solid var(--line);

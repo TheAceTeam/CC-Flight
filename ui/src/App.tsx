@@ -4536,7 +4536,7 @@ function SubThreadSpine({
       {promptText || moves.length > 0 ? (
         <div className="subthread-spine-track">
           {promptText ? (
-            <div className="spine-move subthread-move subthread-prompt-move played">
+            <div className="spine-move played">
               <div className="spine-rail">
                 <span className="spine-station" />
                 <span className="spine-connector" />
@@ -4562,7 +4562,7 @@ function SubThreadSpine({
           {moves.map((move) => (
             <div
               key={move.id}
-              className={`spine-move subthread-move played${move.isRedirect ? " is-redirect" : ""}`}
+              className={`spine-move played${move.isRedirect ? " is-redirect" : ""}`}
             >
               <div className="spine-rail">
                 <span className="spine-station" />

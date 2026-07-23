@@ -6905,16 +6905,6 @@ pre {
   display: grid;
 }
 
-
-.subthread-move .spine-nodes {
-  padding-bottom: 14px;
-}
-
-.subthread-prompt-move .spine-station {
-  border-color: var(--orange);
-  background: var(--orange);
-}
-
 @media (max-width: 720px) {
   .spine-stage {
     grid-template-columns: 1fr;

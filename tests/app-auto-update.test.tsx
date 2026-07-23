@@ -9,7 +9,7 @@ import {
 } from "../ui/src/api";
 
 vi.mock("../ui/src/api", () => ({
-  fetchConfig: vi.fn(async () => ({ projectDir: null, version: "0.7.0" })),
+  fetchConfig: vi.fn(async () => ({ projectDir: null, version: "0.7.1" })),
   fetchProjects: vi.fn(async () => [
     {
       id: "project-auto",

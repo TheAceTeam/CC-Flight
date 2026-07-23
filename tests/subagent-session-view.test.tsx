@@ -8,7 +8,7 @@ const { fetchTaskJourneyDetailMock, fetchTimelineMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("../ui/src/api", () => ({
-  fetchConfig: vi.fn(async () => ({ projectDir: null, version: "0.7.0" })),
+  fetchConfig: vi.fn(async () => ({ projectDir: null, version: "0.7.1" })),
   fetchProjects: vi.fn(async () => {
     const sessions = fixtureSessions();
     return [

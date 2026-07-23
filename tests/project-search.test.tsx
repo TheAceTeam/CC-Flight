@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { App } from "../ui/src/App";
 
 vi.mock("../ui/src/api", () => ({
-  fetchConfig: vi.fn(async () => ({ projectDir: null, version: "0.7.0" })),
+  fetchConfig: vi.fn(async () => ({ projectDir: null, version: "0.7.1" })),
   fetchProjects: vi.fn(async () => [
     project("project-alpha", "Alpha Dashboard", "codex"),
     project("project-beta", "Beta Context Lab", "claude-code"),

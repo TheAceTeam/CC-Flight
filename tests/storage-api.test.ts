@@ -44,7 +44,7 @@ describe("CC Flight API", () => {
 
     const config = await request(app).get("/api/config");
     expect(config.status).toBe(200);
-    expect(config.body.version).toBe("0.7.0");
+    expect(config.body.version).toBe("0.7.1");
 
     const ingest = await request(app).post("/api/ingest").send({ codexHome });
     expect(ingest.status).toBe(202);

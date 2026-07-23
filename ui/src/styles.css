@@ -6464,14 +6464,10 @@ pre {
   display: flex;
   align-items: center;
   gap: 6px;
-  font: 500 11px/1.4 var(--spine-mono);
-  color: var(--muted);
+  font: 600 11px/1.4 var(--spine-mono);
+  color: var(--ink);
   margin-bottom: 8px;
   letter-spacing: .3px;
-}
-.spine-move-step {
-  font-weight: 600;
-  color: var(--ink);
 }
 .spine-move-meta-sep {
   opacity: 0.5;
@@ -6504,11 +6500,6 @@ pre {
 }
 .spine-move.current .spine-node.think {
   border-color: var(--orange);
-}
-
-.spine-node.prompt {
-  border-color: color-mix(in srgb, var(--orange) 32%, var(--line));
-  background: color-mix(in srgb, var(--orange-soft) 48%, var(--surface-2));
 }
 
 .spine-role {

@@ -145,6 +145,7 @@ export function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null,
   );
+  const initialAutoScanDone = useRef(false);
   // Server --project-dir (launch dir). Drives auto-select once that project is ingested.
   const [serverProjectDir, setServerProjectDir] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
@@ -431,6 +432,17 @@ export function App() {
       window.clearInterval(dbTimer);
     };
   }, [selectedProjectId, projects, agentProviders, autoUpdateEnabled]);
+
+  // If auto mode is on, trigger an immediate scan so we don't wait 60s for the first tick
+  useEffect(() => {
+    if (!autoUpdateEnabled || initialAutoScanDone.current || isIngestBusy(jobRef.current)) return;
+    initialAutoScanDone.current = true;
+    void startIngest({
+      sources: agentProviders.map((provider) => ({ provider })),
+    }).then(async (jobId) => {
+      setJob(await fetchIngestJob(jobId));
+    }).catch(() => {});
+  }, [autoUpdateEnabled, agentProviders]);
 
   // Drag-and-drop JSONL import
   useEffect(() => {

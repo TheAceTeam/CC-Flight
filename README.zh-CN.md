@@ -63,6 +63,9 @@ superview
     <td colspan="4" align="center"><img src="docs/assets/08.png" width="900" alt="CC Flight screenshot" /></td>
   </tr>
   <tr>
+    <td colspan="4" align="center"><img src="docs/assets/09.png" width="900" alt="CC Flight screenshot" /></td>
+  </tr>
+  <tr>
     <td><img src="docs/assets/04.png" width="100%" alt="CC Flight 截图" /></td>
     <td><img src="docs/assets/05.png" width="100%" alt="CC Flight 截图" /></td>
     <td><img src="docs/assets/06.png" width="100%" alt="CC Flight 截图" /></td>

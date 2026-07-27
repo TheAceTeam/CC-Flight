@@ -16,16 +16,7 @@ export function createServer(opts?: { projectDir?: string }) {
   const ingest = new IngestService(db);
   const app = express();
 
-  if (opts?.projectDir) {
-    const result = ingest.start({
-      sources: [
-        { provider: "codex" },
-        { provider: "claude-code" },
-        { provider: "opencode" },
-      ]
-    });
-    console.log(`Auto-scan started for ${opts.projectDir} (job: ${result.job.id})`);
-  }
+
 
   app.use(express.json());
 

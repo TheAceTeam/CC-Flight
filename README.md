@@ -29,7 +29,15 @@ ccflight --project-dir=/path/to/project
 
 Then open **http://127.0.0.1:5174** and scan your agent logs.
 
-CC Flight is a local-first flight recorder for coding agents. It ingests session logs from Codex, Claude Code, and OpenCode, reconstructs every task journey, and surfaces hidden agent work — context snapshots, tool calls, cost, errors, and project telemetry — in a single dashboard.
+CC Flight is a local-first flight recorder for coding agents. It ingests session logs from Codex, Claude Code, and OpenCode, reconstructs every task journey, and surfaces hidden agent work — including delegated subagent threads, context snapshots, tool calls, cost, errors, and project telemetry — in one dashboard.
+
+## See the Whole Agent Team
+
+When an agent delegates work, CC Flight keeps the parent journey and every worker thread connected. See how many subagents a task launched, inspect the original launch prompt, and replay each worker's activity without losing the main task's context.
+
+- **Subagent count at a glance** — user-input rows show a `Subagent N` badge whenever nested workers are detected.
+- **Threaded replay** — follow delegated work from the parent timeline into focused subagent sessions instead of reading one long interleaved transcript.
+- **Actionable review** — Project Diagnostics identifies subagent workflows that need a closer look, with a direct route to the relevant task.
 
 ## Package Rename
 
@@ -54,6 +62,9 @@ For future updates, switch scripts and docs to `cc-flight` or `ccflight`.
 
 <table>
   <tr>
+    <td colspan="4" align="center"><img src="docs/assets/09.png" width="900" alt="CC Flight displaying subagent activity connected to a parent journey" /></td>
+  </tr>
+  <tr>
     <td colspan="4" align="center"><img src="docs/assets/02.png" width="900" alt="CC Flight screenshot" /></td>
   </tr>
   <tr>
@@ -61,9 +72,6 @@ For future updates, switch scripts and docs to `cc-flight` or `ccflight`.
   </tr>
   <tr>
     <td colspan="4" align="center"><img src="docs/assets/08.png" width="900" alt="CC Flight screenshot" /></td>
-  </tr>
-  <tr>
-    <td colspan="4" align="center"><img src="docs/assets/09.png" width="900" alt="CC Flight screenshot" /></td>
   </tr>
   <tr>
     <td><img src="docs/assets/04.png" width="100%" alt="CC Flight screenshot" /></td>

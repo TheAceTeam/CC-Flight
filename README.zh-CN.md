@@ -29,7 +29,15 @@ ccflight --project-dir=/path/to/project
 
 然后打开 **http://127.0.0.1:5174**，扫描你的 agent 日志即可。
 
-CC Flight 是一个本地优先的 coding agent 飞行记录器。它会读取 Codex、Claude Code 和 OpenCode 的 session 日志，重建每一轮任务旅程，并将隐藏的 agent 工作——上下文快照、工具调用、成本、错误和项目遥测——呈现在一个统一的仪表盘中。
+CC Flight 是一个本地优先的 coding agent 飞行记录器。它会读取 Codex、Claude Code 和 OpenCode 的 session 日志，重建每一轮任务旅程，并将隐藏的 agent 工作——包括委派给 subagent 的线程、上下文快照、工具调用、成本、错误和项目遥测——呈现在一个统一的仪表盘中。
+
+## 看清整个 Agent 团队
+
+当主 agent 委派任务时，CC Flight 会把父任务与每个 worker 线程持续关联。你可以一眼看到任务启动了多少 subagent，检查主 agent 的原始委派 prompt，并在不丢失主任务上下文的前提下回放每个 worker 的活动。
+
+- **一眼看到 Subagent 数量** — 检测到嵌套 worker 时，user-input 行会显示 `Subagent N` 标记。
+- **线程化回放** — 从父任务时间线进入聚焦的 subagent session，不必在一条冗长、交错的 transcript 中寻找委派工作。
+- **可执行的复盘** — 工程诊断会标出值得仔细检查的 subagent 工作流，并可直接跳转到相关任务。
 
 ## 包名迁移
 
@@ -54,6 +62,9 @@ superview
 
 <table>
   <tr>
+    <td colspan="4" align="center"><img src="docs/assets/09.png" width="900" alt="CC Flight 展示与父任务关联的 subagent 活动" /></td>
+  </tr>
+  <tr>
     <td colspan="4" align="center"><img src="docs/assets/02.png" width="900" alt="CC Flight 截图" /></td>
   </tr>
   <tr>
@@ -61,9 +72,6 @@ superview
   </tr>
   <tr>
     <td colspan="4" align="center"><img src="docs/assets/08.png" width="900" alt="CC Flight screenshot" /></td>
-  </tr>
-  <tr>
-    <td colspan="4" align="center"><img src="docs/assets/09.png" width="900" alt="CC Flight screenshot" /></td>
   </tr>
   <tr>
     <td><img src="docs/assets/04.png" width="100%" alt="CC Flight 截图" /></td>

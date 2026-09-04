@@ -11,6 +11,10 @@ import { getCommits, getRepoRoot } from "./git-provider";
 import { parseCodexHistoryJsonlFile } from "./history";
 
 export const INGEST_PROCESSOR_VERSION = "2026-07-06-claude-sidechain-prompts-v1";
+// Reprocess only legacy SQLite-backed OpenCode sessions; file sources keep the
+// shared processor version and remain eligible for the existing fast path.
+const OPENCODE_DATABASE_PROCESSOR_VERSION = `${INGEST_PROCESSOR_VERSION}-opencode-session-source-v2`;
+const OPENCODE_DATABASE_SOURCE_PREFIX = "opencode:ses:";
 
 export interface IngestStartResult {
   job: IngestJob;
@@ -157,7 +161,8 @@ export async function runIngestJob(db: CCFlightDatabase, jobId: string, ingestOp
     for (const candidate of sources) {
       totalBytes += candidate.source.sizeBytes;
       const previous = db.getIngestedFile(candidate.source.id);
-      if (previous && previous.mtimeMs === candidate.source.mtimeMs && previous.sizeBytes === candidate.source.sizeBytes && previous.processorVersion === INGEST_PROCESSOR_VERSION) {
+      const processorVersion = processorVersionForSource(candidate.source);
+      if (previous && previous.mtimeMs === candidate.source.mtimeMs && previous.sizeBytes === candidate.source.sizeBytes && previous.processorVersion === processorVersion) {
         skippedFiles += 1;
         skippedBytes += candidate.source.sizeBytes;
       } else {
@@ -200,14 +205,14 @@ export async function runIngestJob(db: CCFlightDatabase, jobId: string, ingestOp
         if (bundle) {
           bundle.historyPrompts = normalizeHistoryPrompts(historyBySessionId.get(bundle.session.externalSessionId) ?? historyBySessionId.get(bundle.session.id) ?? [], bundle.session.id);
           bundle.gitCommits = bundle.project.repoRoot ? await cachedCommits(commitsByRepoRoot, bundle.project.repoRoot, bundle.session.startedAt, bundle.session.endedAt) : [];
-          db.upsertBundle(bundle);
+          db.upsertBundle(bundle, candidate.source.id);
           db.upsertIngestedFile({
             path: candidate.source.id,
             mtimeMs: candidate.source.mtimeMs,
             sizeBytes: candidate.source.sizeBytes,
             sha256: null,
             sessionId: bundle.session.id,
-            processorVersion: INGEST_PROCESSOR_VERSION,
+            processorVersion: processorVersionForSource(candidate.source),
             processedAt: new Date().toISOString()
           });
           projectCount += 1;
@@ -220,7 +225,7 @@ export async function runIngestJob(db: CCFlightDatabase, jobId: string, ingestOp
             sizeBytes: candidate.source.sizeBytes,
             sha256: null,
             sessionId: null,
-            processorVersion: INGEST_PROCESSOR_VERSION,
+            processorVersion: processorVersionForSource(candidate.source),
             processedAt: new Date().toISOString()
           });
         }
@@ -249,6 +254,12 @@ export async function runIngestJob(db: CCFlightDatabase, jobId: string, ingestOp
     db.upsertJob(job);
     return null;
   }
+}
+
+function processorVersionForSource(source: AgentLogSource): string {
+  return source.id.startsWith(OPENCODE_DATABASE_SOURCE_PREFIX)
+    ? OPENCODE_DATABASE_PROCESSOR_VERSION
+    : INGEST_PROCESSOR_VERSION;
 }
 
 function normalizeHistoryPrompts(prompts: CodexHistoryPrompt[], sessionId: string): CodexHistoryPrompt[] {

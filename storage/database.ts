@@ -267,9 +267,16 @@ export class CCFlightDatabase {
     this.db.prepare("INSERT OR REPLACE INTO schema_meta(version, updated_at) VALUES (?, ?)").run(SCHEMA_VERSION, new Date().toISOString());
   }
 
-  upsertBundle(bundle: NormalizedBundle) {
+  upsertBundle(bundle: NormalizedBundle, ingestedSourceId?: string) {
     const tx = this.db.transaction(() => {
-      for (const sourcePath of new Set(bundle.rawEventRefs.map((raw) => raw.sourcePath))) {
+      const sourcePaths = new Set(bundle.rawEventRefs.map((raw) => raw.sourcePath));
+      const previousSourcePath = ingestedSourceId ? this.sourcePathForIngestedSource(ingestedSourceId) : null;
+      // Remove data indexed under a previous source identity before writing the
+      // replacement. This also migrates legacy shared OpenCode database paths.
+      if (previousSourcePath && !sourcePaths.has(previousSourcePath)) {
+        this.deleteRawSource(previousSourcePath);
+      }
+      for (const sourcePath of sourcePaths) {
         this.deleteRawSource(sourcePath);
       }
       this.upsertProject(bundle.project);
@@ -474,9 +481,21 @@ export class CCFlightDatabase {
   }
 
   private deleteIngestedSource(sourceId: string) {
-    const sourcePath = sourcePathFromIngestedId(sourceId);
+    const sourcePath = this.sourcePathForIngestedSource(sourceId) ?? sourcePathFromIngestedId(sourceId);
     this.deleteRawSource(sourcePath);
     this.db.prepare("DELETE FROM ingested_files WHERE path = ?").run(sourceId);
+  }
+
+  private sourcePathForIngestedSource(sourceId: string): string | null {
+    const row = this.db
+      .prepare(
+        `SELECT s.path as sourcePath
+         FROM ingested_files f
+         JOIN sessions s ON s.id = f.session_id
+         WHERE f.path = ?`
+      )
+      .get(sourceId) as { sourcePath: string } | undefined;
+    return row?.sourcePath ?? null;
   }
 
   private deleteRawSource(sourcePath: string) {

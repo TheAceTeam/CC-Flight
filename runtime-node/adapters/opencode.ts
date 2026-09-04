@@ -8,6 +8,7 @@ import { opencodeDbCandidates } from "../../storage/paths";
 import { asRecord, makeTokenUsage, numberTimestamp, parsedEvent, readJsonFile, stringValue } from "./shared";
 
 const SOURCE_PREFIX = "opencode:ses:";
+const DATABASE_SESSION_FRAGMENT = "#opencode-session=";
 
 export const opencodeAdapter: AgentLogAdapter = {
   provider: "opencode",
@@ -75,12 +76,22 @@ export const opencodeAdapter: AgentLogAdapter = {
           parts: partsByMessage.get(message.id) ?? []
         }))
       };
-      return normalizeOpenCodeExport(exportShape, source.path, options.repoRoot);
+      // The database is the physical locator, but each row-backed session must
+      // remain independently replaceable in CC Flight's source-path index.
+      return normalizeOpenCodeExport(
+        exportShape,
+        openCodeDatabaseSessionSourcePath(source.path, sessionId),
+        options.repoRoot
+      );
     } finally {
       db.close();
     }
   }
 };
+
+function openCodeDatabaseSessionSourcePath(databasePath: string, sessionId: string): string {
+  return `${databasePath}${DATABASE_SESSION_FRAGMENT}${encodeURIComponent(sessionId)}`;
+}
 
 export function normalizeOpenCodeExport(json: unknown, sourcePath: string, repoRoot?: string | null): NormalizedBundle | null {
   const root = asRecord(json);
